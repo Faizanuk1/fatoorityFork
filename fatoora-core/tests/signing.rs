@@ -573,3 +573,21 @@ fn signing_normalizes_qr_scalars_and_preserves_free_text() {
         }
     }
 }
+
+#[test]
+fn signing_rejects_output_that_exceeds_the_complete_document_limit() {
+    let (signer, _) = build_test_signer();
+    let mut input = common::dummy_finalized_invoice().to_xml().unwrap();
+    let target = 8 * 1024 * 1024 - 256;
+    let at = input.find("<cac:AccountingSupplierParty>").unwrap();
+    let comment = format!("<!--{}-->", "x".repeat(target - input.len() - 7));
+    input.insert_str(at, &comment);
+    assert_eq!(input.len(), target);
+    let error = signer.sign_xml(&input).unwrap_err();
+    assert!(error.to_string().contains("document byte limit"), "{error}");
+    assert!(
+        signer
+            .sign_xml(&common::dummy_finalized_invoice().to_xml().unwrap())
+            .is_ok()
+    );
+}
