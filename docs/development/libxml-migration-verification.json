@@ -640,7 +640,8 @@
     "offline_workspace": {
       "passed": 545,
       "failed": 0,
-      "ignored_live_api": 5
+      "ignored": 5,
+      "network_tests": "Six api_live tests returned early under SKIP_ZATCA_LIVE_API=1; they did not contact ZATCA"
     },
     "clippy": "workspace, all targets and features, locked, warnings denied: passed",
     "installed_sdk_verification": {
