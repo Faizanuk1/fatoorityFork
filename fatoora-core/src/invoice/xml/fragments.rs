@@ -112,6 +112,35 @@ fn owned<'a, 'input>(doc: &'a Document<'input>) -> Result<Owned<'a, 'input>, Str
                 return Err("incomplete or ambiguous owned signing structure".into());
             }
         }
+        let owned_signature = Element(Some(*signature));
+        let object = owned_signature.child(DS_NS, "Object");
+        let qualifying = object.child(XADES_NS, "QualifyingProperties");
+        let properties = qualifying.child(XADES_NS, "SignedProperties");
+        let signed_info = owned_signature.child(DS_NS, "SignedInfo");
+        let references: Vec<_> = signed_info.children(DS_NS, "Reference").collect();
+        if qualifying.attribute("Target").as_deref() != Some("signature")
+            || properties.attribute("Id").as_deref() != Some("xadesSignedProperties")
+            || properties
+                .child(XADES_NS, "SignedSignatureProperties")
+                .0
+                .is_none()
+            || references.len() != 2
+            || references
+                .iter()
+                .filter(|node| {
+                    node.attribute("Id").as_deref() == Some("invoiceSignedData")
+                        && node.attribute("URI").as_deref() == Some("")
+                })
+                .count()
+                != 1
+            || references
+                .iter()
+                .filter(|node| node.attribute("URI").as_deref() == Some("#xadesSignedProperties"))
+                .count()
+                != 1
+        {
+            return Err("unsupported owned signature references or properties".into());
+        }
         let info = signature
             .parent_element()
             .ok_or("missing SignatureInformation")?;
@@ -213,14 +242,11 @@ pub(crate) fn signing_time(xml: &str, certificate: &[u8]) -> Result<String, Stri
             .map_err(|_| "Invalid signing time")?;
         return Ok(parsed.format("%Y-%m-%dT%H:%M:%S").to_string());
     }
-    let date = invoice
-        .basic("IssueDate")
-        .content()
-        .ok_or("missing issue date")?;
-    let time = invoice
-        .basic("IssueTime")
-        .content()
-        .ok_or("missing issue time")?;
+    let root = doc.root_element();
+    let date =
+        nav::content(singleton(children(root, CBC_NS, "IssueDate"))?.ok_or("missing issue date")?);
+    let time =
+        nav::content(singleton(children(root, CBC_NS, "IssueTime"))?.ok_or("missing issue time")?);
     let date = chrono::NaiveDate::parse_from_str(date.trim(), "%Y-%m-%d")
         .map_err(|_| "invalid issue date")?;
     let time = chrono::NaiveTime::parse_from_str(time.trim(), "%H:%M:%S")
@@ -720,5 +746,122 @@ mod render_tests {
             )
             .is_err()
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn invoice(content: &str) -> String {
+        format!(
+            "<Invoice xmlns='{INVOICE_NS}' xmlns:cbc='{CBC_NS}' xmlns:cac='{CAC_NS}' xmlns:ext='{EXT_NS}'>{content}</Invoice>"
+        )
+    }
+    fn fragments() -> SigningFragments {
+        let properties =
+            super::super::canonicalize::properties_preimage(UBL_EXTENSIONS_TEMPLATE).unwrap();
+        render(
+            &properties,
+            "hash",
+            "signature",
+            "properties",
+            "certificate",
+            "qr",
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn source_batches_preserve_trivia_and_coalesce_missing_structures_in_ubl_order() {
+        let fragments = fragments();
+        for content in [
+            "",
+            "<!--leading--><?keep yes?>",
+            "<cbc:ID>123</cbc:ID><!--supplier--><cac:AccountingSupplierParty/>",
+            "<cac:AdditionalDocumentReference><cbc:ID>PIH</cbc:ID></cac:AdditionalDocumentReference>\r\n<!--keep--><?keep yes?><cac:AccountingSupplierParty/>",
+            "<ext:UBLExtensions/>\r\n<cbc:ID>123</cbc:ID>",
+            "<ext:UBLExtensions><!--keep--></ext:UBLExtensions><cbc:ID>123</cbc:ID>",
+        ] {
+            let input = invoice(content);
+            let output = apply_signature_fragments(&input, &fragments).unwrap();
+            let doc = lexical::document(&output).unwrap();
+            let owned = owned(&doc).unwrap();
+            assert!(owned.extension.is_some());
+            assert!(owned.qr.unwrap().range().start < owned.signature.unwrap().range().start);
+            for trivia in [
+                "<!--keep-->",
+                "<!--leading-->",
+                "<!--supplier-->",
+                "<?keep yes?>",
+                "\r\n",
+            ] {
+                if input.contains(trivia) {
+                    assert!(output.contains(trivia), "lost {trivia}");
+                }
+            }
+            assert_eq!(
+                apply_signature_fragments(&output, &fragments).unwrap(),
+                output
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_roots_and_ambiguous_or_misordered_owned_structures_are_rejected() {
+        let fragments = fragments();
+        for input in [
+            "<Invoice/>".to_owned(),
+            format!("<Invoice xmlns='{INVOICE_NS}'/>"),
+            invoice("<ext:UBLExtensions/><ext:UBLExtensions/>"),
+            invoice("<cac:Signature/><cac:Signature/>"),
+            invoice(
+                "<cac:Signature><cbc:ID>external</cbc:ID><cbc:SignatureMethod>external</cbc:SignatureMethod></cac:Signature>",
+            ),
+            invoice("<cac:AccountingSupplierParty/><cbc:ID>123</cbc:ID>"),
+            invoice(
+                "<cac:AdditionalDocumentReference><cbc:ID>QR</cbc:ID></cac:AdditionalDocumentReference>",
+            ),
+            invoice("<ds:Signature xmlns:ds='http://www.w3.org/2000/09/xmldsig#'/>"),
+        ] {
+            assert!(
+                apply_signature_fragments(&input, &fragments).is_err(),
+                "{input}"
+            );
+        }
+    }
+
+    #[test]
+    fn timestamp_fallback_requires_valid_direct_invoice_values() {
+        let valid = invoice(
+            "<cbc:IssueDate>2024-02-29</cbc:IssueDate><cbc:IssueTime>12:30:00</cbc:IssueTime><foreign xmlns='urn:other'><IssueDate>wrong</IssueDate></foreign>",
+        );
+        assert_eq!(signing_time(&valid, &[]).unwrap(), "2024-02-29T12:30:00");
+        for content in [
+            "",
+            "<cbc:IssueDate>2024-02-29</cbc:IssueDate>",
+            "<cbc:IssueDate>2024-02-29</cbc:IssueDate><cbc:IssueDate>2024-02-29</cbc:IssueDate><cbc:IssueTime>12:30:00</cbc:IssueTime>",
+            "<cbc:IssueDate>2024-02-30</cbc:IssueDate><cbc:IssueTime>12:30:00</cbc:IssueTime>",
+            "<cbc:IssueDate>2024-02-29</cbc:IssueDate><cbc:IssueTime>1:30</cbc:IssueTime>",
+        ] {
+            assert!(signing_time(&invoice(content), &[]).is_err(), "{content}");
+        }
+    }
+
+    #[test]
+    fn complete_owned_extension_requires_the_supported_parent_chain() {
+        let fragments = fragments();
+        let output = apply_signature_fragments(&invoice(""), &fragments).unwrap();
+        for (old, replacement) in [
+            ("sig:UBLDocumentSignatures", "sig:Other"),
+            ("Target=\"signature\"", "Target=\"external\""),
+            ("Id=\"xadesSignedProperties\"", "Id=\"external\""),
+            ("Id=\"invoiceSignedData\"", "Id=\"external\""),
+            ("URI=\"#xadesSignedProperties\"", "URI=\"#external\""),
+        ] {
+            let changed = output.replace(old, replacement);
+            assert_ne!(changed, output);
+            assert!(apply_signature_fragments(&changed, &fragments).is_err());
+        }
     }
 }
