@@ -64,8 +64,7 @@ signature and QR fields. These checks establish local integrity only. The
 [development guide](../development/business-rules.md) records stricter local
 integrity policies where the SDK accepts inconsistent QR or signature metadata.
 
-All 15 UBL schemas are embedded in the library and materialized privately during
-schema compilation. Installed packages do not need the source checkout. Local
+All 15 UBL schemas are embedded in the library and compiled in memory. Installed packages do not need the source checkout. Local
 validation uses the same profile in every configured API environment.
 
 See also: [Invoice Validation Reference](../reference/invoice-validation.md)

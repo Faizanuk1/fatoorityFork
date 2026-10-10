@@ -1,15 +1,16 @@
-//! Bundled UBL schemas, independent of the build machine's source checkout.
-//!
-//! libxml's safe schema API resolves imports from files. Extract the trusted,
-//! embedded resources into a private directory for compilation; the resulting
-//! schema owns its parsed resources and outlives the extracted files.
-use super::XmlValidationError;
-use libxml::{
-    parser::Parser,
-    schemas::{SchemaParserContext, SchemaValidationContext},
+//! In-memory UBL validation with a narrowly scoped decimal-capacity adapter.
+use super::{XmlValidationError, decimal_lexical};
+use crate::Diagnostic;
+use std::{cell::OnceCell, convert::Infallible};
+use xsd_schema::schema::model::DerivationSet;
+use xsd_schema::validation::{
+    ElementStartView, EndElementInfo, ErrorOnlySink, SchemaInfo, SchemaValidator, SchemaValidity,
+    TextKind, TypeSource, ValidationEventHandler, ValidationFlags, drive_quick_xml_with,
 };
-use std::path::Path;
-use tempfile::TempDir;
+use xsd_schema::{SchemaError, SchemaLoader, SchemaResult, SchemaSet, SchemaSetBuilder, TypeKey};
+
+const CCT: &str = "urn:un:unece:uncefact:data:specification:CoreComponentTypeSchemaModule:2";
+const DECIMAL_TYPES: [&str; 4] = ["AmountType", "MeasureType", "NumericType", "QuantityType"];
 
 macro_rules! resource {
     ($path:literal) => {
@@ -39,63 +40,205 @@ const RESOURCES: &[(&str, &[u8])] = &[
     resource!("common/UBL-xmldsig-core-schema-2.1.xsd"),
 ];
 
-pub(super) fn build_validation_context() -> Result<SchemaValidationContext, XmlValidationError> {
-    let resources = materialize()?;
-    compile(resources.path())
-}
+#[derive(Debug)]
+struct BundledLoader;
 
-fn materialize() -> Result<TempDir, XmlValidationError> {
-    let mut builder = tempfile::Builder::new();
-    builder.prefix("fatoora-schema-");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        // Set permissions during creation, before writing any resource files.
-        builder.permissions(std::fs::Permissions::from_mode(0o700));
+impl SchemaLoader for BundledLoader {
+    fn can_load(&self, location: &str) -> bool {
+        resource_at(location).is_some()
     }
-    let resources = builder
-        .tempdir()
-        .map_err(|error| setup_error("creating a private temporary directory", error))?;
-    for directory in ["common", "maindoc"] {
-        std::fs::create_dir(resources.path().join(directory))
-            .map_err(|error| setup_error("creating schema directories", error))?;
-    }
-    for (relative, bytes) in RESOURCES {
-        std::fs::write(resources.path().join(relative), bytes)
-            .map_err(|error| setup_error(&format!("writing {relative}"), error))?;
-    }
-    Ok(resources)
-}
 
-fn compile(directory: &Path) -> Result<SchemaValidationContext, XmlValidationError> {
-    let path = directory.join("maindoc/UBL-Invoice-2.1.xsd");
-    let path = path
-        .to_str()
-        .ok_or_else(|| XmlValidationError::InvalidXsdPath {
-            path: path.display().to_string(),
+    fn load(&self, location: &str) -> SchemaResult<String> {
+        let (name, bytes) = resource_at(location).ok_or_else(|| {
+            SchemaError::IoError(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "schema is not a bundled resource",
+            ))
         })?;
-    // SchemaParserContext bypasses the wrapper's one-time initialization.
-    // Initialize first: concurrent dictionary creation can deadlock libxml2
-    // 2.9.x when schema validation is the process's first XML operation.
-    let _ = Parser::default();
-    // Preserve the schema files byte-for-byte, including the trusted XMLDSig
-    // schema's internal DTD. Invoice input follows its separate parsing policy.
-    let mut parser = SchemaParserContext::from_file(path);
-    SchemaValidationContext::from_parser(&mut parser).map_err(|errors| {
-        XmlValidationError::SchemaParse {
-            errors: errors
-                .into_iter()
-                .map(crate::Diagnostic::from_xml)
-                .collect(),
+        let text = std::str::from_utf8(bytes).expect("embedded schemas are UTF-8");
+        if name == "common/CCTS_CCT_SchemaModule-2.1.xsd" {
+            // Only these four unbounded families are adapted. Original resource
+            // bytes remain unchanged; numeric syntax is checked after validation.
+            assert_eq!(
+                text.matches("base=\"xsd:decimal\"").count(),
+                DECIMAL_TYPES.len()
+            );
+            Ok(text.replace("base=\"xsd:decimal\"", "base=\"xsd:string\""))
+        } else {
+            Ok(text.to_owned())
         }
+    }
+}
+
+fn resource_at(location: &str) -> Option<(&'static str, &'static [u8])> {
+    let relative = std::path::Path::new(location)
+        .strip_prefix("/fatoora-ubl")
+        .ok()?;
+    RESOURCES
+        .iter()
+        .copied()
+        .find(|(name, _)| std::path::Path::new(name) == relative)
+}
+
+struct Adapter {
+    schema: SchemaSet,
+    decimals: Vec<TypeKey>,
+}
+
+impl Adapter {
+    fn compile() -> Result<Self, String> {
+        let schema = SchemaSetBuilder::with_loader(Box::new(BundledLoader))
+            .add("", "/fatoora-ubl/maindoc/UBL-Invoice-2.1.xsd")
+            .and_then(|builder| builder.compile())
+            .map_err(|error| error.to_string())?
+            .into_schema_set();
+        let ns = schema.name_table.get(CCT).ok_or("missing CCTS namespace")?;
+        let decimals = DECIMAL_TYPES
+            .iter()
+            .map(|name| {
+                let name = schema
+                    .name_table
+                    .get(name)
+                    .ok_or("missing CCTS type name")?;
+                schema
+                    .lookup_type(Some(ns), name)
+                    .ok_or("missing CCTS type")
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self { schema, decimals })
+    }
+
+    fn is_decimal(&self, ty: TypeKey) -> bool {
+        self.decimals.iter().any(|base| {
+            self.schema
+                .is_type_derived_from(ty, *base, DerivationSet::empty())
+        })
+    }
+
+    fn validate(&self, xml: &str) -> Result<(), XmlValidationError> {
+        let validator = SchemaValidator::new(
+            &self.schema,
+            ValidationFlags::default() | ValidationFlags::PROCESS_IDENTITY_CONSTRAINTS,
+        );
+        let mut errors = Vec::new();
+        let mut handler = DecimalGuard {
+            adapter: self,
+            frames: Vec::new(),
+            errors: Vec::new(),
+        };
+        let mut runtime = validator.start_run(ErrorOnlySink {
+            errors: &mut errors,
+        });
+        let outcome =
+            drive_quick_xml_with(xml.as_bytes(), &mut runtime, &self.schema, &mut handler)
+                .map_err(|error| XmlValidationError::XmlParse {
+                    message: format!("{error:?}"),
+                })?;
+        let completion = runtime.end_validation();
+        drop(runtime);
+        let mut diagnostics: Vec<_> = errors.into_iter().map(Diagnostic::from_schema).collect();
+        if let Err(error) = completion {
+            diagnostics.push(Diagnostic::from_schema(error));
+        }
+        diagnostics.extend(handler.errors);
+        if diagnostics.is_empty() && outcome.root_validity == Some(SchemaValidity::Valid) {
+            Ok(())
+        } else {
+            if diagnostics.is_empty() {
+                diagnostics.push(Diagnostic::new("document has no valid UBL root"));
+            }
+            Err(XmlValidationError::SchemaValidation {
+                errors: diagnostics,
+            })
+        }
+    }
+}
+
+// NameTable uses interior mutability: cache compiled schemas per thread, while
+// every document gets a fresh runtime and guard (IDs and errors cannot leak).
+thread_local! {
+    static ADAPTER: OnceCell<Result<Adapter, String>> = const { OnceCell::new() };
+}
+
+pub(super) fn validate(xml: &str) -> Result<(), XmlValidationError> {
+    roxmltree::Document::parse(xml).map_err(|error| XmlValidationError::XmlParse {
+        message: error.to_string(),
+    })?;
+    ADAPTER.with(|cache| match cache.get_or_init(Adapter::compile) {
+        Ok(adapter) => adapter.validate(xml),
+        Err(message) => Err(XmlValidationError::SchemaParse {
+            errors: vec![Diagnostic::new(message.clone())],
+        }),
     })
 }
 
-fn setup_error(operation: &str, error: std::io::Error) -> XmlValidationError {
-    XmlValidationError::SchemaParse {
-        errors: vec![crate::Diagnostic::new(format!(
-            "bundled XSD resource setup failed while {operation}: {error}"
-        ))],
+struct Frame {
+    name: String,
+    decimal: bool,
+    text: String,
+}
+
+struct DecimalGuard<'a> {
+    adapter: &'a Adapter,
+    frames: Vec<Frame>,
+    errors: Vec<Diagnostic>,
+}
+
+impl ValidationEventHandler for DecimalGuard<'_> {
+    type Error = Infallible;
+
+    fn after_element(
+        &mut self,
+        view: ElementStartView<'_>,
+        info: &SchemaInfo,
+    ) -> Result<(), Infallible> {
+        self.frames.push(Frame {
+            name: format!("{{{}}}{}", view.namespace_uri, view.local_name),
+            decimal: false,
+            text: String::new(),
+        });
+        let decimal = info
+            .schema_type
+            .is_some_and(|ty| self.adapter.is_decimal(ty));
+        self.frames.last_mut().expect("element frame").decimal = decimal && !info.is_nil;
+        if decimal && info.type_source == Some(TypeSource::XsiType) {
+            let schema = &self.adapter.schema;
+            if let Some(declared) = info
+                .element_decl
+                .and_then(|key| schema.arenas.get_element(key))
+                .and_then(|decl| decl.resolved_type)
+            {
+                // Replacing the decimal base must not introduce legal overrides
+                // for elements originally declared as strings.
+                if !self.adapter.is_decimal(declared)
+                    && !schema.is_any_type(declared)
+                    && declared != TypeKey::Simple(schema.builtin_types().any_simple_type)
+                {
+                    self.errors.push(Diagnostic::new(
+                        "xsi:type is not derived from the original declared type",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn on_text(&mut self, _: TextKind, text: &str) -> Result<(), Infallible> {
+        if let Some(frame) = self.frames.last_mut().filter(|frame| frame.decimal) {
+            frame.text.push_str(text);
+        }
+        Ok(())
+    }
+
+    fn after_end_element(&mut self, _: &EndElementInfo, _: usize) -> Result<(), Infallible> {
+        let frame = self.frames.pop().expect("element frame");
+        if frame.decimal && !decimal_lexical::valid(&frame.text) {
+            self.errors.push(Diagnostic::new(format!(
+                "{}: invalid xs:decimal lexical value",
+                frame.name
+            )));
+        }
+        Ok(())
     }
 }
 

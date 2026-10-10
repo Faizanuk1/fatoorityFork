@@ -44,6 +44,19 @@ impl Diagnostic {
         self.severity
     }
 
+    pub(crate) fn from_schema(error: xsd_schema::validation::ValidationError) -> Self {
+        let mut diagnostic = Self::new(error.to_string());
+        diagnostic.severity = Some(DiagnosticSeverity::Error);
+        if let Some(location) = error.location {
+            diagnostic.file = (!location.base_uri.is_empty()).then_some(location.base_uri);
+            diagnostic.line = u32::try_from(location.line).ok().filter(|line| *line > 0);
+            diagnostic.column = u32::try_from(location.column)
+                .ok()
+                .filter(|column| *column > 0);
+        }
+        diagnostic
+    }
+
     pub(crate) fn from_properties(error: java_properties::PropertiesError) -> Self {
         Self {
             line: error
@@ -51,27 +64,6 @@ impl Diagnostic {
                 .and_then(|line| u32::try_from(line).ok())
                 .filter(|line| *line > 0),
             ..Self::new(error.to_string())
-        }
-    }
-
-    pub(crate) fn from_xml(error: libxml::error::StructuredError) -> Self {
-        Self {
-            message: error.message.unwrap_or_else(|| "XML error".into()),
-            file: error.filename,
-            severity: match error.level {
-                libxml::error::XmlErrorLevel::None => None,
-                libxml::error::XmlErrorLevel::Warning => Some(DiagnosticSeverity::Warning),
-                libxml::error::XmlErrorLevel::Error => Some(DiagnosticSeverity::Error),
-                libxml::error::XmlErrorLevel::Fatal => Some(DiagnosticSeverity::Fatal),
-            },
-            line: error
-                .line
-                .and_then(|n| u32::try_from(n).ok())
-                .filter(|n| *n > 0),
-            column: error
-                .col
-                .and_then(|n| u32::try_from(n).ok())
-                .filter(|n| *n > 0),
         }
     }
 }

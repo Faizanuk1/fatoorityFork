@@ -2,6 +2,7 @@
 //!
 //! XSD checks do not run builder field checks, business rules, or signature
 //! verification. Parsing a signed invoice does not verify its signature.
+mod decimal_lexical;
 mod integrity;
 mod integrity_xml;
 #[cfg(test)]
@@ -19,10 +20,6 @@ pub use zatca_report::{
 };
 mod business_rules;
 use crate::config::Config;
-use libxml::{
-    parser::{Parser, ParserOptions},
-    schemas::SchemaValidationContext,
-};
 pub use report::{
     Severity, ValidationFinding, ValidationLayer, ValidationLocation, ValidationReport,
 };
@@ -56,12 +53,6 @@ impl XmlValidationError {
     }
 }
 
-fn build_validation_context(
-    _config: &Config,
-) -> Result<SchemaValidationContext, XmlValidationError> {
-    schemas::build_validation_context()
-}
-
 /// Validate an XML invoice string against the UBL schema only.
 ///
 /// Success establishes XSD conformance, not business-rule compliance or signature
@@ -70,27 +61,8 @@ fn build_validation_context(
 /// # Errors
 /// Returns [`XmlValidationError`] if the XML is invalid or validation fails.
 pub fn validate_xml_invoice_from_str(xml: &str, config: &Config) -> ValidationResult {
-    let mut validation_ctx = build_validation_context(config)?;
-    let document = Parser::default()
-        .parse_string_with_options(
-            xml,
-            ParserOptions {
-                recover: false,
-                ..ParserOptions::default()
-            },
-        )
-        .map_err(|e| XmlValidationError::XmlParse {
-            message: format!("{e:?}"),
-        })?;
-
-    validation_ctx
-        .validate_document(&document)
-        .map_err(|errors| XmlValidationError::SchemaValidation {
-            errors: errors
-                .into_iter()
-                .map(crate::Diagnostic::from_xml)
-                .collect(),
-        })
+    let _ = config;
+    schemas::validate(xml)
 }
 
 /// Check the bundled UBL XSD and return findings with explicit layer coverage.

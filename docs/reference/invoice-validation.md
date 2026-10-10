@@ -152,4 +152,4 @@ signature, and bind QR fields to the invoice and certificate. They establish no
 issuer trust, certificate revocation status, or remote acceptance. The
 [development guide](../development/business-rules.md) lists resource limits and
 intentional differences from the SDK's integrity checks. Runtime needs no Java,
-SDK files or network access; schema compilation uses a private temporary directory.
+SDK files or network access; schema compilation uses only embedded resources in memory.
