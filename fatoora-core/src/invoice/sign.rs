@@ -864,7 +864,6 @@ fn set_qr_code(doc: &mut Document, qr_code: &str) -> Result<(), SigningError> {
 
     if refs.is_empty() {
         let mut node = import_fragment(doc, QR_REFERENCE_TEMPLATE)?;
-        let mut inserted = false;
         let mut references = ctx
             .evaluate("//cac:AdditionalDocumentReference")
             .map_err(|e| {
@@ -877,9 +876,13 @@ fn set_qr_code(doc: &mut Document, qr_code: &str) -> Result<(), SigningError> {
             last_ref
                 .add_next_sibling(&mut node)
                 .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
-            inserted = true;
-        }
-        if !inserted {
+        } else if let Some(mut next) = first_matching_node(
+            &ctx,
+            "/ubl:Invoice/cac:Signature | /ubl:Invoice/cac:AccountingSupplierParty",
+        )? {
+            next.add_prev_sibling(&mut node)
+                .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
+        } else {
             let mut root = doc
                 .get_root_element()
                 .ok_or_else(|| SigningError::Xml(crate::Diagnostic::new("missing Invoice root")))?;
@@ -1099,6 +1102,85 @@ mod tests {
     }
 
     #[test]
+    fn signature_structure_handles_empty_and_text_only_roots() {
+        for content in ["", "  <!-- preserved -->  "] {
+            let xml = format!("<Invoice>{content}</Invoice>");
+            let mut doc = Parser::default().parse_string(xml).unwrap();
+            ensure_signature_structure(&mut doc).unwrap();
+            let once = doc.to_string();
+            ensure_signature_structure(&mut doc).unwrap();
+            assert_eq!(doc.to_string(), once);
+            let names: Vec<_> = doc
+                .get_root_element()
+                .unwrap()
+                .get_child_elements()
+                .iter()
+                .map(Node::get_name)
+                .collect();
+            assert_eq!(names, ["UBLExtensions", "Signature"]);
+            assert!(once.contains(content));
+        }
+    }
+
+    #[test]
+    fn qr_without_references_precedes_signature_or_supplier() {
+        for keep_signature in [true, false] {
+            let mut doc = load_sample_doc();
+            let ctx = xpath::Context::new(&doc).unwrap();
+            register_namespaces(&ctx).unwrap();
+            remove_nodes(&ctx, "//cac:AdditionalDocumentReference");
+            if !keep_signature {
+                remove_nodes(&ctx, "//cac:Signature");
+            }
+            set_qr_code(&mut doc, "FIRST").unwrap();
+            set_qr_code(&mut doc, "SECOND").unwrap();
+            let root = doc.get_root_element().unwrap();
+            let names: Vec<_> = root
+                .get_child_elements()
+                .iter()
+                .map(Node::get_name)
+                .collect();
+            let qr = names
+                .iter()
+                .position(|name| name == "AdditionalDocumentReference")
+                .unwrap();
+            let next = if keep_signature {
+                "Signature"
+            } else {
+                "AccountingSupplierParty"
+            };
+            assert_eq!(names.get(qr + 1).map(String::as_str), Some(next));
+            assert_eq!(
+                select_nodes(&ctx, "//cac:AdditionalDocumentReference").len(),
+                1
+            );
+            assert_eq!(
+                xml_text(
+                    &ctx,
+                    "//cac:AdditionalDocumentReference/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+                    "QR"
+                ),
+                "SECOND"
+            );
+        }
+    }
+
+    #[test]
+    fn qr_structure_handles_empty_root() {
+        let mut doc = Parser::default().parse_string("<Invoice/>").unwrap();
+        set_qr_code(&mut doc, "FIRST").unwrap();
+        set_qr_code(&mut doc, "SECOND").unwrap();
+        let root = doc.get_root_element().unwrap();
+        assert_eq!(root.get_child_elements().len(), 1);
+        let ctx = xpath::Context::new(&doc).unwrap();
+        register_namespaces(&ctx).unwrap();
+        assert_eq!(
+            xml_text(&ctx, "//cbc:EmbeddedDocumentBinaryObject", "QR"),
+            "SECOND"
+        );
+    }
+
+    #[test]
     fn apply_signed_properties_values_updates_expected_nodes() {
         let mut doc = load_sample_doc();
         let signing_time = "2024-02-02T10:30:00".to_string();
@@ -1160,6 +1242,27 @@ mod tests {
 
         let actual = signing_time_from_doc(&doc).expect("signing time");
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn signing_time_rejects_invalid_or_empty_source_values() {
+        for (path, value, message) in [
+            ("//xades:SigningTime", "not-a-date", "Invalid signing time"),
+            ("//cbc:IssueDate", "2024-02-30", "Invalid issue date"),
+            ("//cbc:IssueTime", "25:00:00", "Invalid issue time"),
+            ("//cbc:IssueTime", "  ", "Empty issue time"),
+        ] {
+            let doc = load_sample_doc();
+            let ctx = xpath::Context::new(&doc).unwrap();
+            register_namespaces(&ctx).unwrap();
+            if path != "//xades:SigningTime" {
+                remove_nodes(&ctx, "//xades:SigningTime");
+            }
+            set_xpath_text(&ctx, path, value).unwrap();
+            let error = signing_time_from_doc(&doc).unwrap_err();
+            assert!(matches!(error, SigningError::InvalidInput(_)));
+            assert!(error.to_string().contains(message), "{error}");
+        }
     }
 
     #[test]
