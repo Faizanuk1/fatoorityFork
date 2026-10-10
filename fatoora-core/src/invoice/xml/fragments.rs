@@ -228,12 +228,14 @@ pub(crate) fn signing_time(xml: &str, certificate: &[u8]) -> Result<String, Stri
     Ok(date.and_time(time).format("%Y-%m-%dT%H:%M:%S").to_string())
 }
 
-/// Render scalar text with quick-xml's escaping rules.
+/// Render text with SDK preimage escaping, preserving quotes and apostrophes.
 pub(crate) fn text(value: &str) -> String {
     let mut writer = quick_xml::Writer::new(Vec::new());
     writer
         .write_event(quick_xml::events::Event::Text(
-            quick_xml::events::BytesText::from_escaped(quick_xml::escape::minimal_escape(value)),
+            quick_xml::events::BytesText::from_escaped(
+                quick_xml::escape::minimal_escape(value).replace('>', "&gt;"),
+            ),
         ))
         .expect("Vec writer");
     String::from_utf8(writer.into_inner()).expect("UTF-8 XML text")

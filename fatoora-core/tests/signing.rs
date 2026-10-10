@@ -439,13 +439,22 @@ fn renewal_using_the_same_key_requires_a_separate_unsigned_invoice() {
 fn certificate_issuer_text_is_escaped_without_changing_its_preimage() {
     let (_, key_der, _) = build_test_signing_material();
     let key = K256SigningKey::from_pkcs8_der(&key_der).unwrap();
-    let certificate = build_test_cert_named(&key, 3, "CN=Test & O'Brien,O=Fatoora,C=SA");
-    let signer = InvoiceSigner::from_der(&certificate, &key_der).unwrap();
-    let signed = signer
-        .sign_xml(&common::dummy_finalized_invoice().to_xml().unwrap())
-        .unwrap();
-    assert!(signed.contains("Test &amp; O'Brien"));
-    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+    for name in [
+        "CN=Test & O'Brien,O=Fatoora,C=SA",
+        r"CN=Test \> \< & O'Brien,O=Fatoora,C=SA",
+    ] {
+        let certificate = build_test_cert_named(&key, 3, name);
+        let signer = InvoiceSigner::from_der(&certificate, &key_der).unwrap();
+        let signed = signer
+            .sign_xml(&common::dummy_finalized_invoice().to_xml().unwrap())
+            .unwrap();
+        assert!(signed.contains("&amp; O'Brien"));
+        if name.contains('>') {
+            assert!(signed.contains("&gt;"));
+            assert!(signed.contains("&lt;"));
+        }
+        assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+    }
 }
 
 #[test]
