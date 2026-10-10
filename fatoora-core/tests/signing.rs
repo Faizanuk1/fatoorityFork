@@ -339,6 +339,9 @@ fn repeated_signing_preserves_bytes_and_unrelated_extension_trivia() {
     let signed = signer.sign_xml(&input).unwrap();
     assert!(signed.contains(trivia));
     assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+    let hash_target = signed.replace("Target=\"signature\"", "Target=\"#signature\"");
+    assert_ne!(hash_target, signed);
+    assert_eq!(signer.sign_xml(&hash_target).unwrap(), signed);
     assert_eq!(
         fatoora_core::invoice::sign::invoice_hash_base64_from_xml_str(&signed).unwrap(),
         fatoora_core::invoice::sign::invoice_hash_base64_from_xml_str(&input).unwrap()

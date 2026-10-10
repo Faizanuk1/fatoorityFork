@@ -118,8 +118,10 @@ fn owned<'a, 'input>(doc: &'a Document<'input>) -> Result<Owned<'a, 'input>, Str
         let properties = qualifying.child(XADES_NS, "SignedProperties");
         let signed_info = owned_signature.child(DS_NS, "SignedInfo");
         let references: Vec<_> = signed_info.children(DS_NS, "Reference").collect();
-        if qualifying.attribute("Target").as_deref() != Some("signature")
-            || properties.attribute("Id").as_deref() != Some("xadesSignedProperties")
+        if !matches!(
+            qualifying.attribute("Target").as_deref(),
+            Some("signature" | "#signature")
+        ) || properties.attribute("Id").as_deref() != Some("xadesSignedProperties")
             || properties
                 .child(XADES_NS, "SignedSignatureProperties")
                 .0
