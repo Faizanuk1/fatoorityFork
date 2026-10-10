@@ -366,3 +366,142 @@ fn bundled_schema_paths_ignore_host_drive_and_separator_spelling() {
         assert!(BundledLoader.load(location).is_err(), "{location}");
     }
 }
+
+#[test]
+fn decimal_overrides_preserve_declared_type_and_attribute_constraints() {
+    let xsi = "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"";
+    let huge = "9".repeat(100);
+    let same_type = format!("{xsi} currencyID=\"SAR\" xsi:type=\"cbc:PayableAmountType\"");
+    validate(&field("PayableAmount", &same_type, &huge)).unwrap();
+    for (name, attributes) in [
+        (
+            "PayableAmount",
+            format!(
+                "{xsi} xmlns:xs=\"http://www.w3.org/2001/XMLSchema\" currencyID=\"SAR\" xsi:type=\"xs:string\""
+            ),
+        ),
+        (
+            "PayableAmount",
+            format!("{xsi} xmlns:cct=\"{CCT}\" currencyID=\"SAR\" xsi:type=\"cct:QuantityType\""),
+        ),
+        (
+            "ID",
+            format!("{xsi} xmlns:cct=\"{CCT}\" xsi:type=\"cct:QuantityType\""),
+        ),
+        ("PayableAmount", "cbc:currencyID=\"SAR\"".into()),
+    ] {
+        assert!(
+            matches!(
+                validate(&field(name, &attributes, &huge)),
+                Err(XmlValidationError::SchemaValidation { .. })
+            ),
+            "{name}: {attributes}"
+        );
+    }
+}
+
+#[test]
+fn decimal_shim_does_not_widen_unrelated_numeric_restrictions() {
+    let object = |ty: &str, value: &str| {
+        format!(
+            "<ds:Object xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><probe xmlns=\"urn:probe\" xsi:type=\"xs:{ty}\">{value}</probe></ds:Object>"
+        )
+    };
+    for (ty, valid, invalid) in [
+        ("unsignedByte", "255", "256"),
+        ("unsignedByte", "0", "-1"),
+        ("positiveInteger", "1", "0"),
+        ("integer", "123", "1.5"),
+        ("decimal", "1.5", "1e2"),
+    ] {
+        validate(&object(ty, valid)).unwrap();
+        assert!(
+            matches!(
+                validate(&object(ty, invalid)),
+                Err(XmlValidationError::SchemaValidation { .. })
+            ),
+            "{ty}: {invalid}"
+        );
+    }
+}
+
+#[test]
+fn decimal_shim_preserves_invoice_order_cardinality_and_namespaces() {
+    validate(INVOICE).unwrap();
+    let document = roxmltree::Document::parse(INVOICE).unwrap();
+    let range = |name: &str| {
+        document
+            .root_element()
+            .children()
+            .find(|node| node.has_tag_name((CBC, name)))
+            .unwrap()
+            .range()
+    };
+    let issue_date = range("IssueDate");
+    let id = range("ID");
+    let uuid = range("UUID");
+    let mut reordered = INVOICE.to_owned();
+    reordered.replace_range(uuid.clone(), &INVOICE[id.clone()]);
+    reordered.replace_range(id.clone(), &INVOICE[uuid]);
+    let replace = |range: std::ops::Range<usize>, replacement: &str| {
+        let mut xml = INVOICE.to_owned();
+        xml.replace_range(range, replacement);
+        xml
+    };
+    for xml in [
+        replace(issue_date.clone(), ""),
+        replace(issue_date.clone(), &INVOICE[issue_date.clone()].repeat(2)),
+        replace(
+            id,
+            "<wrong:ID xmlns:wrong=\"urn:wrong\">SME00010</wrong:ID>",
+        ),
+        reordered,
+        INVOICE.replace(
+            "currencyID=\"SAR\">231.15</cbc:PayableAmount>",
+            ">231.15</cbc:PayableAmount>",
+        ),
+    ] {
+        assert_ne!(xml, INVOICE);
+        assert!(matches!(
+            validate(&xml),
+            Err(XmlValidationError::SchemaValidation { .. })
+        ));
+    }
+    // Prefix spelling may change while expanded names stay the same.
+    validate(
+        &INVOICE
+            .replace("xmlns:cbc=", "xmlns:basic=")
+            .replace("cbc:", "basic:"),
+    )
+    .unwrap();
+}
+
+#[test]
+fn decimal_shim_preserves_extension_wildcard_boundaries() {
+    const EXT: &str = "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2";
+    let content = |child: &str| {
+        format!("<ext:ExtensionContent xmlns:ext=\"{EXT}\">{child}</ext:ExtensionContent>")
+    };
+    validate(&content("<probe xmlns=\"urn:probe\"/>")).unwrap();
+    validate(&content(&field(
+        "PayableAmount",
+        "currencyID=\"SAR\"",
+        &"9".repeat(100),
+    )))
+    .unwrap();
+    for child in [
+        "".to_owned(),
+        "<probe xmlns=\"urn:probe\"/><second xmlns=\"urn:probe\"/>".into(),
+        "<ext:Unknown/>".into(),
+        field("PayableAmount", "currencyID=\"SAR\"", "1e100"),
+        field("PayableAmount", "", "123"),
+    ] {
+        assert!(
+            matches!(
+                validate(&content(&child)),
+                Err(XmlValidationError::SchemaValidation { .. })
+            ),
+            "{child}"
+        );
+    }
+}
