@@ -539,9 +539,9 @@ fn qr_for_profile(xml: &Xml<'_>, verified: &Verified, profile: QrProfile) -> Che
     };
     // Signing uses XML scalar normalization from QR construction. Free-text
     // seller names and the public SDK comparison retain their original bytes.
-    let scalar = |value: String| match profile {
+    let scalar = |field: crate::invoice::qr::QrField, value: String| match profile {
         QrProfile::Sdk => value,
-        QrProfile::Signing => value.trim().to_owned(),
+        QrProfile::Signing => field.normalize(&value).to_owned(),
     };
     let encoded = xml.text(&xml.document_reference("QR"))?;
     let tags = qr_tags(&decode(&encoded, 4096, "QR_BASE64")?)?;
@@ -560,6 +560,7 @@ fn qr_for_profile(xml: &Xml<'_>, verified: &Verified, profile: QrProfile) -> Che
         (
             2,
             scalar(
+                crate::invoice::qr::QrField::SellerVat,
                 xml.text(
                     &xml.root()
                         .children(CAC, "AccountingSupplierParty")
@@ -576,6 +577,7 @@ fn qr_for_profile(xml: &Xml<'_>, verified: &Verified, profile: QrProfile) -> Che
         (
             4,
             scalar(
+                crate::invoice::qr::QrField::TotalWithVat,
                 xml.text(
                     &xml.root()
                         .children(CAC, "LegalMonetaryTotal")
@@ -601,8 +603,14 @@ fn qr_for_profile(xml: &Xml<'_>, verified: &Verified, profile: QrProfile) -> Che
         .map_err(|_| bad("QR_TIMESTAMP", "QR timestamp is not UTF-8"))?;
     let expected_time = format!(
         "{}T{}",
-        scalar(xml.text(&xml.root().children(CBC, "IssueDate"))?),
-        scalar(xml.text(&xml.root().children(CBC, "IssueTime"))?)
+        scalar(
+            crate::invoice::qr::QrField::IssueDate,
+            xml.text(&xml.root().children(CBC, "IssueDate"))?
+        ),
+        scalar(
+            crate::invoice::qr::QrField::IssueTime,
+            xml.text(&xml.root().children(CBC, "IssueTime"))?
+        )
     );
     // SDK-QR-002: the SDK ignores malformed suffixes. Require a complete
     // timestamp and compare instants; absent offsets mean UTC in this profile.

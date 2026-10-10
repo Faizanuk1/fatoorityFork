@@ -478,78 +478,98 @@ fn signing_preserves_unrelated_extensions_and_empty_wrapper_namespace_aliases() 
 fn signing_normalizes_qr_scalars_and_preserves_free_text() {
     let (signer, _) = build_test_signer();
     let input = common::dummy_finalized_invoice().to_xml().unwrap();
-    let doc = roxmltree::Document::parse(&input).unwrap();
-    let fields = [
-        "CompanyID",
-        "IssueDate",
-        "IssueTime",
-        "TaxInclusiveAmount",
-        "TaxAmount",
-        "RegistrationName",
-    ];
-    let ranges: Vec<_> = doc
-        .descendants()
-        .filter(|n| {
-            n.is_element()
-                && n.tag_name().namespace()
-                    == Some("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2")
-                && fields.contains(&n.tag_name().name())
-        })
-        .map(|n| n.range())
-        .collect();
-    let mut padded = input.clone();
-    for range in ranges.into_iter().rev() {
-        let element = &input[range.clone()];
-        let start = range.start + element.find('>').unwrap() + 1;
-        let end = range.start + element.rfind('<').unwrap();
-        padded.insert(end, ' ');
-        padded.insert(start, ' ');
-    }
-    let signed = signer.sign_xml(&padded).unwrap();
-    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
-    assert!(signed.contains("<cbc:RegistrationName> Acme Inc </cbc:RegistrationName>"));
-    assert!(signed.contains("> 115.00 </cbc:TaxInclusiveAmount>"));
-    let doc = roxmltree::Document::parse(&signed).unwrap();
-    let qr = doc
-        .descendants()
-        .find(|n| {
-            n.has_tag_name((
-                "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-                "AdditionalDocumentReference",
-            )) && n.children().any(|c| {
-                c.has_tag_name((
-                    "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-                    "ID",
-                )) && c.text() == Some("QR")
+    for encoding in 0..3 {
+        let doc = roxmltree::Document::parse(&input).unwrap();
+        let fields = [
+            "CompanyID",
+            "IssueDate",
+            "IssueTime",
+            "TaxInclusiveAmount",
+            "TaxAmount",
+            "RegistrationName",
+        ];
+        let ranges: Vec<_> = doc
+            .descendants()
+            .filter(|n| {
+                n.is_element()
+                    && n.tag_name().namespace()
+                        == Some(
+                            "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                        )
+                    && fields.contains(&n.tag_name().name())
             })
-        })
-        .unwrap();
-    let encoded = qr
-        .descendants()
-        .find(|n| {
-            n.has_tag_name((
-                "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-                "EmbeddedDocumentBinaryObject",
-            ))
-        })
-        .unwrap()
-        .text()
-        .unwrap();
-    let bytes = Base64::decode_vec(encoded).unwrap();
-    let mut tags = std::collections::BTreeMap::new();
-    let mut cursor = bytes.as_slice();
-    while !cursor.is_empty() {
-        let (tag, len) = (cursor[0], usize::from(cursor[1]));
-        tags.insert(tag, cursor[2..2 + len].to_vec());
-        cursor = &cursor[2 + len..];
-    }
-    for (tag, expected) in [
-        (1, " Acme Inc "),
-        (2, "399999999900003"),
-        (3, "2024-01-01T12:30:00"),
-        (4, "115.00"),
-        (5, "15.00"),
-    ] {
-        assert_eq!(tags[&tag], expected.as_bytes(), "QR tag {tag}");
+            .map(|n| n.range())
+            .collect();
+        let mut padded = input.clone();
+        for range in ranges.into_iter().rev() {
+            let element = &input[range.clone()];
+            let start = range.start + element.find('>').unwrap() + 1;
+            let end = range.start + element.rfind('<').unwrap();
+            let content = &input[start..end];
+            let encoded = match encoding {
+                0 => format!(" {content} "),
+                1 => format!("<![CDATA[ {content} ]]>"),
+                _ => format!("&#32;{content}&#32;"),
+            };
+            padded.replace_range(start..end, &encoded);
+        }
+        let signed = signer.sign_xml(&padded).unwrap();
+        assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+        let source = roxmltree::Document::parse(&padded).unwrap();
+        for field in ["RegistrationName", "TaxInclusiveAmount"] {
+            let node = source
+                .descendants()
+                .find(|n| {
+                    n.has_tag_name((
+                        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                        field,
+                    ))
+                })
+                .unwrap();
+            assert!(signed.contains(&padded[node.range()]));
+        }
+        let doc = roxmltree::Document::parse(&signed).unwrap();
+        let qr = doc
+            .descendants()
+            .find(|n| {
+                n.has_tag_name((
+                    "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+                    "AdditionalDocumentReference",
+                )) && n.children().any(|c| {
+                    c.has_tag_name((
+                        "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                        "ID",
+                    )) && c.text() == Some("QR")
+                })
+            })
+            .unwrap();
+        let encoded = qr
+            .descendants()
+            .find(|n| {
+                n.has_tag_name((
+                    "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                    "EmbeddedDocumentBinaryObject",
+                ))
+            })
+            .unwrap()
+            .text()
+            .unwrap();
+        let bytes = Base64::decode_vec(encoded).unwrap();
+        let mut tags = std::collections::BTreeMap::new();
+        let mut cursor = bytes.as_slice();
+        while !cursor.is_empty() {
+            let (tag, len) = (cursor[0], usize::from(cursor[1]));
+            tags.insert(tag, cursor[2..2 + len].to_vec());
+            cursor = &cursor[2 + len..];
+        }
+        for (tag, expected) in [
+            (1, " Acme Inc "),
+            (2, "399999999900003"),
+            (3, "2024-01-01T12:30:00"),
+            (4, "115.00"),
+            (5, "15.00"),
+        ] {
+            assert_eq!(tags[&tag], expected.as_bytes(), "QR tag {tag}");
+        }
     }
 }

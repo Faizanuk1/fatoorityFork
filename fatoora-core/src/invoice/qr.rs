@@ -67,6 +67,29 @@ pub struct QrPayload {
     zatca_key_signature: Option<String>,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) enum QrField {
+    SellerName,
+    SellerVat,
+    IssueDate,
+    IssueTime,
+    TotalWithVat,
+    TotalVat,
+}
+
+impl QrField {
+    pub(crate) fn normalize(self, value: &str) -> &str {
+        match self {
+            Self::SellerName => value,
+            Self::SellerVat
+            | Self::IssueDate
+            | Self::IssueTime
+            | Self::TotalWithVat
+            | Self::TotalVat => value.trim(),
+        }
+    }
+}
+
 impl QrPayload {
     pub(crate) fn from_invoice(
         invoice: &InvoiceData,
@@ -99,36 +122,48 @@ impl QrPayload {
         let doc = lexical::document(xml).map_err(|e| QrCodeError::Xml(e.to_string()))?;
         let invoice = Element::invoice(&doc);
         let seller = nav::seller_party(invoice);
-        let seller_name = required_content(
+        let seller_name = required_value(
             seller
                 .aggregate("PartyLegalEntity")
                 .basic("RegistrationName")
                 .content(),
             "seller name",
+            QrField::SellerName,
         )?;
-        let seller_vat = required_text(
+        let seller_vat = required_value(
             seller
                 .aggregate("PartyTaxScheme")
                 .basic("CompanyID")
                 .content(),
             "seller VAT",
+            QrField::SellerVat,
         )?;
-        let issue_date = required_text(invoice.basic("IssueDate").content(), "issue date")?;
-        let issue_time = required_text(invoice.basic("IssueTime").content(), "issue time")?;
-        let total_with_vat = required_text(
+        let issue_date = required_value(
+            invoice.basic("IssueDate").content(),
+            "issue date",
+            QrField::IssueDate,
+        )?;
+        let issue_time = required_value(
+            invoice.basic("IssueTime").content(),
+            "issue time",
+            QrField::IssueTime,
+        )?;
+        let total_with_vat = required_value(
             invoice
                 .aggregate("LegalMonetaryTotal")
                 .basic("TaxInclusiveAmount")
                 .content(),
             "total with VAT",
+            QrField::TotalWithVat,
         )?;
-        let total_vat = required_text(
+        let total_vat = required_value(
             nav::tax_totals(invoice)
                 .next()
                 .unwrap_or(Element(None))
                 .basic("TaxAmount")
                 .content(),
             "total VAT",
+            QrField::TotalVat,
         )?;
 
         Ok(Self {
@@ -225,19 +260,13 @@ impl TlvBuilder {
     }
 }
 
-fn required_content(value: Option<String>, label: &str) -> QrResult<String> {
-    value
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| QrCodeError::Xml(format!("Missing {label} in invoice XML")))
-}
-
-fn required_text(value: Option<String>, label: &str) -> QrResult<String> {
+fn required_value(value: Option<String>, label: &str, field: QrField) -> QrResult<String> {
     let value = value.ok_or_else(|| QrCodeError::Xml(format!("Missing {label} in invoice XML")))?;
-    let value = value.trim().to_owned();
-    if value.is_empty() {
+    let value = field.normalize(&value);
+    if value.trim().is_empty() {
         return Err(QrCodeError::Xml(format!("Empty {label} in invoice XML")));
     }
-    Ok(value)
+    Ok(value.to_owned())
 }
 
 #[cfg(test)]
