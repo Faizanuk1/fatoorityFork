@@ -43,7 +43,6 @@ ecdsa = { version = "0.17.0-rc.9", features = [
     "sha2",
 ] }
 base64ct = "1.8.0"
-libxml = "0.3.8"
 # Digest-critical: upgrade only after canonical-byte corpus verification.
 xml-sec = { version = "=0.1.20", default-features = false, features = ["std", "c14n", "xml-backend-roxmltree"] }
 xsd-schema = { version = "=0.2.2", default-features = false }
@@ -62,6 +61,7 @@ fancy-regex = "0.16.2"
 unicode-blocks = "0.1.9"
 
 [dev-dependencies]
+libxml = "0.3.8"
 tempfile = "3.23.0"
 ron = "0.8.1"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }

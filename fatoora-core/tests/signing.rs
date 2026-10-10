@@ -166,9 +166,12 @@ fn signed_invoice_hash_base64_matches_finalized_invoice() {
 }
 
 fn build_test_cert(key: &K256SigningKey) -> Vec<u8> {
-    let serial_number = SerialNumber::from(1u32);
+    build_test_cert_named(key, 1, "CN=Test,O=Fatoora,C=SA")
+}
+fn build_test_cert_named(key: &K256SigningKey, serial: u32, name: &str) -> Vec<u8> {
+    let serial_number = SerialNumber::from(serial);
     let validity = Validity::from_now(Duration::new(3600, 0)).expect("validity");
-    let subject = Name::from_str("CN=Test,O=Fatoora,C=SA").expect("subject");
+    let subject = Name::from_str(name).expect("subject");
     let profile = profile::cabf::Root::new(false, subject).expect("profile");
     let public_key = key.verifying_key();
     let spki_der = public_key.to_public_key_der().expect("public key der");
@@ -338,6 +341,137 @@ fn malformed_closing_tag_is_rejected_without_poisoning_the_signer() {
             .sign_xml(&common::dummy_finalized_invoice().to_xml().unwrap())
             .is_ok()
     );
+}
+
+#[test]
+fn repeated_signing_preserves_bytes_and_unrelated_extension_trivia() {
+    let (signer, _) = build_test_signer();
+    let xml = common::dummy_finalized_invoice().to_xml().unwrap();
+    let doc = roxmltree::Document::parse(&xml).unwrap();
+    let supplier = doc
+        .root_element()
+        .children()
+        .find(|node| node.is_element() && node.tag_name().name() == "AccountingSupplierParty")
+        .unwrap();
+    let at = supplier.range().start;
+    let mut input = xml.clone();
+    let trivia = "\r\n<!-- supplier --><?preserve yes?>\r\n";
+    input.insert_str(at, trivia);
+    let signed = signer.sign_xml(&input).unwrap();
+    assert!(signed.contains(trivia));
+    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+    assert_eq!(
+        fatoora_core::invoice::sign::invoice_hash_base64_from_xml_str(&signed).unwrap(),
+        fatoora_core::invoice::sign::invoice_hash_base64_from_xml_str(&input).unwrap()
+    );
+}
+
+#[test]
+fn resigning_rejects_other_certificates_and_incomplete_owned_material() {
+    let (signer, _) = build_test_signer();
+    let (other, _) = build_test_signer();
+    let input = common::dummy_finalized_invoice().to_xml().unwrap();
+    let signed = signer.sign_xml(&input).unwrap();
+    assert!(
+        other
+            .sign_xml(&signed)
+            .unwrap_err()
+            .to_string()
+            .contains("different certificate")
+    );
+    let cert = Base64::encode_string(&signer.certificate_der().unwrap());
+    for value in ["", "malformed"] {
+        let partial = signed.replace(&cert, value);
+        assert_eq!(
+            signer.sign_xml(&partial).unwrap_err().kind(),
+            fatoora_core::ErrorKind::InvalidInput
+        );
+    }
+    let external = input.replace(
+        "</Invoice>",
+        "<ds:Signature xmlns:ds='http://www.w3.org/2000/09/xmldsig#' Id='external'/></Invoice>",
+    );
+    assert_ne!(external, input);
+    assert!(
+        signer
+            .sign_xml(&external)
+            .unwrap_err()
+            .to_string()
+            .contains("externally owned")
+    );
+    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+}
+
+#[test]
+fn signing_rejects_a_private_key_that_does_not_match_the_certificate() {
+    let (_, _, cert) = build_test_signing_material();
+    let (_, other_key, _) = build_test_signing_material();
+    let signer = InvoiceSigner::from_der(&cert, &other_key).unwrap();
+    let input = common::dummy_finalized_invoice().to_xml().unwrap();
+    assert!(
+        signer
+            .sign_xml(&input)
+            .unwrap_err()
+            .to_string()
+            .contains("does not match")
+    );
+}
+
+#[test]
+fn renewal_using_the_same_key_requires_a_separate_unsigned_invoice() {
+    let (_, key_der, certificate) = build_test_signing_material();
+    let key = K256SigningKey::from_pkcs8_der(&key_der).unwrap();
+    let renewed = build_test_cert_named(&key, 2, "CN=Test,O=Fatoora,C=SA");
+    let old = InvoiceSigner::from_der(&certificate, &key_der).unwrap();
+    let new = InvoiceSigner::from_der(&renewed, &key_der).unwrap();
+    let input = common::dummy_finalized_invoice().to_xml().unwrap();
+    let signed = old.sign_xml(&input).unwrap();
+    assert!(
+        new.sign_xml(&signed)
+            .unwrap_err()
+            .to_string()
+            .contains("different certificate")
+    );
+    assert!(new.sign_xml(&input).is_ok());
+}
+
+#[test]
+fn certificate_issuer_text_is_escaped_without_changing_its_preimage() {
+    let (_, key_der, _) = build_test_signing_material();
+    let key = K256SigningKey::from_pkcs8_der(&key_der).unwrap();
+    let certificate = build_test_cert_named(&key, 3, "CN=Test & O'Brien,O=Fatoora,C=SA");
+    let signer = InvoiceSigner::from_der(&certificate, &key_der).unwrap();
+    let signed = signer
+        .sign_xml(&common::dummy_finalized_invoice().to_xml().unwrap())
+        .unwrap();
+    assert!(signed.contains("Test &amp; O'Brien"));
+    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+}
+
+#[test]
+fn signing_preserves_unrelated_extensions_and_empty_wrapper_namespace_aliases() {
+    let (signer, _) = build_test_signer();
+    let xml = common::dummy_finalized_invoice().to_xml().unwrap();
+    let doc = roxmltree::Document::parse(&xml).unwrap();
+    let at = doc
+        .root_element()
+        .children()
+        .find(roxmltree::Node::is_element)
+        .unwrap()
+        .range()
+        .start;
+    let unrelated = "<ext:UBLExtension><ext:ExtensionURI>urn:example:unrelated</ext:ExtensionURI><ext:ExtensionContent><!--keep--><data xmlns='urn:example'>a&amp;b</data></ext:ExtensionContent></ext:UBLExtension>";
+    for replacement in [
+        format!(r#"<ext:UBLExtensions xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2">{unrelated}</ext:UBLExtensions>"#),
+        "<alias:UBLExtensions xmlns:alias='urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2'/>".to_string(),
+    ] {
+        let mut input = xml.clone();
+        input.insert_str(at, &replacement);
+        let signed = signer.sign_xml(&input).unwrap();
+        if replacement.contains(unrelated) { assert!(signed.contains(unrelated)); }
+        if replacement.starts_with("<alias:") { assert!(signed.contains("</alias:UBLExtensions>")); }
+        assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+    }
 }
 
 #[test]

@@ -202,6 +202,7 @@ mod helpers {
 pub(crate) mod canonicalize;
 pub(crate) mod constants;
 pub(crate) mod edit;
+pub(crate) mod fragments;
 pub(crate) mod lexical;
 pub(crate) mod nav;
 pub mod parse;

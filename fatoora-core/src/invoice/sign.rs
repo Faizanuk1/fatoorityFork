@@ -3,14 +3,10 @@ use crate::invoice::QrPayload;
 use crate::invoice::{FinalizedInvoice, SignedInvoice};
 use base64ct::{Base64, Encoding};
 use k256::ecdsa::{Signature, SigningKey};
-use k256::pkcs8::DecodePrivateKey;
 use k256::pkcs8::EncodePublicKey;
-use libxml::{
-    parser::{Parser, ParserOptions},
-    tree::Document,
-    tree::Node,
-    xpath,
-};
+use k256::pkcs8::{DecodePrivateKey, DecodePublicKey};
+#[cfg(test)]
+use libxml::{parser::Parser, tree::Document, tree::Node, xpath};
 use sha2::{Digest, Sha256};
 use std::fmt::Write;
 use thiserror::Error;
@@ -19,6 +15,7 @@ use x509_cert::{
     der::{Decode, DecodePem, Encode, EncodePem, pem::LineEnding},
 };
 
+#[cfg(test)]
 use crate::invoice::xml::constants::{
     CAC_NS, CAC_SIGNATURE_TEMPLATE, CBC_NS, DS_NS, EXT_NS, INVOICE_NS, QR_REFERENCE_TEMPLATE,
     SAC_NS, SBC_NS, SIG_NS, UBL_EXTENSIONS_TEMPLATE, XADES_NS,
@@ -106,37 +103,6 @@ impl SignedProperties {
         &self.signing_time
     }
 
-    // TODO can't think of a better name
-    fn from_parts(
-        doc: &Document,
-        cert: &Certificate,
-        key: &SigningKey,
-    ) -> Result<SignedProperties, SigningError> {
-        let invoice_hash_b64 = invoice_hash_base64(doc)?;
-        let signature_b64 = sign_hash(key, &invoice_hash_b64)?;
-        let cert_hash_b64 = certificate_hash_base64(cert)?;
-        let (issuer, serial) = issuer_and_serial(cert)?;
-        let signing_time = signing_time_from_doc(doc)?;
-        let signed_props_xml =
-            signed_properties_xml(&signing_time, &cert_hash_b64, &issuer, &serial);
-        let signed_props_hash_b64 = signed_properties_hash_base64(&signed_props_xml)?;
-        let public_key_b64 = public_key_base64(key);
-        // let public_key_b64 = extract_signature_b64_from_cert(cert);
-        let cert_signature_b64 = certificate_signature_base64(cert)?;
-
-        Ok(SignedProperties {
-            invoice_hash: invoice_hash_b64,
-            signature: signature_b64,
-            public_key: public_key_b64,
-            issuer,
-            serial,
-            cert_hash: cert_hash_b64,
-            signed_props_hash: signed_props_hash_b64,
-            signing_time,
-            zatca_key_signature: Some(cert_signature_b64),
-        })
-    }
-
     #[cfg(test)]
     pub(crate) fn from_qr_parts(
         invoice_hash: &str,
@@ -219,37 +185,17 @@ impl InvoiceSigner {
     }
 
     pub(crate) fn sign(&self, invoice: FinalizedInvoice) -> Result<SignedInvoice, SigningError> {
-        let unsigned_xml = invoice.to_xml().map_err(SigningError::from)?;
-        let mut doc = Parser::default()
-            .parse_string_with_options(&unsigned_xml, strict_parser_options())
-            .map_err(|e| {
-                SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
-            })?;
-
-        ensure_signature_structure(&mut doc)?;
-
-        let signing = SignedProperties::from_parts(&doc, &self.csid, &self.private_key)?;
-
-        let signed_invoice = invoice
-            .sign_with_bundle(signing.clone(), String::new())
-            .map_err(SigningError::from)?;
-
-        apply_signed_properties_values(&mut doc, &signing)?;
-        apply_signature_values(&mut doc, &signing, &self.csid, signed_invoice.qr_code())?;
-
-        let signed_xml = doc.to_string();
-        if signed_xml.len() > super::xml::constants::MAX_XML_DOCUMENT_BYTES {
-            return Err(SigningError::Xml(crate::Diagnostic::new(
-                "XML signed document exceeds document byte limit",
-            )));
-        }
-        Ok(signed_invoice.with_xml(signed_xml))
+        let unsigned = invoice.to_xml()?;
+        let (signing, xml) = self.sign_xml_bundle(&unsigned)?;
+        invoice
+            .sign_with_bundle(signing, xml)
+            .map_err(SigningError::from)
     }
 
     /// Sign a pre-built invoice XML string and return the signed XML.
     ///
-    /// The input is parsed and serialized; its original byte representation is
-    /// not preserved. Preserve the returned XML without reformatting it.
+    /// Bytes outside owned signing structures are preserved. Re-signing requires
+    /// the same certificate. Preserve the returned XML without reformatting it.
     ///
     /// Generates signature material without running XSD or full business-rule
     /// validation. Signing success does not establish invoice compliance.
@@ -257,41 +203,67 @@ impl InvoiceSigner {
     /// # Errors
     /// Returns [`SigningError`] if XML parsing or signature application fails.
     pub fn sign_xml(&self, xml: &str) -> Result<String, SigningError> {
-        if xml.len() > super::xml::constants::MAX_XML_DOCUMENT_BYTES {
-            return Err(SigningError::Xml(crate::Diagnostic::new(
-                "XML resource limit exceeded: XML input bytes",
+        self.sign_xml_bundle(xml).map(|(_, output)| output)
+    }
+
+    fn sign_xml_bundle(&self, xml: &str) -> Result<(SignedProperties, String), SigningError> {
+        use super::xml::{fragments, lexical};
+        lexical::document(xml)
+            .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
+        let certificate = self.certificate_der()?;
+        let public = self
+            .csid
+            .tbs_certificate()
+            .subject_public_key_info()
+            .to_der()
+            .map_err(|e| SigningError::SigningError(e.to_string()))?;
+        let key = k256::ecdsa::VerifyingKey::from_public_key_der(&public)
+            .map_err(|e| SigningError::InvalidInput(crate::Diagnostic::new(e.to_string())))?;
+        if key != *self.private_key.verifying_key() {
+            return Err(SigningError::InvalidInput(crate::Diagnostic::new(
+                "private key does not match signing certificate",
             )));
         }
-        let mut doc = Parser::default()
-            .parse_string_with_options(xml, strict_parser_options())
-            .map_err(|e| {
-                SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
-            })?;
-
-        ensure_signature_structure(&mut doc)?;
-
-        let signing = SignedProperties::from_parts(&doc, &self.csid, &self.private_key)?;
-        let qr_code = QrPayload::from_xml(xml)
-            .map_err(SigningError::from)?
+        let signing_time = fragments::signing_time(xml, &certificate)
+            .map_err(|e| SigningError::InvalidInput(crate::Diagnostic::new(e)))?;
+        let invoice_hash = invoice_hash_base64_from_xml(xml)?;
+        let signature = sign_hash(&self.private_key, &invoice_hash)?;
+        let cert_hash = certificate_hash_base64(&self.csid)?;
+        let (issuer, serial) = issuer_and_serial(&self.csid)?;
+        let properties = signed_properties_xml(&signing_time, &cert_hash, &issuer, &serial);
+        let signing = SignedProperties {
+            invoice_hash,
+            signature,
+            public_key: public_key_base64(&self.private_key),
+            issuer,
+            serial,
+            cert_hash,
+            signed_props_hash: signed_properties_hash_base64(&properties)?,
+            signing_time,
+            zatca_key_signature: Some(certificate_signature_base64(&self.csid)?),
+        };
+        let qr = QrPayload::from_xml(xml)?
             .with_signing_parts(
                 Some(signing.invoice_hash()),
                 Some(signing.signature()),
                 Some(signing.public_key()),
                 signing.zatca_key_signature(),
             )
-            .encode()
-            .map_err(SigningError::from)?;
-
-        apply_signed_properties_values(&mut doc, &signing)?;
-        apply_signature_values(&mut doc, &signing, &self.csid, &qr_code)?;
-
-        let signed_xml = doc.to_string();
-        if signed_xml.len() > super::xml::constants::MAX_XML_DOCUMENT_BYTES {
-            return Err(SigningError::Xml(crate::Diagnostic::new(
-                "XML signed document exceeds document byte limit",
-            )));
-        }
-        Ok(signed_xml)
+            .encode()?;
+        let fragments = fragments::render(
+            &properties,
+            signing.invoice_hash(),
+            signing.signature(),
+            &signing.signed_props_hash,
+            &Base64::encode_string(&certificate),
+            &qr,
+        )
+        .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e)))?;
+        let output = fragments::apply_signature_fragments(xml, &fragments)
+            .map_err(|e| SigningError::InvalidInput(crate::Diagnostic::new(e)))?;
+        super::validation::integrity::signing_postcondition(&output, &signing, &certificate, &qr)
+            .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e)))?;
+        Ok((signing, output))
     }
     /// Export the certificate as DER bytes without exposing the certificate backend.
     pub fn certificate_der(&self) -> Result<Vec<u8>, SigningError> {
@@ -310,14 +282,7 @@ impl InvoiceSigner {
 
 // TODO this pattern (hash -> base64) is repeated, (Use base64 func for that)
 // Internal helper: compute the base64 invoice hash from a parsed XML document.
-fn strict_parser_options() -> ParserOptions<'static> {
-    ParserOptions {
-        recover: false,
-        no_net: true,
-        ..ParserOptions::default()
-    }
-}
-
+#[cfg(test)]
 pub(crate) fn invoice_hash_base64(doc: &Document) -> Result<String, SigningError> {
     let canonicalized = canonicalize_invoice(doc)?;
     let hash = Sha256::digest(canonicalized.as_bytes());
@@ -349,6 +314,7 @@ pub fn invoice_hash_base64_from_xml_str(xml: &str) -> Result<String, SigningErro
     invoice_hash_base64_from_xml(xml)
 }
 
+#[cfg(test)]
 fn signing_time_from_doc(doc: &Document) -> Result<String, SigningError> {
     let ctx = xpath::Context::new(doc).map_err(|e| {
         SigningError::Xml(crate::Diagnostic::new(format!(
@@ -396,12 +362,14 @@ fn signing_time_from_doc(doc: &Document) -> Result<String, SigningError> {
     Ok(naive.format("%Y-%m-%dT%H:%M:%S").to_string())
 }
 
+#[cfg(test)]
 fn canonicalize_invoice(doc: &Document) -> Result<String, SigningError> {
     let bytes = super::xml::canonicalize::prepare_invoice_digest_input(&doc.to_string())
         .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e)))?;
     String::from_utf8(bytes).map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))
 }
 
+#[cfg(test)]
 fn xpath_text_value(ctx: &xpath::Context, expr: &str, label: &str) -> Result<String, SigningError> {
     let nodes = ctx
         .evaluate(expr)
@@ -498,6 +466,10 @@ fn signed_properties_xml(
     issuer: &str,
     serial: &str,
 ) -> String {
+    let signing_time = super::xml::fragments::text(signing_time);
+    let cert_hash_b64 = super::xml::fragments::text(cert_hash_b64);
+    let issuer = super::xml::fragments::text(issuer);
+    let serial = super::xml::fragments::text(serial);
     format!(
         concat!(
             r#"<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Id="xadesSignedProperties">"#,
@@ -563,6 +535,7 @@ fn public_key_base64(key: &SigningKey) -> String {
     )
 }
 
+#[cfg(test)]
 fn ensure_signature_structure(doc: &mut Document) -> Result<(), SigningError> {
     let mut root = doc
         .get_root_element()
@@ -634,6 +607,7 @@ fn ensure_signature_structure(doc: &mut Document) -> Result<(), SigningError> {
     Ok(())
 }
 
+#[cfg(test)]
 fn import_fragment(doc: &mut Document, xml: &str) -> Result<Node, SigningError> {
     let mut fragment = Parser::default().parse_string(xml).map_err(|e| {
         SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
@@ -653,6 +627,7 @@ fn import_fragment(doc: &mut Document, xml: &str) -> Result<Node, SigningError> 
     Ok(imported)
 }
 
+#[cfg(test)]
 fn first_element_child(root: &Node) -> Option<Node> {
     let mut current = root.get_first_child();
     while let Some(node) = current {
@@ -664,6 +639,7 @@ fn first_element_child(root: &Node) -> Option<Node> {
     None
 }
 
+#[cfg(test)]
 fn first_matching_node(ctx: &xpath::Context, path: &str) -> Result<Option<Node>, SigningError> {
     let nodes = ctx
         .evaluate(path)
@@ -676,71 +652,7 @@ fn first_matching_node(ctx: &xpath::Context, path: &str) -> Result<Option<Node>,
     Ok(nodes.into_iter().next())
 }
 
-fn apply_signed_properties_values(
-    doc: &mut Document,
-    signing: &SignedProperties,
-) -> Result<(), SigningError> {
-    apply_signed_properties_values_raw(
-        doc,
-        &signing.signing_time,
-        &signing.cert_hash,
-        &signing.issuer,
-        &signing.serial,
-    )?;
-    let ctx = xpath::Context::new(doc).map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!(
-            "XPath context error: {e:?}"
-        )))
-    })?;
-    register_namespaces(&ctx)?;
-    let mut properties =
-        first_matching_node(&ctx, "//xades:SignedProperties")?.ok_or_else(|| {
-            SigningError::InvalidInput(crate::Diagnostic::new("missing SignedProperties"))
-        })?;
-    // The SDK hashes the standalone XML serialization, including whitespace.
-    // Re-signing must use the same layout as signed_properties_xml. Preserve
-    // namespace placement: introducing redundant leaf declarations changes
-    // DOM4J's empty-element serialization in the official validator.
-    normalize_properties_whitespace(doc, &mut properties, 16)?;
-    Ok(())
-}
-
-fn normalize_properties_whitespace(
-    doc: &Document,
-    node: &mut Node,
-    indent: usize,
-) -> Result<(), SigningError> {
-    if node.get_child_elements().is_empty() {
-        return Ok(());
-    }
-    for mut child in node.get_child_nodes() {
-        if child.is_text_node() && child.get_content().trim().is_empty() {
-            child.unlink();
-        }
-    }
-    for mut child in node.get_child_elements() {
-        normalize_properties_whitespace(doc, &mut child, indent + 2)?;
-        let mut whitespace = Node::new_text(&format!("\n{}", " ".repeat(indent + 2)), doc)
-            .map_err(|_| {
-                SigningError::Xml(crate::Diagnostic::new(
-                    "failed to allocate signature whitespace",
-                ))
-            })?;
-        child
-            .add_prev_sibling(&mut whitespace)
-            .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
-    }
-    let mut whitespace =
-        Node::new_text(&format!("\n{}", " ".repeat(indent)), doc).map_err(|_| {
-            SigningError::Xml(crate::Diagnostic::new(
-                "failed to allocate signature whitespace",
-            ))
-        })?;
-    node.add_child(&mut whitespace)
-        .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
-    Ok(())
-}
-
+#[cfg(test)]
 fn apply_signed_properties_values_raw(
     doc: &mut Document,
     signing_time: &str,
@@ -778,6 +690,7 @@ fn apply_signed_properties_values_raw(
     Ok(())
 }
 
+#[cfg(test)]
 fn apply_signature_values(
     doc: &mut Document,
     signing: &SignedProperties,
@@ -822,6 +735,7 @@ fn apply_signature_values(
     Ok(())
 }
 
+#[cfg(test)]
 fn set_qr_code(doc: &mut Document, qr_code: &str) -> Result<(), SigningError> {
     let ctx = xpath::Context::new(doc).map_err(|e| {
         SigningError::Xml(crate::Diagnostic::new(format!(
@@ -879,6 +793,7 @@ fn set_qr_code(doc: &mut Document, qr_code: &str) -> Result<(), SigningError> {
     Ok(())
 }
 
+#[cfg(test)]
 fn set_xpath_text(ctx: &xpath::Context, path: &str, value: &str) -> Result<(), SigningError> {
     let nodes = ctx
         .evaluate(path)
@@ -900,6 +815,7 @@ fn set_xpath_text(ctx: &xpath::Context, path: &str, value: &str) -> Result<(), S
     Ok(())
 }
 
+#[cfg(test)]
 fn register_namespaces(ctx: &xpath::Context) -> Result<(), SigningError> {
     // TODO reuse context
     ctx.register_namespace("cbc", CBC_NS).map_err(|e| {
@@ -1497,6 +1413,50 @@ mod tests {
         );
         let actual = public_key_base64(&key);
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn postcondition_detects_corrupt_excluded_material_for_every_invoice_type() {
+        let key = SigningKey::from_bytes((&[0x55; 32]).into()).unwrap();
+        let signer = InvoiceSigner {
+            csid: build_test_cert(&key),
+            private_key: key,
+        };
+        for input in [
+            include_str!("../../tests/fixtures/sdk-parity/cases/simplified-invoice/input.xml"),
+            include_str!("../../tests/fixtures/sdk-parity/cases/standard-invoice/input.xml"),
+        ] {
+            let (signing, output) = signer.sign_xml_bundle(input).unwrap();
+            let doc = super::super::xml::lexical::document(&output).unwrap();
+            let qr = super::super::xml::nav::document_reference(
+                super::super::xml::nav::Element::invoice(&doc),
+                "QR",
+            )
+            .aggregate("Attachment")
+            .basic("EmbeddedDocumentBinaryObject")
+            .content()
+            .unwrap();
+            let cert = signer.certificate_der().unwrap();
+            for changed in [
+                output.replace(signing.signature(), "AQ=="),
+                output.replace(signing.cert_hash(), "AQ=="),
+                output.replace(signing.signing_time(), "2000-01-01T00:00:00"),
+                output.replace("URI=\"#xadesSignedProperties\"", "URI=\"#other\""),
+                output.replace(&qr, "AQFB"),
+            ] {
+                assert_ne!(changed, output);
+                assert_eq!(
+                    invoice_hash_base64_from_xml(&changed).unwrap(),
+                    signing.invoice_hash()
+                );
+                assert!(
+                    super::super::validation::integrity::signing_postcondition(
+                        &changed, &signing, &cert, &qr
+                    )
+                    .is_err()
+                );
+            }
+        }
     }
 
     fn build_test_cert(key: &SigningKey) -> Certificate {

@@ -99,7 +99,7 @@ impl QrPayload {
         let doc = lexical::document(xml).map_err(|e| QrCodeError::Xml(e.to_string()))?;
         let invoice = Element::invoice(&doc);
         let seller = nav::seller_party(invoice);
-        let seller_name = required_text(
+        let seller_name = required_content(
             seller
                 .aggregate("PartyLegalEntity")
                 .basic("RegistrationName")
@@ -223,6 +223,12 @@ impl TlvBuilder {
         }
         Ok(encoded)
     }
+}
+
+fn required_content(value: Option<String>, label: &str) -> QrResult<String> {
+    value
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| QrCodeError::Xml(format!("Missing {label} in invoice XML")))
 }
 
 fn required_text(value: Option<String>, label: &str) -> QrResult<String> {

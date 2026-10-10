@@ -525,6 +525,9 @@ fn qr_tags(bytes: &[u8]) -> Checked<BTreeMap<u8, Vec<u8>>> {
     Ok(tags)
 }
 fn qr(xml: &Xml<'_>, verified: &Verified) -> Checked<()> {
+    qr_with_amount(xml, verified, "PayableAmount")
+}
+fn qr_with_amount(xml: &Xml<'_>, verified: &Verified, amount: &str) -> Checked<()> {
     let encoded = xml.text(&xml.document_reference("QR"))?;
     let tags = qr_tags(&decode(&encoded, 4096, "QR_BASE64")?)?;
     let expected = [
@@ -558,7 +561,7 @@ fn qr(xml: &Xml<'_>, verified: &Verified) -> Checked<()> {
             xml.text(
                 &xml.root()
                     .children(CAC, "LegalMonetaryTotal")
-                    .children(CBC, "PayableAmount"),
+                    .children(CBC, amount),
             )?
             .into_bytes(),
         ),
@@ -720,3 +723,51 @@ pub(super) fn apply(
 #[cfg(test)]
 #[path = "integrity_tests.rs"]
 mod tests;
+
+pub(crate) fn signing_postcondition(
+    input: &str,
+    intended: &crate::invoice::sign::SignedProperties,
+    certificate: &[u8],
+    qr_payload: &str,
+) -> Result<(), String> {
+    let xml = Xml::parse(input)?;
+    let checked = || -> Checked<()> {
+        let verified = signature(&xml, input)?;
+        if verified.hash != intended.invoice_hash()
+            || verified.signature
+                != Base64::decode_vec(intended.signature())
+                    .map_err(|_| bad("SIGNING_POSTCONDITION", "invalid intended signature"))?
+        {
+            return Err(bad(
+                "SIGNING_POSTCONDITION",
+                "final invoice digest or signature differs",
+            ));
+        }
+        let embedded = xml.text(
+            &xml.signature()
+                .children(DS, "KeyInfo")
+                .children(DS, "X509Data")
+                .children(DS, "X509Certificate"),
+        )?;
+        if decode(&embedded, 16 * 1024, "SIGNING_POSTCONDITION")? != certificate {
+            return Err(bad("SIGNING_POSTCONDITION", "final certificate differs"));
+        }
+        let time = xml.text(
+            &xml.signature()
+                .children(DS, "Object")
+                .children(XADES, "QualifyingProperties")
+                .children(XADES, "SignedProperties")
+                .children(XADES, "SignedSignatureProperties")
+                .children(XADES, "SigningTime"),
+        )?;
+        if time != intended.signing_time() || xml.text(&xml.document_reference("QR"))? != qr_payload
+        {
+            return Err(bad(
+                "SIGNING_POSTCONDITION",
+                "final signing time or QR differs",
+            ));
+        }
+        qr_with_amount(&xml, &verified, "TaxInclusiveAmount")
+    };
+    checked().map_err(|e| format!("signing postcondition: {e:?}"))
+}
