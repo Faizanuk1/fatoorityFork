@@ -29,14 +29,9 @@ impl Default for XmlLimits {
 
 pub(crate) fn document(input: &str) -> Result<roxmltree::Document<'_>, XmlError> {
     preflight(input, &XmlLimits::default())?;
-    roxmltree::Document::parse_with_options(
-        input,
-        roxmltree::ParsingOptions {
-            nodes_limit: 100_000,
-            ..Default::default()
-        },
-    )
-    .map_err(|e| XmlError::InvalidXml(e.to_string()))
+    // Element and byte limits are enforced above; a DOM node limit would
+    // additionally count text, comments, PIs, and the document root.
+    roxmltree::Document::parse(input).map_err(|e| XmlError::InvalidXml(e.to_string()))
 }
 
 pub(crate) fn preflight(input: &str, limits: &XmlLimits) -> Result<(), XmlError> {
@@ -170,6 +165,25 @@ mod tests {
         ] {
             document(&format!("{decl}<r/> ")).unwrap();
         }
+    }
+
+    #[test]
+    fn element_limit_accepts_scalar_text_and_trivia_at_the_boundary() {
+        let mut input = "<r>".to_owned();
+        input.push_str(&"<a>x</a>".repeat(99_999));
+        input.push_str("<!--keep--><?keep yes?></r>");
+        let doc = document(&input).unwrap();
+        assert_eq!(
+            doc.descendants()
+                .filter(roxmltree::Node::is_element)
+                .count(),
+            100_000
+        );
+        input.insert_str(3, "<a/>");
+        assert!(matches!(
+            document(&input),
+            Err(XmlError::Limit("XML nodes"))
+        ));
     }
 
     #[test]

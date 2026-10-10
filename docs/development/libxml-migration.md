@@ -20,7 +20,7 @@ Dependency types stay out of public/domain APIs. Preserve public error categorie
 Lexical processing handles declaration version/encoding, DTD/entity rejection,
 resource limits, original prefixes and selected SignedProperties serialization.
 Semantic selection belongs exclusively to the tree. Preserve the current 8 MiB
-input, 100,000 node, depth 128 and 64 MiB retained/output limits. Direct text
+input, 100,000 element, depth 128 and 64 MiB retained/output limits. Direct text
 coalesces CDATA; element, comment and PI boundaries retain existing semantics.
 
 ## Stages

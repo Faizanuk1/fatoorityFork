@@ -85,6 +85,12 @@ fn parser_enforces_input_depth_node_and_materialization_limits() {
         nodes: 2,
         ..Limits::default()
     };
+    let view = XmlView::parse(
+        "<r><!--keep--><a>text<![CDATA[ more]]></a><?keep yes?></r>",
+        &limits,
+    )
+    .unwrap();
+    assert_eq!(view.node(1).text, "text more");
     assert!(matches!(
         XmlView::parse("<r><a/><b/></r>", &limits),
         Err(FailureKind::Limit(_))

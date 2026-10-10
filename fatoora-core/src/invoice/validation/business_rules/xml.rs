@@ -38,14 +38,10 @@ pub(super) struct XmlView {
 impl XmlView {
     pub fn parse(input: &str, limits: &Limits) -> Result<Self, FailureKind> {
         preflight(input, limits)?;
-        let document = roxmltree::Document::parse_with_options(
-            input,
-            roxmltree::ParsingOptions {
-                nodes_limit: limits.nodes.try_into().unwrap_or(u32::MAX),
-                ..Default::default()
-            },
-        )
-        .map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
+        // Preflight bounds elements and source bytes. roxmltree's node limit
+        // also counts text, comments, PIs, and the document root.
+        let document = roxmltree::Document::parse(input)
+            .map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
         let root = document.root_element();
         let mut view = Self { nodes: Vec::new() };
         view.copy_element(root, None, "", 1, &mut 0, limits)?;
