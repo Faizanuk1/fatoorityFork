@@ -68,7 +68,7 @@ impl ExactDecimal {
     pub fn parse(input: &str, digits: usize) -> Result<Self, FailureKind> {
         let value = input.trim_matches(is_xml_space);
         let unsigned = value.strip_prefix(['+', '-']).unwrap_or(value);
-        if !decimal_syntax(unsigned) {
+        if !crate::invoice::validation::decimal_lexical::unsigned(unsigned) {
             return Err(FailureKind::InvalidDecimal);
         }
         let count = unsigned.bytes().filter(u8::is_ascii_digit).count();
@@ -259,21 +259,6 @@ impl PartialOrd for ExactDecimal {
     }
 }
 
-fn decimal_syntax(value: &str) -> bool {
-    let mut point = false;
-    let mut digit = false;
-    for byte in value.bytes() {
-        if byte.is_ascii_digit() {
-            digit = true;
-        } else if byte == b'.' && !point {
-            point = true;
-        } else {
-            return false;
-        }
-    }
-    digit
-}
-
 /// Explicit xs:double conversion; never used implicitly for decimal predicates.
 pub(super) fn parse_double(input: &str) -> Result<f64, FailureKind> {
     let value = input.trim_matches(is_xml_space);
@@ -287,7 +272,7 @@ pub(super) fn parse_double(input: &str) -> Result<f64, FailureKind> {
     let (mantissa, exponent) = unsigned.find(['e', 'E']).map_or((unsigned, None), |i| {
         (&unsigned[..i], Some(&unsigned[i + 1..]))
     });
-    if !decimal_syntax(mantissa)
+    if !crate::invoice::validation::decimal_lexical::unsigned(mantissa)
         || exponent.is_some_and(|exponent| {
             let exponent = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
             exponent.is_empty() || !exponent.bytes().all(|b| b.is_ascii_digit())

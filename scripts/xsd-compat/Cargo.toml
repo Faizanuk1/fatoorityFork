@@ -1,0 +1,15 @@
+[package]
+name = "fatoora-xsd-compat"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+xsd-schema = { version = "=0.2.2", default-features = false }
+fatoora-core = { path = "../../fatoora-core" }
+libxml = "=0.3.8"
+roxmltree = "0.21"
+serde_json = "1"
+sha2 = "0.10"

@@ -11,7 +11,7 @@ const INVOICE: &str = include_str!("fixtures/invoices/sample-simplified-invoice.
 #[test]
 fn concurrent_first_schema_use_completes() {
     if std::env::var_os(CHILD).is_some() {
-        // No other test or XML operation may warm libxml2 before these calls.
+        // No other test or XML operation may warm the schema cache before these calls.
         let start = Barrier::new(8);
         std::thread::scope(|scope| {
             for _ in 0..8 {

@@ -2,8 +2,8 @@
 
 The `zatca-sdk-238-R3.4.8` profile implements all 257 assertion sites in the
 pinned SDK stylesheets: 105 CEN sites and 152 Saudi sites. Business rules run as
-native Rust predicates over the original XML. XSD validation and XML
-canonicalization use libxml2. Runtime validation needs neither Java nor the SDK;
+native Rust predicates over the original XML. XSD validation uses the embedded `xsd-schema` adapter; XML canonicalization
+uses libxml2. Runtime validation needs neither Java nor the SDK;
 reference captures use the unmodified official SDK CLI, with no direct Saxon
 integration.
 
@@ -234,7 +234,7 @@ Regex evaluation also bounds input/pattern size, compiled size and backtracking.
 At most 128 distinct nonliteral input/pattern pairs are cached per invoice.
 Exceeding an evaluation limit returns an execution failure with partial findings.
 DTD declarations in invoice input are rejected. Bundled XSD bytes are embedded
-and compiled from a private temporary directory, so installed binaries and wheels
+and compiled in memory, so installed binaries and wheels
 do not depend on the build checkout. The trusted XMLDSig schema retains its
 internal DTD.
 

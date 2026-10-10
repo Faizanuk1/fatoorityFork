@@ -1,0 +1,389 @@
+{
+  "candidate_accepted": 557,
+  "cases": 607,
+  "libxml_accepted": 555,
+  "minimal": [
+    {
+      "case": "time: 09:15:00",
+      "expected": true,
+      "expected_matches": true,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": true,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "46bb0d423070517d1b569b238d80d090bc33c7e299c7cab14607720d3839526f",
+      "well_formed": true,
+      "xml": "<v>09:15:00</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time:  09:15:00 ",
+      "expected": true,
+      "expected_matches": true,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': ' 09:15:00 ' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "47ccb728e5939c4d2371496409570be0c0d17769585afc2c6b3c6a5b99d95029",
+      "well_formed": true,
+      "xml": "<v> 09:15:00 </v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time: 09:15:00+14:00",
+      "expected": true,
+      "expected_matches": true,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": true,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "8b6768b666f9019bfae6914459304cd522dedcbdbb2f64caa7a9de4bf9047c0b",
+      "well_formed": true,
+      "xml": "<v>09:15:00+14:00</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time: 09:15:00-14:00",
+      "expected": true,
+      "expected_matches": true,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": true,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "4defa0baaec15e11672f070092edeab9db0ba815e38528a85d19a5287e7ab2ea",
+      "well_formed": true,
+      "xml": "<v>09:15:00-14:00</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time: 09:15:00+14:01",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '09:15:00+14:01' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "beeaf139557b815d59b16ca0c5fae1d8d865f3dd58f5960e02c2f38ed17111a1",
+      "well_formed": true,
+      "xml": "<v>09:15:00+14:01</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time: 09:15:00-14:59",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '09:15:00-14:59' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "a7ed76ee544c9cd8d9340ff7e4521ec81aae8f5e003c4f3a31fe8255d4a8b0d6",
+      "well_formed": true,
+      "xml": "<v>09:15:00-14:59</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time: 09:15:00+15:00",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '09:15:00+15:00' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "c3c8046e7d215a3696030accb8cc361eddbb0311307f39214b6cab382c863b4a",
+      "well_formed": true,
+      "xml": "<v>09:15:00+15:00</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time: 09:15:00+01:60",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '09:15:00+01:60' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "7abdebcec5adf73ab099fb5480a05f1dcd5b89145f08f93cd6cccd2797bec731",
+      "well_formed": true,
+      "xml": "<v>09:15:00+01:60</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "time: 09:15:00+1:00",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '09:15:00+1:00' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:time\"/></xs:schema>",
+      "sha256": "e1944f0f6020a2a2f4921d989257c447f5f24cc7a5ecea5ef314404bf99c6da7",
+      "well_formed": true,
+      "xml": "<v>09:15:00+1:00</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "date: 2026-01-01+15:00",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '2026-01-01+15:00' is not a valid value of the atomic type 'xs:date'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:date\"/></xs:schema>",
+      "sha256": "eae3275c1563dc45559b8ddff8c219aea9416223ea99da4a5c97b842354524b3",
+      "well_formed": true,
+      "xml": "<v>2026-01-01+15:00</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "dateTime: 2026-01-01T09:15:00+15:00",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '2026-01-01T09:15:00+15:00' is not a valid value of the atomic type 'xs:dateTime'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:dateTime\"/></xs:schema>",
+      "sha256": "24df8eace0acd987b4cf33f86be33d5bf36b42ef3ad335ec93454e878985617e",
+      "well_formed": true,
+      "xml": "<v>2026-01-01T09:15:00+15:00</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "decimal: 1.25",
+      "expected": true,
+      "expected_matches": true,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": true,
+      "raw_xsd_schema": true,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:decimal\"/></xs:schema>",
+      "sha256": "9b72ae19a859b821af4b83e50d2ac59e35670c803ec9f6f257f457ed7ecdee3c",
+      "well_formed": true,
+      "xml": "<v>1.25</v>",
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "decimal: 10000000000000000000000000000000000000000",
+      "expected": true,
+      "expected_matches": false,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": false,
+      "raw_xsd_schema": false,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:decimal\"/></xs:schema>",
+      "sha256": "d3f82711058d027a599e780cdeba10b9bb3a5dd5b27d00dbac65b8775c93e05d",
+      "well_formed": true,
+      "xml": "<v>10000000000000000000000000000000000000000</v>",
+      "xsd_errors": [
+        "[cvc-datatype-valid] Invalid decimal value '10000000000000000000000000000000000000000': Invalid decimal: overflow from too many digits (/v)"
+      ],
+      "xsd_schema": false
+    },
+    {
+      "case": "decimal: 1e2",
+      "expected": false,
+      "expected_matches": true,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element 'v': '1e2' is not a valid value of the atomic type 'xs:decimal'.\\n\"), level: Error, filename: None, line: Some(1), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": true,
+      "raw_xsd_schema": false,
+      "schema": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"v\" type=\"xs:decimal\"/></xs:schema>",
+      "sha256": "b33f62c92ab81b5f2177d4c9fb229c61a320ac073d4730a58c2740dff7d15499",
+      "well_formed": true,
+      "xml": "<v>1e2</v>",
+      "xsd_errors": [
+        "[cvc-datatype-valid] Invalid decimal value '1e2': Invalid xs:decimal lexical form: '1e2' (/v)"
+      ],
+      "xsd_schema": false
+    }
+  ],
+  "minimal_failures": 8,
+  "mismatches": 8,
+  "sdk_cases": 448,
+  "sdk_mismatches": 7,
+  "upstream_revision": "9f8804b48ebf6e7ac02f081a91192e18f1135aba",
+  "verified_artifacts": 3209,
+  "fatoora_revision": "871fc7feca21955939078bec7d737f38e4226b07",
+  "system_libxml_version": "2.13.8",
+  "date": "2026-10-09",
+  "fixture_cases": 595,
+  "fixture_inventory_sha256": "cd8f72f09e2f62a73af1009c21f9e39ed956b4fd8f5d949a9d21826beb49b485",
+  "disagreements": [
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-arithmetic/cases/division-large-divisor-no-zeros/input.xml",
+      "expected": true,
+      "expected_matches": false,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": false,
+      "raw_xsd_schema": false,
+      "sha256": "ed1981e766b7304d83b9eeeaadd0173cb2c675380399dd8e010943ff65c6c46a",
+      "well_formed": true,
+      "xsd_errors": [
+        "[cvc-datatype-valid] Invalid decimal value '10000000000000000000000000000000000000000': Invalid decimal: overflow from too many digits (/Invoice/InvoiceLine/InvoicedQuantity)"
+      ],
+      "xsd_schema": false
+    },
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-arithmetic/cases/division-large-divisor/input.xml",
+      "expected": true,
+      "expected_matches": false,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": false,
+      "raw_xsd_schema": false,
+      "sha256": "03333d96268909a9f881e70f81d765cda544316b2ddab82a223c122842044785",
+      "well_formed": true,
+      "xsd_errors": [
+        "[cvc-datatype-valid] Invalid decimal value '10000000000000000000000000000000000000000': Invalid decimal: overflow from too many digits (/Invoice/InvoiceLine/InvoicedQuantity)"
+      ],
+      "xsd_schema": false
+    },
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-arithmetic/cases/division-tiny-price/input.xml",
+      "expected": true,
+      "expected_matches": false,
+      "libxml": true,
+      "libxml_errors": [],
+      "matches": false,
+      "raw_xsd_schema": false,
+      "sha256": "5b53d9060895403086cfc76dd96d7217a319d4ae84882489e1b5f639e9ba02a5",
+      "well_formed": true,
+      "xsd_errors": [
+        "[cvc-datatype-valid] Invalid decimal value '10000000000000000000000000000000000000000': Invalid decimal: overflow from too many digits (/Invoice/InvoiceLine/InvoicedQuantity)"
+      ],
+      "xsd_schema": false
+    },
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-dates/cases/issue-time-whitespace/input.xml",
+      "expected": true,
+      "expected_matches": true,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element '{urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2}IssueTime': ' 09:15:00 ' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(6), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "sha256": "3c58c3e7191dda6e2a7fe5a91f9eb3992f905bcdb3efc17fb790f5f0d93552ee",
+      "well_formed": true,
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-dates/cases/prepayment-time-bad-offset/input.xml",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element '{urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2}IssueTime': '09:15:00+15:00' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(141), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "sha256": "2b79492fbd8d4aa345ebf94c192c48c64db1d395f88fef2047040581ff447252",
+      "well_formed": true,
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-dates/cases/prepayment-time-offset-14-01/input.xml",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element '{urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2}IssueTime': '09:15:00+14:01' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(141), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "sha256": "fa7349ac3fef0e6556e6708f195863b1eb6315d22cf52bad805722422987960c",
+      "well_formed": true,
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-dates/cases/prepayment-time-offset-14-59/input.xml",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element '{urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2}IssueTime': '09:15:00+14:59' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(141), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "sha256": "184b9c18d4e7e88e19dd460b84ae56d1791b5d2af3781f8c6ad78616e2316db3",
+      "well_formed": true,
+      "xsd_errors": [],
+      "xsd_schema": true
+    },
+    {
+      "case": "fatoora-core/tests/fixtures/business-rules/ksa-dates/cases/prepayment-time-offset-minus-14-59/input.xml",
+      "expected": false,
+      "expected_matches": false,
+      "libxml": false,
+      "libxml_errors": [
+        "StructuredError { message: Some(\"Element '{urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2}IssueTime': '09:15:00-14:59' is not a valid value of the atomic type 'xs:time'.\\n\"), level: Error, filename: None, line: Some(141), col: None, domain: 17, code: 1824 }"
+      ],
+      "matches": false,
+      "raw_xsd_schema": true,
+      "sha256": "3016a08e665a2a9bc9d6524798447443cdfcfc5de9518c5ba7dd511c2a3340f5",
+      "well_formed": true,
+      "xsd_errors": [],
+      "xsd_schema": true
+    }
+  ],
+  "schema_sha256": {
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/CCTS_CCT_SchemaModule-2.1.xsd": "dd546e4809df86b6445589f69f0d6c9df162840ae386574ddfc1da7638103e15",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-CommonAggregateComponents-2.1.xsd": "9bd9582ed0c575d929dba2a9c9bfd97f97ceb0e758aa8d8ea259b8ae3ef1c250",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-CommonBasicComponents-2.1.xsd": "bd4ad043ee1d9da1c7f8018dabf739cfafdfb59143d0d16b9ef769e6b7c408a7",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-CommonExtensionComponents-2.1.xsd": "ad7a4e490978adfbcfc5ec0bb20941cf11ac960ccf0c4de8791a7c731a8dbe87",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-CommonSignatureComponents-2.1.xsd": "3db472305f029bba5c1ae157bfd0178f715c3f9b94bd8e6c557dbce5e88da874",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-CoreComponentParameters-2.1.xsd": "8be3379dbdcbcc7802fafdd16bac72c48fff1c0bb364213a31a17911dd06100b",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-ExtensionContentDataType-2.1.xsd": "fcee77a11870208e6377ea6311b9f2a050bca24bdad8606ea02d71e9f9e72f8d",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-QualifiedDataTypes-2.1.xsd": "7dcb156e610239c97ae70940cf4653b88e48c3595bf5f56a2204a32e2893e6cf",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-SignatureAggregateComponents-2.1.xsd": "17bb6b62d709b4fd81449a37655af36aa6a1276ad4fdb1b2e249a5ed4b7c2172",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-SignatureBasicComponents-2.1.xsd": "cef924d7ba3d1d8ade14469325cde1364f8c174e46f0198ec02da8e9e748a489",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-UnqualifiedDataTypes-2.1.xsd": "09052d406b4293e2a5f9c2bfee6df10ad4d8d5f0b36e24a6349d7f7936d89eb6",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-XAdESv132-2.1.xsd": "a4f726bcf8cc3f7d9ffa4dab99e005535a8e8b60dced1e5d94578d2e05afa96e",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-XAdESv141-2.1.xsd": "1fa4625e9cefcb7a9abb5ac1b64315547450031eece8a55bd584e4ba4b79dbc1",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/common/UBL-xmldsig-core-schema-2.1.xsd": "520ecbc5ef660761c39a6b80c24790262a279f9a0e6bd77e57e02b2ec82c038f",
+    "fatoora-core/assets/schemas/UBL2.1/xsd/maindoc/UBL-Invoice-2.1.xsd": "40fae8cb436f3a9506d7acce65ba162caef3b0bed4d5cbc0992b2153ded4edf4"
+  }
+}
