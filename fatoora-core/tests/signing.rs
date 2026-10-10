@@ -329,8 +329,7 @@ fn hashing_rejects_relative_namespace_uris() {
 
 #[test]
 fn malformed_closing_tag_is_rejected_without_poisoning_the_signer() {
-    let bytes = include_bytes!("../../fuzz/seeds/signing_inputs/malformed-close-tag");
-    let input = std::str::from_utf8(&bytes[1..]).unwrap();
+    let input = include_str!("fixtures/invoices/malformed-closing-tag.xml");
     let (signer, _) = build_test_signer();
     assert!(signer.sign_xml(input).is_err());
     assert!(fatoora_core::invoice::sign::invoice_hash_base64_from_xml_str(input).is_err());
