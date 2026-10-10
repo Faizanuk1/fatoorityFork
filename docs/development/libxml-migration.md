@@ -119,3 +119,30 @@ evidence tied to the commit. Validation rejections fail the gate. Missing creden
 authentication failures or transport failures leave it incomplete. Native removal,
 SDK acceptance and Simulation acceptance are separate recorded gates. WASM follows
 in a later project; this migration makes no WASM verification claim.
+
+## Implementation and remaining acceptance gates
+
+Stages 1 through 4 are stacked in PRs #27, #28, #29, and #30. Stage 5 code and
+artifact checks are in draft PR #31. Ordinary workspace builds and tests have
+no libxml2 dependency. The isolated reference maintenance probes retain it.
+Frozen SDK and corrected DOM canonical bytes remain mandatory test fixtures.
+
+The cleanup removes legacy DOM mutation helpers and their implementation-specific
+ownership tests. Source edit and signing regressions cover the replacement
+behavior, including namespace aliases, shared insertion anchors, trivia,
+repeated signing, certificate identity, supported parent chains, and reference
+bindings. Independent verification helpers do not call production XML helpers.
+
+Local Linux binaries and an installed Python wheel pass native import inspection.
+Cross-platform release and wheel jobs run on migration PRs and must pass before
+this draft is ready. The installed checksum-pinned SDK `238-R3.4.8` verifies fresh
+Rust output without modifying the SDK installation. See the separate verification
+record; the frozen corpus is unchanged.
+
+Newest SDK acceptance remains pending: the official download link checked on
+2026-10-11 redirects to authenticated SharePoint. That prevents establishing a
+freshest-download version and checksum. Simulation acceptance also remains
+pending: existing live tests use the Developer Portal environment and a hardcoded
+sandbox OTP; no usable Simulation credentials were found. Simulation requires
+portal-generated credentials with matching taxpayer/CSR details. Neither gate is
+counted as a pass, and issue #4 stays open until they are satisfied.

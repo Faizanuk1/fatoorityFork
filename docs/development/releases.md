@@ -50,10 +50,12 @@ does not establish full ZATCA business-rule compliance.
 
 Inspect the `.crate` files, wheels, and native archives for the expected code,
 schemas, templates, headers, and license material. Install the wheels and load
-the native library in clean environments on each supported platform. Linux and
-macOS standalone native assets currently rely on host `libxml2`; verify and
-document the target runtime requirements. Windows native archives contain DLLs
-alongside the executable or FFI library. Preserve that directory layout.
+the native library in clean environments on each supported platform. Run
+`python scripts/check_xml_free_artifacts.py <artifact paths>` against the actual
+CLI/FFI archives and wheels. It inspects ELF imports and loader dependencies,
+Mach-O load commands, and PE imports including delay imports. Distributed
+artifacts must neither link nor bundle libxml2. Preserve the bundled FFI
+library layout inside Python wheels.
 
 ## Publication prerequisites
 

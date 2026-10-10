@@ -1,0 +1,311 @@
+{
+  "implementation_commit": "454b4d8c6a8c2e3677d97fc862b932382fbd4563",
+  "recorded_on": "2026-10-11",
+  "source_sha256": {
+    "Cargo.toml": "60a241a797142a129c31ea9ebca0f887b9f90a050b58a34b67d15ba80cbe3da6",
+    "Cargo.lock": "cddd67a3f03b349729c006ae2123501983c66a79a79fcb9ce18cb336eb46c344",
+    "fatoora-core/Cargo.toml": "90e8ca8cd3f16b169085083cacc4337c6a0052b962702b40e2ee1ebb322da12d",
+    "fatoora-core/src/invoice/sign.rs": "f9d02dc10817f844ad19ee489d1beed6575848ade2573c4dd55936c705e15645",
+    "fatoora-core/src/invoice/qr.rs": "a299924e156523a3549b0282b5d56782baf250b4f6c82dee3e5ca70065d85b8d",
+    "fatoora-core/src/invoice/validation/integrity.rs": "b10714bb05aa6d8da017576e54c680b0e027ec1fe70c246ed6bd7493d636e19d",
+    "fatoora-core/src/invoice/validation/business_rules/xml.rs": "96968b09f7993701b6d41a1014a9ce5e6a432f5cf465840b44a1c7b04bf2a884",
+    "fatoora-core/src/invoice/validation/schemas.rs": "27180ab791a06c280f26a6851706c83af108de7482f82216a2968002e78caa94",
+    "fatoora-core/src/invoice/xml/canonicalize.rs": "16dff3df49451cbf8f627fd5cc64fe68f7dd45f37cb56037d562b28511e5f21c",
+    "fatoora-core/src/invoice/xml/constants.rs": "89e01e055a312d5345305eb641c242134adea62ad7c2ce23ab4915c2796f6512",
+    "fatoora-core/src/invoice/xml/edit.rs": "23c88a7503b0cd6b6e47e71db8c0c9204388a07d80160fef930b0741acd4867d",
+    "fatoora-core/src/invoice/xml/fragments.rs": "1b1457604cd6242d9ffe95ae01f17b4d818c8f9722436e2f4ac32fd38eff7ed5",
+    "fatoora-core/src/invoice/xml/lexical.rs": "b4181ce5f2684705e3d54163c52eba5ed3744bd9cd7a563a91f71b28eff406f3",
+    "fatoora-core/src/invoice/xml/nav.rs": "e02fd358570d85c8df1c5480ae57a1d18abfb333366ca575118e380ba96a239b",
+    "fatoora-core/src/invoice/xml/parse.rs": "bbe8f8d84058b1c82c067634d9542a037eb13abf1d5f07826adc7f39ec27986c"
+  },
+  "offline_workspace": {
+    "passed": 533,
+    "failed": 0,
+    "ignored": 5
+  },
+  "clippy": "passed: workspace, all targets, all features, locked, warnings denied",
+  "asan_signing_fuzz": {
+    "executions": 4982,
+    "seconds": 21,
+    "result": "passed"
+  },
+  "sdk": {
+    "installed_checksum_pinned_verification": "passed",
+    "newest_official_sdk_verification": "pending: official download redirects to authenticated SharePoint",
+    "report": {
+      "sdk_version": "238-R3.4.8",
+      "jar_sha256": "48abeb828d453ef6fafba792fddbbb2701da5c7018c24bde918853e80ff5d530",
+      "corpus_manifest_sha256": "872d251be12e3f3388d1afd57a566be6721d19bafc61b39442dad65902c74411",
+      "typed_corpus_manifest_sha256": "5609bd4f49022746f13ae1d41e9efbe132ba3fb157c82e7df889bfd3ea67f60d",
+      "results": {
+        "document-charge": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "exempt": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "export-self-billed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "export-self-billed-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "failed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "failed"
+        },
+        "foreign-currency": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "failed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "failed"
+        },
+        "foreign-currency-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "failed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "failed"
+        },
+        "mixed-vat": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "mixed-vat-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "out-of-scope": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "out-of-scope-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "payable-rounding": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "prepayment": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "prepayment-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "simplified-credit": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "simplified-credit-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "simplified-debit": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "simplified-debit-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "simplified-invoice": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "simplified-invoice-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "standard-credit": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "standard-credit-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "standard-debit": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "standard-debit-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "standard-invoice": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "standard-invoice-typed": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "failed",
+          "qr": "not_run",
+          "signature": "not_run",
+          "pih": "passed",
+          "global": "failed"
+        },
+        "zero-rated": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "passed",
+          "signature": "passed",
+          "pih": "passed",
+          "global": "passed"
+        },
+        "tampered": {
+          "xsd": "passed",
+          "en": "passed",
+          "ksa": "passed",
+          "qr": "failed",
+          "signature": "failed",
+          "pih": "passed",
+          "global": "failed"
+        }
+      }
+    }
+  },
+  "native_artifacts": {
+    "linux_import_inspection": "passed: ELF readelf and loader dependency inspection",
+    "installed_wheel_smoke": "passed",
+    "sha256": {
+      "fatoora-rs-cli": "02a70518a2a7da801d322e7b0e513f39ea90b521fd67c3425ddaece66f671292",
+      "libfatoora_ffi.so": "1f8ea0b70d1a443084fbdb16cbabefb42df0ab14b311f2ba8147b5d5b6aa8c1b",
+      "fatoora_rs-0.2.0-cp313-cp313-linux_x86_64.whl": "89738f44eb1c8708fb0b72446ed1dd1aaf61ed98a45ee295a3ec8a84c41edb32"
+    },
+    "macos_and_windows": "pending: PR artifact jobs"
+  },
+  "simulation": {
+    "status": "pending: no usable Simulation credentials found",
+    "existing_live_tests_environment": "nonproduction / Developer Portal",
+    "required": [
+      "six compliance submissions",
+      "simplified reporting",
+      "standard clearance"
+    ]
+  },
+  "python_binding_tests": {
+    "passed": 57,
+    "failed": 0,
+    "uses_installed_wheel": true
+  }
+}

@@ -3,7 +3,7 @@
 The `zatca-sdk-238-R3.4.8` profile implements all 257 assertion sites in the
 pinned SDK stylesheets: 105 CEN sites and 152 Saudi sites. Business rules run as
 native Rust predicates over the original XML. XSD validation uses the embedded `xsd-schema` adapter; XML canonicalization
-uses libxml2. Runtime validation needs neither Java nor the SDK;
+uses the private `xml-sec` C14N 1.1 adapter. Runtime validation needs neither Java nor the SDK;
 reference captures use the unmodified official SDK CLI, with no direct Saxon
 integration.
 
