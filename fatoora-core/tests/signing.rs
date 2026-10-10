@@ -781,3 +781,36 @@ fn resigning_rejects_changed_owned_reference_bindings() {
     }
     assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
 }
+
+#[test]
+fn signing_preserves_whitespace_padded_qr_references() {
+    let (signer, _) = build_test_signer();
+    let mut input = common::dummy_finalized_invoice().to_xml().unwrap();
+    let at = input.find("<cac:AccountingSupplierParty>").unwrap();
+    let reference = "<cac:AdditionalDocumentReference><cbc:ID> QR </cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject mimeCode='text/plain'>KEEP</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference>";
+    input.insert_str(at, reference);
+    let signed = signer.sign_xml(&input).unwrap();
+    assert!(signed.contains(reference));
+    let doc = roxmltree::Document::parse(&signed).unwrap();
+    let ids: Vec<_> = doc
+        .root_element()
+        .children()
+        .filter(|n| {
+            n.has_tag_name((
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+                "AdditionalDocumentReference",
+            ))
+        })
+        .flat_map(|n| n.children())
+        .filter(|n| {
+            n.has_tag_name((
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                "ID",
+            ))
+        })
+        .filter_map(|n| n.text())
+        .collect();
+    assert_eq!(ids.iter().filter(|&&id| id == "QR").count(), 1);
+    assert_eq!(ids.iter().filter(|&&id| id == " QR ").count(), 1);
+    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+}
