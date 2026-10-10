@@ -303,9 +303,10 @@
     }
   },
   "simulation": {
-    "status": "pending: no usable Simulation credentials found",
+    "status": "not performed: access unavailable; explicitly removed as a migration and merge gate on 2026-10-11",
     "existing_live_tests_environment": "nonproduction / Developer Portal",
-    "required": [
+    "is_gate": false,
+    "optional_checks": [
       "six compliance submissions",
       "simplified reporting",
       "standard clearance"
@@ -915,8 +916,8 @@
     },
     "ci": "Pending fresh stacked-head runs at capture time; inspect PR checks for current status",
     "external_gates": [
-      "Newest official SDK archive version and checksum not verified",
-      "Real Simulation compliance, reporting and clearance not performed; final PR remains draft"
-    ]
+      "Newest official SDK archive version and checksum not verified"
+    ],
+    "simulation": "Not performed; no access. User explicitly removed Simulation as a migration and merge gate on 2026-10-11."
   }
 }

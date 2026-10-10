@@ -44,7 +44,8 @@ coalesces CDATA; element, comment and PI boundaries retain existing semantics.
 4. Replace signing mutation with complete fragments and one validated edit batch.
    Enforce ownership, certificate policy, byte preservation and full postconditions.
 5. Remove libxml from ordinary dependencies/tests and packaging. Verify actual
-   native artifacts, newest SDK and ZATCA Simulation submissions before closing #4.
+   native artifacts and newest SDK before closing #4. Simulation is not a migration
+   gate because access is unavailable.
 
 ## Signing contract
 
@@ -112,13 +113,12 @@ closure. Run native CLI, FFI and Python smoke checks without libxml installed.
 The optional `scripts/xml-reference` maintenance oracle stays outside normal builds.
 
 Capture the newest official SDK version/checksum in a separate corpus; preserve
-frozen evidence. Require all six standard/simplified invoice/credit/debit Simulation
-compliance cases, simplified reporting and standard clearance with consistent
-identity/chain context. Keep credentials out of tracked files; retain sanitized
-evidence tied to the commit. Validation rejections fail the gate. Missing credentials,
-authentication failures or transport failures leave it incomplete. Native removal,
-SDK acceptance and Simulation acceptance are separate recorded gates. WASM follows
-in a later project; this migration makes no WASM verification claim.
+frozen evidence. Native removal and SDK acceptance are separate recorded gates.
+Simulation compliance, reporting and clearance are not migration or merge gates:
+access is unavailable, and the user explicitly removed this requirement. Record
+Simulation verification as unperformed rather than passed. If access becomes
+available, these checks can provide additional interoperability evidence. WASM
+follows in a later project; this migration makes no WASM verification claim.
 
 ## Implementation and remaining acceptance gates
 
@@ -141,8 +141,8 @@ record; the frozen corpus is unchanged.
 
 Newest SDK acceptance remains pending: the official download link checked on
 2026-10-11 redirects to authenticated SharePoint. That prevents establishing a
-freshest-download version and checksum. Simulation acceptance also remains
-pending: existing live tests use the Developer Portal environment and a hardcoded
-sandbox OTP; no usable Simulation credentials were found. Simulation requires
-portal-generated credentials with matching taxpayer/CSR details. Neither gate is
-counted as a pass, and issue #4 stays open until they are satisfied.
+freshest-download version and checksum. Issue #4 stays open until this remaining
+SDK gate is satisfied. Simulation verification was not performed because access
+is unavailable. Per the user's decision on 2026-10-11, it is not a migration or
+merge gate. Existing live tests exercise the Developer Portal sandbox and do not
+claim Simulation coverage.
