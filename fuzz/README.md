@@ -1,7 +1,6 @@
 # Fuzz targets
 
-Run these commands from `fuzz/` on Linux with `libxml2-dev`, `pkg-config` and
-Clang installed:
+Run these commands from `fuzz/` on Linux with Clang installed:
 
 ```sh
 rustup toolchain install nightly-2026-08-28 --profile minimal --component rust-src
@@ -17,7 +16,9 @@ Repeat the last three commands with `qr_decode` or `signing_inputs`.
 The separate workspace and lockfile keep fuzz dependencies out of published
 crates. Builds run offline after the explicit fetch. The PR check replays all
 seeds and runs each target for 20 seconds using AddressSanitizer. There is no
-scheduled run. System libxml2 itself is not sanitizer-instrumented.
+scheduled run. The ordinary XML dependencies are Rust crates and are built
+with sanitizer instrumentation. The retained malformed closing-tag seed reproduces
+the Stage 1 libxml2 recovery leak; signing and hashing reject it without recovery.
 
 | Target | Input and checks |
 | --- | --- |
