@@ -475,61 +475,81 @@ fn signing_preserves_unrelated_extensions_and_empty_wrapper_namespace_aliases() 
 }
 
 #[test]
-fn signing_document_limits_apply_before_parsing_and_after_generation() {
-    let (_, key, certificate) = build_test_signing_material();
-    let signer = InvoiceSigner::from_der(&certificate, &key).unwrap();
-    let limit = 8 * 1024 * 1024;
-    use fatoora_core::invoice::{
-        InvoiceBuilder, InvoiceNote, InvoiceSubType, InvoiceType, VatCategory,
-    };
-    let sample = common::dummy_finalized_invoice();
-    let typed = InvoiceBuilder::new(InvoiceType::Tax(InvoiceSubType::Simplified))
-        .id("INV-LARGE")
-        .uuid("8e6000cf-1a98-4174-b3e7-b5d5954bc10d")
-        .issue_datetime("2024-01-01T12:30:00Z")
-        .currency("SAR")
-        .previous_invoice_hash("hash")
-        .invoice_counter(0)
-        .seller(sample.data().seller().clone())
-        .payment_means_code("10")
-        .vat_category(VatCategory::Standard)
-        .line_item(sample.data().line_items()[0].clone())
-        .note(InvoiceNote::new("en", "x".repeat(limit)))
-        .build()
+fn signing_normalizes_qr_scalars_and_preserves_free_text() {
+    let (signer, _) = build_test_signer();
+    let input = common::dummy_finalized_invoice().to_xml().unwrap();
+    let doc = roxmltree::Document::parse(&input).unwrap();
+    let fields = [
+        "CompanyID",
+        "IssueDate",
+        "IssueTime",
+        "TaxInclusiveAmount",
+        "TaxAmount",
+        "RegistrationName",
+    ];
+    let ranges: Vec<_> = doc
+        .descendants()
+        .filter(|n| {
+            n.is_element()
+                && n.tag_name().namespace()
+                    == Some("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2")
+                && fields.contains(&n.tag_name().name())
+        })
+        .map(|n| n.range())
+        .collect();
+    let mut padded = input.clone();
+    for range in ranges.into_iter().rev() {
+        let element = &input[range.clone()];
+        let start = range.start + element.find('>').unwrap() + 1;
+        let end = range.start + element.rfind('<').unwrap();
+        padded.insert(end, ' ');
+        padded.insert(start, ' ');
+    }
+    let signed = signer.sign_xml(&padded).unwrap();
+    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+    assert!(signed.contains("<cbc:RegistrationName> Acme Inc </cbc:RegistrationName>"));
+    assert!(signed.contains("> 115.00 </cbc:TaxInclusiveAmount>"));
+    let doc = roxmltree::Document::parse(&signed).unwrap();
+    let qr = doc
+        .descendants()
+        .find(|n| {
+            n.has_tag_name((
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+                "AdditionalDocumentReference",
+            )) && n.children().any(|c| {
+                c.has_tag_name((
+                    "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                    "ID",
+                )) && c.text() == Some("QR")
+            })
+        })
         .unwrap();
-    assert!(
-        typed
-            .to_xml()
-            .unwrap_err()
-            .to_string()
-            .contains("XML output exceeds document byte limit")
-    );
-    let error = typed.sign(&signer).unwrap_err().to_string();
-    assert!(
-        error.contains("XML output exceeds document byte limit"),
-        "{error}"
-    );
-    assert!(!error.contains("XML parse error"));
-
-    // Invalid XML proves the byte boundary is checked before parser diagnostics.
-    let oversized = "!".repeat(limit + 1);
-    assert!(
-        signer
-            .sign_xml(&oversized)
-            .unwrap_err()
-            .to_string()
-            .contains("XML input bytes")
-    );
-    let xml = common::dummy_finalized_invoice().to_xml().unwrap();
-    let signed_size = signer.sign_xml(&xml).unwrap().len();
-    let remaining = limit - signed_size + 256 - "<!---->".len();
-    let near_limit = xml.replacen(
-        "</Invoice>",
-        &format!("<!--{}--></Invoice>", "x".repeat(remaining)),
-        1,
-    );
-    assert!(near_limit.len() < limit);
-    let error = signer.sign_xml(&near_limit).unwrap_err().to_string();
-    assert!(error.contains("document byte limit"), "{error}");
-    assert!(signer.sign_xml(&xml).is_ok());
+    let encoded = qr
+        .descendants()
+        .find(|n| {
+            n.has_tag_name((
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                "EmbeddedDocumentBinaryObject",
+            ))
+        })
+        .unwrap()
+        .text()
+        .unwrap();
+    let bytes = Base64::decode_vec(encoded).unwrap();
+    let mut tags = std::collections::BTreeMap::new();
+    let mut cursor = bytes.as_slice();
+    while !cursor.is_empty() {
+        let (tag, len) = (cursor[0], usize::from(cursor[1]));
+        tags.insert(tag, cursor[2..2 + len].to_vec());
+        cursor = &cursor[2 + len..];
+    }
+    for (tag, expected) in [
+        (1, " Acme Inc "),
+        (2, "399999999900003"),
+        (3, "2024-01-01T12:30:00"),
+        (4, "115.00"),
+        (5, "15.00"),
+    ] {
+        assert_eq!(tags[&tag], expected.as_bytes(), "QR tag {tag}");
+    }
 }

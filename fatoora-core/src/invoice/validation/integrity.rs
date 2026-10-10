@@ -525,9 +525,24 @@ fn qr_tags(bytes: &[u8]) -> Checked<BTreeMap<u8, Vec<u8>>> {
     Ok(tags)
 }
 fn qr(xml: &Xml<'_>, verified: &Verified) -> Checked<()> {
-    qr_with_amount(xml, verified, "PayableAmount")
+    qr_for_profile(xml, verified, QrProfile::Sdk)
 }
-fn qr_with_amount(xml: &Xml<'_>, verified: &Verified, amount: &str) -> Checked<()> {
+enum QrProfile {
+    Sdk,
+    Signing,
+}
+
+fn qr_for_profile(xml: &Xml<'_>, verified: &Verified, profile: QrProfile) -> Checked<()> {
+    let amount = match profile {
+        QrProfile::Sdk => "PayableAmount",
+        QrProfile::Signing => "TaxInclusiveAmount",
+    };
+    // Signing uses XML scalar normalization from QR construction. Free-text
+    // seller names and the public SDK comparison retain their original bytes.
+    let scalar = |value: String| match profile {
+        QrProfile::Sdk => value,
+        QrProfile::Signing => value.trim().to_owned(),
+    };
     let encoded = xml.text(&xml.document_reference("QR"))?;
     let tags = qr_tags(&decode(&encoded, 4096, "QR_BASE64")?)?;
     let expected = [
@@ -544,13 +559,15 @@ fn qr_with_amount(xml: &Xml<'_>, verified: &Verified, amount: &str) -> Checked<(
         ),
         (
             2,
-            xml.text(
-                &xml.root()
-                    .children(CAC, "AccountingSupplierParty")
-                    .children(CAC, "Party")
-                    .children(CAC, "PartyTaxScheme")
-                    .children(CBC, "CompanyID"),
-            )?
+            scalar(
+                xml.text(
+                    &xml.root()
+                        .children(CAC, "AccountingSupplierParty")
+                        .children(CAC, "Party")
+                        .children(CAC, "PartyTaxScheme")
+                        .children(CBC, "CompanyID"),
+                )?,
+            )
             .into_bytes(),
         ),
         // Pinned SDK compares tag4 to BT-115 (PayableAmount). The library's QR
@@ -558,11 +575,13 @@ fn qr_with_amount(xml: &Xml<'_>, verified: &Verified, amount: &str) -> Checked<(
         // SDK-QR-001 records that difference for payable rounding.
         (
             4,
-            xml.text(
-                &xml.root()
-                    .children(CAC, "LegalMonetaryTotal")
-                    .children(CBC, amount),
-            )?
+            scalar(
+                xml.text(
+                    &xml.root()
+                        .children(CAC, "LegalMonetaryTotal")
+                        .children(CBC, amount),
+                )?,
+            )
             .into_bytes(),
         ),
         (6, verified.hash.as_bytes().to_vec()),
@@ -582,8 +601,8 @@ fn qr_with_amount(xml: &Xml<'_>, verified: &Verified, amount: &str) -> Checked<(
         .map_err(|_| bad("QR_TIMESTAMP", "QR timestamp is not UTF-8"))?;
     let expected_time = format!(
         "{}T{}",
-        xml.text(&xml.root().children(CBC, "IssueDate"))?,
-        xml.text(&xml.root().children(CBC, "IssueTime"))?
+        scalar(xml.text(&xml.root().children(CBC, "IssueDate"))?),
+        scalar(xml.text(&xml.root().children(CBC, "IssueTime"))?)
     );
     // SDK-QR-002: the SDK ignores malformed suffixes. Require a complete
     // timestamp and compare instants; absent offsets mean UTC in this profile.
@@ -767,7 +786,7 @@ pub(crate) fn signing_postcondition(
                 "final signing time or QR differs",
             ));
         }
-        qr_with_amount(&xml, &verified, "TaxInclusiveAmount")
+        qr_for_profile(&xml, &verified, QrProfile::Signing)
     };
     checked().map_err(|e| format!("signing postcondition: {e:?}"))
 }
