@@ -247,7 +247,54 @@ pub(crate) fn render(
     certificate: &str,
     qr: &str,
 ) -> Result<SigningFragments, String> {
-    let doc = lexical::document(UBL_EXTENSIONS_TEMPLATE).map_err(|e| e.to_string())?;
+    render_using(
+        Templates {
+            extension: UBL_EXTENSIONS_TEMPLATE,
+            qr: QR_REFERENCE_TEMPLATE,
+            signature: CAC_SIGNATURE_TEMPLATE,
+        },
+        properties,
+        hash,
+        signature,
+        properties_hash,
+        certificate,
+        qr,
+    )
+}
+
+struct Templates<'a> {
+    extension: &'a str,
+    qr: &'a str,
+    signature: &'a str,
+}
+
+fn replace_exactly(
+    source: &str,
+    needle: &str,
+    replacement: &str,
+    expected: usize,
+) -> Result<String, String> {
+    if source.matches(needle).count() != expected {
+        return Err("signing template placeholder is missing or repeated".into());
+    }
+    Ok(source.replace(needle, replacement))
+}
+
+fn replace_once(source: &str, needle: &str, replacement: &str) -> Result<String, String> {
+    replace_exactly(source, needle, replacement, 1)
+}
+
+fn render_using(
+    templates: Templates<'_>,
+    properties: &str,
+    hash: &str,
+    signature: &str,
+    properties_hash: &str,
+    certificate: &str,
+    qr: &str,
+) -> Result<SigningFragments, String> {
+    let doc = lexical::document(templates.extension).map_err(|e| e.to_string())?;
+    let mut counts = BTreeMap::new();
     let mut edits = Vec::new();
     for node in doc.descendants().filter(Node::is_element) {
         let value = if nav::is(node, DS_NS, "SignatureValue") {
@@ -259,11 +306,21 @@ pub(crate) fn render(
                 .parent_element()
                 .and_then(|parent| parent.attribute("Id"))
             {
-                Some("invoiceSignedData") => Some(hash),
+                Some("invoiceSignedData") => {
+                    if node.parent_element().and_then(|n| n.attribute("URI")) != Some("") {
+                        return Err("unexpected invoice reference in signing template".into());
+                    }
+                    Some(hash)
+                }
                 _ if node
                     .parent_element()
                     .is_some_and(|parent| nav::is(parent, DS_NS, "Reference")) =>
                 {
+                    if node.parent_element().and_then(|n| n.attribute("URI"))
+                        != Some("#xadesSignedProperties")
+                    {
+                        return Err("unexpected properties reference in signing template".into());
+                    }
                     Some(properties_hash)
                 }
                 _ => None,
@@ -272,6 +329,20 @@ pub(crate) fn render(
             None
         };
         if let Some(value) = value {
+            if !nav::content(node).trim().is_empty() {
+                return Err("signing template scalar placeholder is populated".into());
+            }
+            let slot = match node.tag_name().name() {
+                "DigestValue"
+                    if node.parent_element().and_then(|n| n.attribute("Id"))
+                        == Some("invoiceSignedData") =>
+                {
+                    "invoice digest"
+                }
+                "DigestValue" => "properties digest",
+                other => other,
+            };
+            *counts.entry(slot).or_insert(0usize) += 1;
             let local = node.tag_name().name();
             edits.push(Edit {
                 range: node.range(),
@@ -280,37 +351,67 @@ pub(crate) fn render(
         } else if nav::is(node, XADES_NS, "SignedProperties") {
             // The standalone preimage supplies declarations; the embedded XML
             // inherits them so DOM4J retains its empty-element representation.
-            let embedded = properties
-                .replace(&format!(" xmlns:xades=\"{XADES_NS}\""), "")
-                .replace(&format!(" xmlns:ds=\"{DS_NS}\""), "");
+            *counts.entry("properties").or_insert(0usize) += 1;
+            let embedded = replace_once(properties, &format!(" xmlns:xades=\"{XADES_NS}\""), "")?;
+            let embedded = replace_exactly(&embedded, &format!(" xmlns:ds=\"{DS_NS}\""), "", 4)?;
             edits.push(Edit {
                 range: node.range(),
                 replacement: embedded,
             });
         }
     }
-    let wrapper = edit::apply(UBL_EXTENSIONS_TEMPLATE, edits)?;
+    if [
+        "SignatureValue",
+        "X509Certificate",
+        "invoice digest",
+        "properties digest",
+        "properties",
+    ]
+    .iter()
+    .any(|slot| counts.get(slot) != Some(&1))
+    {
+        return Err("signing template slots are missing or repeated".into());
+    }
+    let wrapper = edit::apply(templates.extension, edits)?;
     let doc = lexical::document(&wrapper).map_err(|e| e.to_string())?;
-    let node = doc
-        .root_element()
-        .children()
-        .find(Node::is_element)
+    if !nav::is(doc.root_element(), EXT_NS, "UBLExtensions") {
+        return Err("unexpected signing template root".into());
+    }
+    let node = singleton(doc.root_element().children().filter(Node::is_element))?
+        .filter(|node| nav::is(*node, EXT_NS, "UBLExtension"))
         .ok_or("missing generated extension")?;
     let raw = &wrapper[node.range()];
     let declarations = format!(
         " xmlns:ext=\"{EXT_NS}\" xmlns:cbc=\"{CBC_NS}\" xmlns:sig=\"{SIG_NS}\" xmlns:sac=\"{SAC_NS}\" xmlns:sbc=\"{SBC_NS}\" xmlns:ds=\"{DS_NS}\" xmlns:xades=\"{XADES_NS}\""
     );
-    let extension = raw.replacen(
+    let extension = replace_once(
+        raw,
         "<ext:UBLExtension>",
         &format!("<ext:UBLExtension{declarations}>"),
-        1,
-    );
-    let qr = QR_REFERENCE_TEMPLATE.trim_end().replace("<cbc:EmbeddedDocumentBinaryObject mimeCode=\"text/plain\"></cbc:EmbeddedDocumentBinaryObject>", &format!("<cbc:EmbeddedDocumentBinaryObject mimeCode=\"text/plain\">{}</cbc:EmbeddedDocumentBinaryObject>", text(qr)));
-    Ok(SigningFragments {
+    )?;
+    let qr = replace_once(
+        templates.qr.trim_end(),
+        "<cbc:EmbeddedDocumentBinaryObject mimeCode=\"text/plain\"></cbc:EmbeddedDocumentBinaryObject>",
+        &format!(
+            "<cbc:EmbeddedDocumentBinaryObject mimeCode=\"text/plain\">{}</cbc:EmbeddedDocumentBinaryObject>",
+            text(qr)
+        ),
+    )?;
+    let fragments = SigningFragments {
         extension,
         qr,
-        signature: CAC_SIGNATURE_TEMPLATE.trim_end().to_owned(),
-    })
+        signature: templates.signature.trim_end().to_owned(),
+    };
+    let generated = format!(
+        "<Invoice xmlns=\"{INVOICE_NS}\"><ext:UBLExtensions xmlns:ext=\"{EXT_NS}\">{}</ext:UBLExtensions>{}{} </Invoice>",
+        fragments.extension, fragments.qr, fragments.signature
+    );
+    let doc = lexical::document(&generated).map_err(|e| e.to_string())?;
+    let selected = owned(&doc)?;
+    if selected.extension.is_none() || selected.qr.is_none() || selected.signature.is_none() {
+        return Err("generated signing template structures are missing".into());
+    }
+    Ok(fragments)
 }
 
 fn rank(node: Node<'_, '_>) -> Option<usize> {
@@ -484,4 +585,138 @@ pub(crate) fn apply_signature_fragments(
         }
     }
     edit::apply(xml, edits)
+}
+
+#[cfg(test)]
+mod render_tests {
+    use super::*;
+    const PROPERTIES: &str = include_str!(
+        "../../../tests/fixtures/sdk-parity/cases/simplified-credit/signed-properties.xml"
+    );
+
+    fn using(
+        extension: &str,
+        qr: &str,
+        signature: &str,
+        properties: &str,
+    ) -> Result<SigningFragments, String> {
+        render_using(
+            Templates {
+                extension,
+                qr,
+                signature,
+            },
+            properties,
+            "invoice hash",
+            "signature value",
+            "properties hash",
+            "cert<&>",
+            "qr<&>",
+        )
+    }
+
+    #[test]
+    fn rendered_fragments_bind_intended_values_and_namespace_scopes() {
+        let fragments = using(
+            UBL_EXTENSIONS_TEMPLATE,
+            QR_REFERENCE_TEMPLATE,
+            CAC_SIGNATURE_TEMPLATE,
+            PROPERTIES,
+        )
+        .unwrap();
+        let doc = Document::parse(&fragments.extension).unwrap();
+        let select = |ns, local| {
+            doc.descendants()
+                .filter(move |n| nav::is(*n, ns, local))
+                .collect::<Vec<_>>()
+        };
+        let refs = select(DS_NS, "Reference");
+        assert_eq!(refs.len(), 2);
+        for (uri, digest) in [
+            ("", "invoice hash"),
+            ("#xadesSignedProperties", "properties hash"),
+        ] {
+            let reference = refs
+                .iter()
+                .find(|n| n.attribute("URI") == Some(uri))
+                .unwrap();
+            assert_eq!(
+                nav::content(children(*reference, DS_NS, "DigestValue").next().unwrap()),
+                digest
+            );
+        }
+        assert_eq!(select(DS_NS, "X509Certificate").len(), 1);
+        assert_eq!(nav::content(select(DS_NS, "X509Certificate")[0]), "cert<&>");
+        assert_eq!(select(XADES_NS, "SignedProperties").len(), 1);
+        assert_eq!(fragments.extension.matches("xmlns:ds=").count(), 1);
+        assert_eq!(fragments.extension.matches("xmlns:xades=").count(), 1);
+        let qr = Document::parse(&fragments.qr).unwrap();
+        let value = qr
+            .descendants()
+            .find(|n| nav::is(*n, CBC_NS, "EmbeddedDocumentBinaryObject"))
+            .unwrap();
+        assert_eq!(nav::content(value), "qr<&>");
+    }
+
+    #[test]
+    fn changed_templates_fail_instead_of_silently_skipping_substitutions() {
+        for extension in [
+            UBL_EXTENSIONS_TEMPLATE.replace("<ds:SignatureValue></ds:SignatureValue>", ""),
+            UBL_EXTENSIONS_TEMPLATE.replace(
+                "<ds:SignatureValue></ds:SignatureValue>",
+                "<ds:SignatureValue/><ds:SignatureValue/>",
+            ),
+            UBL_EXTENSIONS_TEMPLATE.replace(
+                "<ds:SignatureValue></ds:SignatureValue>",
+                "<ds:SignatureValue>stale</ds:SignatureValue>",
+            ),
+            UBL_EXTENSIONS_TEMPLATE.replace("<ext:UBLExtension>", "<ext:UBLExtension >"),
+            UBL_EXTENSIONS_TEMPLATE.replace("URI=\"#xadesSignedProperties\"", "URI=\"#external\""),
+        ] {
+            assert!(
+                using(
+                    &extension,
+                    QR_REFERENCE_TEMPLATE,
+                    CAC_SIGNATURE_TEMPLATE,
+                    PROPERTIES
+                )
+                .is_err()
+            );
+        }
+        for qr in [
+            QR_REFERENCE_TEMPLATE.replace("mimeCode=\"text/plain\"", "mimeCode='text/plain'"),
+            QR_REFERENCE_TEMPLATE.repeat(2),
+            QR_REFERENCE_TEMPLATE.replace(">QR<", ">other<"),
+        ] {
+            assert!(
+                using(
+                    UBL_EXTENSIONS_TEMPLATE,
+                    &qr,
+                    CAC_SIGNATURE_TEMPLATE,
+                    PROPERTIES
+                )
+                .is_err()
+            );
+        }
+        let properties = PROPERTIES.replace(&format!(" xmlns:ds=\"{DS_NS}\""), "");
+        assert!(
+            using(
+                UBL_EXTENSIONS_TEMPLATE,
+                QR_REFERENCE_TEMPLATE,
+                CAC_SIGNATURE_TEMPLATE,
+                &properties
+            )
+            .is_err()
+        );
+        let signature = CAC_SIGNATURE_TEMPLATE.replace(SIGNATURE_ID, "external");
+        assert!(
+            using(
+                UBL_EXTENSIONS_TEMPLATE,
+                QR_REFERENCE_TEMPLATE,
+                &signature,
+                PROPERTIES
+            )
+            .is_err()
+        );
+    }
 }
