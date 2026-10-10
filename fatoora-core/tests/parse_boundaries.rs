@@ -334,3 +334,25 @@ fn malformed_xml_and_missing_lines_are_distinct_import_failures() {
         "LineVatCategory",
     );
 }
+
+#[test]
+fn complete_document_limit_is_shared_by_import_hashing_and_validation() {
+    let limit = 8 * 1024 * 1024;
+    let mut input = XML.to_owned();
+    let comment = format!("<!--{}-->", "x".repeat(limit + 1 - input.len() - 7));
+    input.insert_str(input.find("</Invoice>").unwrap(), &comment);
+    assert_eq!(input.len(), limit + 1);
+    let imported = parse_finalized_invoice_xml(&input).unwrap_err().to_string();
+    let hashed = fatoora_core::invoice::sign::invoice_hash_base64_from_xml_str(&input)
+        .unwrap_err()
+        .to_string();
+    let validated = fatoora_core::invoice::validation::validate_xml_invoice_from_str(
+        &input,
+        &fatoora_core::config::Config::default(),
+    )
+    .unwrap_err()
+    .to_string();
+    for error in [imported, hashed, validated] {
+        assert!(error.contains("XML input bytes"), "{error}");
+    }
+}
