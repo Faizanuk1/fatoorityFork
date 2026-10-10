@@ -27,7 +27,8 @@ use serde::Serialize;
 #[derive(Debug, Clone)]
 pub(super) struct Limits {
     pub xml_bytes: usize,
-    pub nodes: usize,
+    pub elements: usize,
+    pub dom_nodes: u32,
     pub depth: usize,
     pub retained_bytes: usize,
     pub decimal_digits: usize,
@@ -39,7 +40,8 @@ impl Default for Limits {
     fn default() -> Self {
         Self {
             xml_bytes: 8 * 1024 * 1024,
-            nodes: 100_000,
+            elements: 100_000,
+            dom_nodes: 400_000,
             depth: 128,
             retained_bytes: 64 * 1024 * 1024,
             decimal_digits: 4096,

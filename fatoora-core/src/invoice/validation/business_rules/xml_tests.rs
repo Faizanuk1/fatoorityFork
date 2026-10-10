@@ -82,7 +82,7 @@ fn parser_enforces_input_depth_node_and_materialization_limits() {
         Err(FailureKind::Limit(_))
     ));
     let limits = Limits {
-        nodes: 2,
+        elements: 2,
         ..Limits::default()
     };
     let view = XmlView::parse(
@@ -94,6 +94,14 @@ fn parser_enforces_input_depth_node_and_materialization_limits() {
     assert!(matches!(
         XmlView::parse("<r><a/><b/></r>", &limits),
         Err(FailureKind::Limit(_))
+    ));
+    let limits = Limits {
+        dom_nodes: 3,
+        ..Limits::default()
+    };
+    assert!(matches!(
+        XmlView::parse("<r><a>text</a></r>", &limits),
+        Err(FailureKind::Limit("XML DOM nodes"))
     ));
     let limits = Limits {
         retained_bytes: 2,

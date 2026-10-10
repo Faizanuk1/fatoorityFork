@@ -14,24 +14,41 @@ pub(crate) enum XmlError {
 
 pub(crate) struct XmlLimits {
     pub xml_bytes: usize,
-    pub nodes: usize,
+    pub elements: usize,
+    pub dom_nodes: u32,
     pub depth: usize,
 }
 impl Default for XmlLimits {
     fn default() -> Self {
         Self {
             xml_bytes: 8 * 1024 * 1024,
-            nodes: 100_000,
+            elements: 100_000,
+            dom_nodes: 400_000,
             depth: 128,
         }
     }
 }
 
 pub(crate) fn document(input: &str) -> Result<roxmltree::Document<'_>, XmlError> {
-    preflight(input, &XmlLimits::default())?;
-    // Element and byte limits are enforced above; a DOM node limit would
-    // additionally count text, comments, PIs, and the document root.
-    roxmltree::Document::parse(input).map_err(|e| XmlError::InvalidXml(e.to_string()))
+    document_with_limits(input, &XmlLimits::default())
+}
+
+pub(crate) fn document_with_limits<'a>(
+    input: &'a str,
+    limits: &XmlLimits,
+) -> Result<roxmltree::Document<'a>, XmlError> {
+    preflight(input, limits)?;
+    roxmltree::Document::parse_with_options(
+        input,
+        roxmltree::ParsingOptions {
+            nodes_limit: limits.dom_nodes,
+            ..Default::default()
+        },
+    )
+    .map_err(|e| match e {
+        roxmltree::Error::NodesLimitReached => XmlError::Limit("XML DOM nodes"),
+        _ => XmlError::InvalidXml(e.to_string()),
+    })
 }
 
 pub(crate) fn preflight(input: &str, limits: &XmlLimits) -> Result<(), XmlError> {
@@ -56,7 +73,7 @@ pub(crate) fn preflight(input: &str, limits: &XmlLimits) -> Result<(), XmlError>
             }
             Event::Start(element) | Event::Empty(element) => {
                 nodes += 1;
-                if nodes > limits.nodes {
+                if nodes > limits.elements {
                     return Err(XmlError::Limit("XML nodes"));
                 }
                 if depth + 1 > limits.depth.min(128) {
@@ -187,6 +204,28 @@ mod tests {
     }
 
     #[test]
+    fn dom_budget_counts_text_and_trivia_separately_from_elements() {
+        let input = "<r><a>x</a><!--keep--><?keep yes?></r>";
+        let mut limits = XmlLimits {
+            elements: 2,
+            dom_nodes: 6,
+            ..XmlLimits::default()
+        };
+        assert_eq!(
+            document_with_limits(input, &limits)
+                .unwrap()
+                .descendants()
+                .count(),
+            6
+        );
+        limits.dom_nodes = 5;
+        assert!(matches!(
+            document_with_limits(input, &limits),
+            Err(XmlError::Limit("XML DOM nodes"))
+        ));
+    }
+
+    #[test]
     fn lexical_policy_bounds_input_and_rejects_dtds() {
         assert!(matches!(
             document("<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;</r>"),
@@ -197,7 +236,8 @@ mod tests {
                 "<r/>",
                 XmlLimits {
                     xml_bytes: 3,
-                    nodes: 10,
+                    elements: 10,
+                    dom_nodes: 40,
                     depth: 2,
                 },
                 "XML input bytes",
@@ -206,7 +246,8 @@ mod tests {
                 "<r><a/></r>",
                 XmlLimits {
                     xml_bytes: 100,
-                    nodes: 1,
+                    elements: 1,
+                    dom_nodes: 40,
                     depth: 2,
                 },
                 "XML nodes",
@@ -215,7 +256,8 @@ mod tests {
                 "<r><a/></r>",
                 XmlLimits {
                     xml_bytes: 100,
-                    nodes: 10,
+                    elements: 10,
+                    dom_nodes: 40,
                     depth: 1,
                 },
                 "XML depth",

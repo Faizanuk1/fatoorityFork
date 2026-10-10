@@ -37,11 +37,7 @@ pub(super) struct XmlView {
 
 impl XmlView {
     pub fn parse(input: &str, limits: &Limits) -> Result<Self, FailureKind> {
-        preflight(input, limits)?;
-        // Preflight bounds elements and source bytes. roxmltree's node limit
-        // also counts text, comments, PIs, and the document root.
-        let document = roxmltree::Document::parse(input)
-            .map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
+        let document = parse_document(input, limits)?;
         let root = document.root_element();
         let mut view = Self { nodes: Vec::new() };
         view.copy_element(root, None, "", 1, &mut 0, limits)?;
@@ -192,13 +188,17 @@ impl XmlView {
     }
 }
 
-fn preflight(input: &str, limits: &Limits) -> Result<(), FailureKind> {
+fn parse_document<'a>(
+    input: &'a str,
+    limits: &Limits,
+) -> Result<roxmltree::Document<'a>, FailureKind> {
     use crate::invoice::xml::lexical::{self, XmlError, XmlLimits};
-    lexical::preflight(
+    lexical::document_with_limits(
         input,
         &XmlLimits {
             xml_bytes: limits.xml_bytes,
-            nodes: limits.nodes,
+            elements: limits.elements,
+            dom_nodes: limits.dom_nodes,
             depth: limits.depth,
         },
     )
