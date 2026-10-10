@@ -3,6 +3,7 @@ use crate::invoice::QrPayload;
 use crate::invoice::{FinalizedInvoice, SignedInvoice};
 use base64ct::{Base64, Encoding};
 use k256::ecdsa::{Signature, SigningKey};
+#[cfg(test)]
 use k256::pkcs8::EncodePublicKey;
 use k256::pkcs8::{DecodePrivateKey, DecodePublicKey};
 #[cfg(test)]
@@ -234,7 +235,7 @@ impl InvoiceSigner {
         let signing = SignedProperties {
             invoice_hash,
             signature,
-            public_key: public_key_base64(&self.private_key),
+            public_key: Base64::encode_string(&public),
             issuer,
             serial,
             cert_hash,
@@ -523,16 +524,6 @@ fn extract_signature_b64_from_cert(cert: &Certificate) -> Result<String, Signing
             "Failed to extract public key from certificate".into(),
         ))?;
     Ok(Base64::encode_string(public_key_bytes))
-}
-
-fn public_key_base64(key: &SigningKey) -> String {
-    Base64::encode_string(
-        &key.verifying_key()
-            .to_public_key_der()
-            .unwrap()
-            .to_der()
-            .unwrap(),
-    )
 }
 
 #[cfg(test)]
@@ -1398,20 +1389,6 @@ mod tests {
         }
         let expected = Base64::encode_string(hex_hash.as_bytes());
         let actual = signed_properties_hash_base64(&xml).expect("signed props hash");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn public_key_base64_matches_spki_der() {
-        let key = SigningKey::from_bytes((&[0x44; 32]).into()).expect("signing key");
-        let expected = Base64::encode_string(
-            &key.verifying_key()
-                .to_public_key_der()
-                .unwrap()
-                .to_der()
-                .unwrap(),
-        );
-        let actual = public_key_base64(&key);
         assert_eq!(actual, expected);
     }
 

@@ -591,3 +591,84 @@ fn signing_rejects_output_that_exceeds_the_complete_document_limit() {
             .is_ok()
     );
 }
+
+#[test]
+fn signing_qr_preserves_certificate_spki_point_encoding() {
+    let (_, key_der, _) = build_test_signing_material();
+    let key = K256SigningKey::from_pkcs8_der(&key_der).unwrap();
+    for compressed in [true, false] {
+        let point = key.verifying_key().to_encoded_point(compressed);
+        let point = point.as_bytes();
+        // id-ecPublicKey + secp256k1, followed by the original SEC1 point.
+        let mut spki = vec![
+            0x30,
+            (point.len() + 21) as u8,
+            0x30,
+            0x10,
+            0x06,
+            0x07,
+            0x2a,
+            0x86,
+            0x48,
+            0xce,
+            0x3d,
+            0x02,
+            0x01,
+            0x06,
+            0x05,
+            0x2b,
+            0x81,
+            0x04,
+            0x00,
+            0x0a,
+            0x03,
+            (point.len() + 1) as u8,
+            0,
+        ];
+        spki.extend_from_slice(point);
+        let public = SubjectPublicKeyInfo::try_from(spki.as_slice()).unwrap();
+        let subject = Name::from_str("CN=Point encoding,O=Fatoora,C=SA").unwrap();
+        let profile = profile::cabf::Root::new(false, subject).unwrap();
+        let certificate = CertificateBuilder::new(
+            profile,
+            SerialNumber::from(5u32),
+            Validity::from_now(Duration::from_secs(3600)).unwrap(),
+            public,
+        )
+        .unwrap()
+        .build::<_, k256::ecdsa::DerSignature>(&key)
+        .unwrap()
+        .to_der()
+        .unwrap();
+        let signer = InvoiceSigner::from_der(&certificate, &key_der).unwrap();
+        let signed = signer
+            .sign_xml(&common::dummy_finalized_invoice().to_xml().unwrap())
+            .unwrap();
+        assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
+        let doc = roxmltree::Document::parse(&signed).unwrap();
+        let qr = doc
+            .descendants()
+            .find(|n| {
+                n.has_tag_name((
+                    "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                    "EmbeddedDocumentBinaryObject",
+                )) && n.ancestors().any(|a| {
+                    a.children().any(|c| {
+                        c.has_tag_name((
+                            "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                            "ID",
+                        )) && c.text() == Some("QR")
+                    })
+                })
+            })
+            .unwrap()
+            .text()
+            .unwrap();
+        let bytes = Base64::decode_vec(qr).unwrap();
+        let mut cursor = bytes.as_slice();
+        while cursor[0] != 8 {
+            cursor = &cursor[2 + usize::from(cursor[1])..];
+        }
+        assert_eq!(&cursor[2..2 + usize::from(cursor[1])], spki.as_slice());
+    }
+}
