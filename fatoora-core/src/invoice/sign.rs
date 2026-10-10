@@ -847,7 +847,7 @@ fn set_qr_code(doc: &mut Document, qr_code: &str) -> Result<(), SigningError> {
         )))
     })?;
     register_namespaces(&ctx)?;
-    let qr_path = "//cac:AdditionalDocumentReference[cbc:ID[normalize-space(text())='QR']]";
+    let qr_path = "//cac:AdditionalDocumentReference[cbc:ID='QR']";
     let refs = ctx
         .evaluate(qr_path)
         .map_err(|e| {
@@ -887,7 +887,7 @@ fn set_qr_code(doc: &mut Document, qr_code: &str) -> Result<(), SigningError> {
     }
 
     let value_nodes = ctx
-        .evaluate("//cac:AdditionalDocumentReference[cbc:ID[normalize-space(text())='QR']]/cac:Attachment/cbc:EmbeddedDocumentBinaryObject")
+        .evaluate("//cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject")
         .map_err(|e| SigningError::Xml(crate::Diagnostic::new(format!("XPath context error: {e:?}"))))?
         .get_nodes_as_vec();
     for mut node in value_nodes {
@@ -1161,6 +1161,38 @@ mod tests {
     }
 
     #[test]
+    fn qr_mutation_preserves_whitespace_padded_reference_and_invoice_digest() {
+        let xml = r#"<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"><cac:AdditionalDocumentReference><cbc:ID> QR </cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject>KEEP</cbc:EmbeddedDocumentBinaryObject></cac:Attachment></cac:AdditionalDocumentReference></Invoice>"#;
+        let mut doc = Parser::default().parse_string(xml).unwrap();
+        let before = canonicalize_invoice(&doc).unwrap();
+        set_qr_code(&mut doc, "FIRST").unwrap();
+        set_qr_code(&mut doc, "SECOND").unwrap();
+        let ctx = xpath::Context::new(&doc).unwrap();
+        register_namespaces(&ctx).unwrap();
+        assert_eq!(
+            xml_text(
+                &ctx,
+                "//cac:AdditionalDocumentReference[cbc:ID=' QR ']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+                "padded QR"
+            ),
+            "KEEP"
+        );
+        assert_eq!(
+            xml_text(
+                &ctx,
+                "//cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+                "QR"
+            ),
+            "SECOND"
+        );
+        assert_eq!(
+            select_nodes(&ctx, "//cac:AdditionalDocumentReference").len(),
+            2
+        );
+        assert_eq!(canonicalize_invoice(&doc).unwrap(), before);
+    }
+
+    #[test]
     fn qr_structure_handles_empty_root() {
         let mut doc = Parser::default().parse_string("<Invoice/>").unwrap();
         set_qr_code(&mut doc, "FIRST").unwrap();
@@ -1291,10 +1323,7 @@ mod tests {
         let mut doc = load_sample_doc();
         let ctx = xpath::Context::new(&doc).expect("xpath context");
         register_namespaces(&ctx).expect("register namespaces");
-        remove_nodes(
-            &ctx,
-            "//cac:AdditionalDocumentReference[cbc:ID[normalize-space(text())='QR']]",
-        );
+        remove_nodes(&ctx, "//cac:AdditionalDocumentReference[cbc:ID='QR']");
 
         let signing_time = "2024-01-01T12:30:00".to_string();
         let signing = SignedProperties {
@@ -1338,7 +1367,7 @@ mod tests {
         assert_eq!(
             xml_text(
                 &ctx,
-                "//cac:AdditionalDocumentReference[cbc:ID[normalize-space(text())='QR']]/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+                "//cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
                 "QR",
             ),
             "QR_PAYLOAD"
@@ -1355,7 +1384,7 @@ mod tests {
         assert_eq!(
             xml_text(
                 &ctx,
-                "//cac:AdditionalDocumentReference[cbc:ID[normalize-space(text())='QR']]/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+                "//cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
                 "QR",
             ),
             "NEW_QR"
