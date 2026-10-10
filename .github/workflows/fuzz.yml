@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Install native dependencies
-        run: sudo apt-get update && sudo apt-get install -y libxml2-dev pkg-config clang
+        run: sudo apt-get update && sudo apt-get install -y clang
       - name: Install Rust
         run: rustup toolchain install nightly-2026-08-28 --profile minimal --component rust-src,rustfmt,clippy
       - uses: Swatinem/rust-cache@v2

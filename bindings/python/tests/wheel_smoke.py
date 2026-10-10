@@ -13,14 +13,8 @@ from fatoora import _native
 assert _native.__file__
 
 bundled_libraries = package.parent / "fatoora_rs.libs"
-for library, notice in (
-    ("*xml2*", "libxml2"),
-    ("*lzma*.so*", "xz-libs"),
-):
-    if any(bundled_libraries.glob(library)):
-        assert any((package / "licenses" / notice).glob("*")), (
-            f"wheel must include the notice for {library}"
-        )
+for directory in (package, bundled_libraries):
+    assert not any("xml2" in path.name.lower() or "libxml" in path.name.lower() for path in directory.rglob("*")), "wheel must not bundle libxml2"
 
 with Config(Environment.NON_PRODUCTION) as config:
     assert config.env() == Environment.NON_PRODUCTION

@@ -70,7 +70,7 @@ jobs:
         run: .venv/bin/python -m pytest bindings/python/tests
 
   build-wheels:
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'remove-libxml-v2')
     runs-on: ${{ matrix.os }}
     needs: test-bindings
     strategy:
@@ -122,6 +122,9 @@ jobs:
       - name: Build wheels
         working-directory: bindings/python
         run: python -m cibuildwheel --output-dir ../dist
+
+      - name: Verify wheel native dependency closure
+        run: python scripts/check_xml_free_artifacts.py bindings/dist
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
