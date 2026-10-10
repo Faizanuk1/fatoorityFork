@@ -23,6 +23,8 @@ fn candidate(schema: &SchemaSet, xml: &str) -> (bool, Vec<String>) {
         let mut runtime = validator.start_run(ErrorOnlySink {
             errors: &mut errors,
         });
+        // Unlike drive_quick_xml_with, this helper finalizes the runtime.
+        // Both deferred sink diagnostics and completion errors count below.
         drive_quick_xml(xml.as_bytes(), &mut runtime, schema)
     };
     let accepted = matches!(&outcome, Ok(outcome) if outcome.root_validity == Some(SchemaValidity::Valid))
@@ -279,4 +281,48 @@ fn minimal_cases() -> Vec<Value> {
         results.push(result);
     }
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn raw_candidate_finalizes_deferred_references() {
+        let source = r#"<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="root"><xs:complexType><xs:sequence>
+                <xs:element name="item" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:attribute name="id" type="xs:ID"/>
+                        <xs:attribute name="ref" type="xs:IDREF"/>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence></xs:complexType></xs:element>
+        </xs:schema>"#;
+        let schema = SchemaSetBuilder::new()
+            .add_source(source, "deferred-idrefs.xsd")
+            .unwrap()
+            .compile()
+            .unwrap()
+            .into_schema_set();
+        let (accepted, errors) = candidate(&schema, r#"<root><item ref="missing"/></root>"#);
+        assert!(!accepted);
+        assert!(
+            errors.iter().any(|error| error.contains("cvc-id.1")),
+            "{errors:?}"
+        );
+        // Forward references resolve only once the whole document is known.
+        let (accepted, errors) = candidate(
+            &schema,
+            r#"<root><item ref="later"/><item id="later"/></root>"#,
+        );
+        assert!(accepted, "{errors:?}");
+        assert!(errors.is_empty());
+        // Empty and truncated documents cannot be accepted as valid roots.
+        assert!(!candidate(&schema, "").0);
+        let (accepted, errors) = candidate(&schema, "<root>");
+        assert!(!accepted);
+        assert!(!errors.is_empty());
+        assert_eq!(candidate(&schema, "<root/>"), (true, Vec::new()));
+    }
 }

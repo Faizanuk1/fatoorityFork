@@ -9,6 +9,7 @@ From the repository root, with libxml2 and Clang development dependencies:
 
 ```sh
 cargo run --locked --manifest-path scripts/xsd-compat/Cargo.toml > /tmp/fatoora-xsd-compat.json
+cargo test --locked --manifest-path scripts/xsd-compat/Cargo.toml
 cargo clippy --locked --manifest-path scripts/xsd-compat/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path scripts/xsd-compat/Cargo.toml --check
 ```
@@ -18,6 +19,12 @@ validation against the original schemas, and libxml. It verifies all fixture
 manifest hashes before validation. Captured SDK XSD verdicts are checked separately
 from libxml. Minimal datatype examples use raw upstream validation, since the
 workaround is restricted to the bundled decimal families.
+
+The raw probe uses `drive_quick_xml`, whose pinned implementation calls
+`end_validation()` internally. Its unit regression checks unresolved IDREFs,
+forward references, and rejection of empty/truncated documents; the Rust CI
+workflow runs this test. The production adapter uses `drive_quick_xml_with`
+and therefore finalizes explicitly.
 
 The command deliberately exits **1** for any difference or raw upstream minimal
 failure, including the documented differences below. Read `sdk_mismatches` and the

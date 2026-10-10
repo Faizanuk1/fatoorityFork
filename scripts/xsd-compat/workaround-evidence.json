@@ -272,8 +272,8 @@
   "upstream_version": "0.2.2",
   "verified_artifacts": 3209,
   "date": "2026-10-10",
-  "base_revision": "871fc7feca21955939078bec7d737f38e4226b07",
-  "working_tree": "uncommitted decimal adapter on remove-libxml-v2",
+  "base_revision": "b054505ab6f4594ca824eca11d6699f5f16fe78b",
+  "working_tree": "review regressions on remove-libxml-v2; source hashes identify the tested tree",
   "system_libxml_version": "2.13.8",
   "fixture_cases": 595,
   "fixture_inventory_format": "sorted case name, TAB, input sha256, LF; tracked XML only",
@@ -367,10 +367,10 @@
   "adapter_source_sha256": {
     "Cargo.lock": "6f4a80bc8779f1c78a4b3d4e0df12fa44707bbf887aa4509a3f60598dc4f90dc",
     "fatoora-core/Cargo.toml": "fee4f283392a935ddb8b330a760c733faab15a23512a4c9b7ba51e3779924b0e",
-    "fatoora-core/src/invoice/validation.rs": "479eaf97ecdc4f68e9298930a8bd145216243c8dd0257eaa7291d2dff4abe41e",
-    "fatoora-core/src/invoice/validation/schemas.rs": "2d221247ca9940d97d647c27a4b7e607926817a91888a709cd2392092e01ff11",
+    "fatoora-core/src/invoice/validation.rs": "e3ff5e66e7016637a1b120c483bf7c4127733e9ed731d7847c020dca4a79f566",
+    "fatoora-core/src/invoice/validation/schemas.rs": "27180ab791a06c280f26a6851706c83af108de7482f82216a2968002e78caa94",
     "fatoora-core/src/invoice/validation/decimal_lexical.rs": "a88e6f55bdc0f4c7420c833981fa3aa29ba3019cec84a0d0ae08ad2c92d8e481",
-    "scripts/xsd-compat/src/main.rs": "894d357f06c33bf1d8546b16c767b1ff94a7e7cc57c60e0d2e0b1d2ab0c6d96c",
+    "scripts/xsd-compat/src/main.rs": "528872cd5187ea9ca137fa590a34d85ece0cbeeb01c86a70cde85e09c8e54719",
     "scripts/xsd-compat/Cargo.lock": "31be8bb17f53fec2b4f8ec505ecefabaa67afcae8c3a6ae097da4d54fe3308d3"
   }
 }
