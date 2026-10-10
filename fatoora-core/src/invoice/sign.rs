@@ -642,13 +642,13 @@ fn ensure_signature_structure(doc: &mut Document) -> Result<(), SigningError> {
             last_ref
                 .add_next_sibling(&mut sig_node)
                 .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
+        } else if let Some(mut supplier) =
+            first_matching_node(&ctx, "//cac:AccountingSupplierParty")?
+        {
+            supplier
+                .add_prev_sibling(&mut sig_node)
+                .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
         } else {
-            if let Some(mut supplier) = first_matching_node(&ctx, "//cac:AccountingSupplierParty")?
-            {
-                supplier
-                    .add_prev_sibling(&mut sig_node)
-                    .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
-            }
             root.add_child(&mut sig_node)
                 .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))?;
         }
@@ -1076,6 +1076,26 @@ mod tests {
         register_namespaces(&ctx).expect("register namespaces");
         assert!(!select_nodes(&ctx, "//ext:UBLExtensions").is_empty());
         assert!(!select_nodes(&ctx, "//cac:Signature").is_empty());
+    }
+
+    #[test]
+    fn signature_without_references_is_inserted_once_before_supplier() {
+        let xml = r#"<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"><cac:AccountingSupplierParty/></Invoice>"#;
+        let mut doc = Parser::default().parse_string(xml).unwrap();
+        ensure_signature_structure(&mut doc).unwrap();
+        ensure_signature_structure(&mut doc).unwrap();
+        let root = doc.get_root_element().unwrap();
+        let names: Vec<_> = root
+            .get_child_elements()
+            .iter()
+            .map(Node::get_name)
+            .collect();
+        assert_eq!(
+            names,
+            ["UBLExtensions", "Signature", "AccountingSupplierParty"]
+        );
+        let serialized = doc.to_string();
+        Parser::default().parse_string(&serialized).unwrap();
     }
 
     #[test]
