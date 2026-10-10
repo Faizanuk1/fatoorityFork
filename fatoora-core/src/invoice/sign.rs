@@ -261,7 +261,7 @@ impl InvoiceSigner {
         ensure_signature_structure(&mut doc)?;
 
         let signing = SignedProperties::from_parts(&doc, &self.csid, &self.private_key)?;
-        let qr_code = QrPayload::from_xml(&doc)
+        let qr_code = QrPayload::from_xml(xml)
             .map_err(SigningError::from)?
             .with_signing_parts(
                 Some(signing.invoice_hash()),

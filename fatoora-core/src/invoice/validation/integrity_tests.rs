@@ -1,3 +1,6 @@
+#[path = "../../../tests/support/sdk_checks.rs"]
+#[allow(dead_code)]
+mod independent;
 use super::*;
 use std::{fs, path::PathBuf};
 
@@ -28,7 +31,10 @@ fn replace(input: &str, old: &str, new: &str) -> String {
 }
 
 fn text(input: &str, path: &str) -> String {
-    Xml::parse(input).unwrap().text(path).unwrap()
+    let doc = independent::document(input).unwrap();
+    let ctx = independent::context(&doc);
+    ctx.register_namespace("ubl", UBL).unwrap();
+    independent::text(&ctx, path).unwrap()
 }
 
 fn replace_text(input: &str, path: &str, value: &str) -> String {
@@ -36,7 +42,7 @@ fn replace_text(input: &str, path: &str, value: &str) -> String {
 }
 
 fn refresh_properties_digest(input: &str) -> String {
-    let preimage = integrity_xml::properties_preimage(input).unwrap();
+    let preimage = independent::properties_preimage(input).unwrap();
     let digest =
         Base64::encode_string(format!("{:x}", Sha256::digest(preimage.as_bytes())).as_bytes());
     replace_text(
@@ -209,7 +215,22 @@ fn signature_namespace_aliases_preserve_reference_and_certificate_binding() {
         .replace("xmlns:ds=", "xmlns:sigds=")
         .replace("xades:", "properties:")
         .replace("xmlns:xades=", "xmlns:properties=");
-    let aliased = refresh_properties_digest(&aliased);
+    // Derive alias bytes from the captured SDK preimage, independently of
+    // the production serializer and namespace navigation.
+    let preimage = include_str!(
+        "../../../tests/fixtures/sdk-parity/cases/simplified-invoice/signed-properties.xml"
+    )
+    .replace("ds:", "sigds:")
+    .replace("xmlns:ds=", "xmlns:sigds=")
+    .replace("xades:", "properties:")
+    .replace("xmlns:xades=", "xmlns:properties=");
+    let digest =
+        Base64::encode_string(format!("{:x}", Sha256::digest(preimage.as_bytes())).as_bytes());
+    let aliased = replace_text(
+        &aliased,
+        "//ds:Reference[@URI='#xadesSignedProperties']/ds:DigestValue",
+        &digest,
+    );
     let xml = Xml::parse(&aliased).unwrap();
     let verified = signature(&xml, &aliased).unwrap();
     qr(&xml, &verified).unwrap();
@@ -251,7 +272,10 @@ fn tlv_framing_rejects_truncation_duplicates_unknown_and_missing_tags() {
 }
 
 fn qr_with_tag(input: &str, tag: u8, value: &[u8]) -> String {
-    let original = text(input, QR);
+    let original = text(
+        input,
+        "/ubl:Invoice/cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+    );
     let mut tags = qr_tags(&decode(&original, 4096, "QR_BASE64").unwrap()).unwrap();
     tags.insert(tag, value.to_vec());
     let encoded = Base64::encode_string(&framed(&tags.into_iter().collect::<Vec<_>>()));

@@ -1,10 +1,11 @@
 //! QR payload generation and encoding.
+use super::xml::{
+    lexical,
+    nav::{self, Element},
+};
 use super::{InvoiceData, InvoiceTotalsData};
 use base64ct::{Base64, Encoding};
-use libxml::{tree::Document, xpath};
 use thiserror::Error;
-
-use crate::invoice::xml::constants::{CAC_NS, CBC_NS};
 
 /// Errors emitted when building or encoding QR payloads.
 #[derive(Debug, Error)]
@@ -94,32 +95,41 @@ impl QrPayload {
         })
     }
 
-    pub(crate) fn from_xml(doc: &Document) -> QrResult<Self> {
-        let ctx = xpath::Context::new(doc)
-            .map_err(|e| QrCodeError::Xml(format!("XPath context error: {e:?}")))?;
-        ctx.register_namespace("cbc", CBC_NS)
-            .map_err(|e| QrCodeError::Xml(format!("XPath context error: {e:?}")))?;
-        ctx.register_namespace("cac", CAC_NS)
-            .map_err(|e| QrCodeError::Xml(format!("XPath context error: {e:?}")))?;
-
-        let seller_name = xpath_text(
-            &ctx,
-            "//cac:AccountingSupplierParty//cac:PartyLegalEntity/cbc:RegistrationName",
+    pub(crate) fn from_xml(xml: &str) -> QrResult<Self> {
+        let doc = lexical::document(xml).map_err(|e| QrCodeError::Xml(e.to_string()))?;
+        let invoice = Element::invoice(&doc);
+        let seller = nav::seller_party(invoice);
+        let seller_name = required_text(
+            seller
+                .aggregate("PartyLegalEntity")
+                .basic("RegistrationName")
+                .content(),
             "seller name",
         )?;
-        let seller_vat = xpath_text(
-            &ctx,
-            "//cac:AccountingSupplierParty//cac:PartyTaxScheme//cbc:CompanyID",
+        let seller_vat = required_text(
+            seller
+                .aggregate("PartyTaxScheme")
+                .basic("CompanyID")
+                .content(),
             "seller VAT",
         )?;
-        let issue_date = xpath_text(&ctx, "//cbc:IssueDate", "issue date")?;
-        let issue_time = xpath_text(&ctx, "//cbc:IssueTime", "issue time")?;
-        let total_with_vat = xpath_text(
-            &ctx,
-            "//cac:LegalMonetaryTotal//cbc:TaxInclusiveAmount",
+        let issue_date = required_text(invoice.basic("IssueDate").content(), "issue date")?;
+        let issue_time = required_text(invoice.basic("IssueTime").content(), "issue time")?;
+        let total_with_vat = required_text(
+            invoice
+                .aggregate("LegalMonetaryTotal")
+                .basic("TaxInclusiveAmount")
+                .content(),
             "total with VAT",
         )?;
-        let total_vat = xpath_text(&ctx, "//cac:TaxTotal/cbc:TaxAmount", "total VAT")?;
+        let total_vat = required_text(
+            nav::tax_totals(invoice)
+                .next()
+                .unwrap_or(Element(None))
+                .basic("TaxAmount")
+                .content(),
+            "total VAT",
+        )?;
 
         Ok(Self {
             seller_name,
@@ -215,15 +225,9 @@ impl TlvBuilder {
     }
 }
 
-fn xpath_text(ctx: &xpath::Context, expr: &str, label: &str) -> QrResult<String> {
-    let nodes = ctx
-        .evaluate(expr)
-        .map_err(|e| QrCodeError::Xml(format!("XPath error for {label}: {e:?}")))?
-        .get_nodes_as_vec();
-    let node = nodes
-        .first()
-        .ok_or_else(|| QrCodeError::Xml(format!("Missing {label} in invoice XML")))?;
-    let value = node.get_content().trim().to_string();
+fn required_text(value: Option<String>, label: &str) -> QrResult<String> {
+    let value = value.ok_or_else(|| QrCodeError::Xml(format!("Missing {label} in invoice XML")))?;
+    let value = value.trim().to_owned();
     if value.is_empty() {
         return Err(QrCodeError::Xml(format!("Empty {label} in invoice XML")));
     }

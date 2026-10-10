@@ -1,0 +1,216 @@
+//! Bounded lexical policy only; semantic selection belongs to `nav`.
+use quick_xml::{events::Event, name::ResolveResult, reader::NsReader};
+use std::collections::HashSet;
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum XmlError {
+    #[error("invalid XML: {0}")]
+    InvalidXml(String),
+    #[error("unsupported XML: {0}")]
+    UnsupportedXml(String),
+    #[error("XML capacity exceeded: {0}")]
+    Limit(&'static str),
+}
+
+pub(crate) struct XmlLimits {
+    pub xml_bytes: usize,
+    pub nodes: usize,
+    pub depth: usize,
+}
+impl Default for XmlLimits {
+    fn default() -> Self {
+        Self {
+            xml_bytes: 8 * 1024 * 1024,
+            nodes: 100_000,
+            depth: 128,
+        }
+    }
+}
+
+pub(crate) fn document(input: &str) -> Result<roxmltree::Document<'_>, XmlError> {
+    preflight(input, &XmlLimits::default())?;
+    roxmltree::Document::parse_with_options(
+        input,
+        roxmltree::ParsingOptions {
+            nodes_limit: 100_000,
+            ..Default::default()
+        },
+    )
+    .map_err(|e| XmlError::InvalidXml(e.to_string()))
+}
+
+pub(crate) fn preflight(input: &str, limits: &XmlLimits) -> Result<(), XmlError> {
+    if input.len() > limits.xml_bytes {
+        return Err(XmlError::Limit("XML input bytes"));
+    }
+    let mut reader = NsReader::from_str(input);
+    reader.config_mut().check_comments = true;
+    let mut depth = 0usize;
+    let mut nodes = 0usize;
+    loop {
+        let (namespace, event) = reader
+            .read_resolved_event()
+            .map_err(|e| XmlError::InvalidXml(e.to_string()))?;
+        if matches!(namespace, ResolveResult::Unknown(_)) {
+            return Err(XmlError::InvalidXml("undeclared element prefix".into()));
+        }
+        let empty = matches!(event, Event::Empty(_));
+        match event {
+            Event::DocType(_) => {
+                return Err(XmlError::UnsupportedXml("DTD declarations".into()));
+            }
+            Event::Start(element) | Event::Empty(element) => {
+                nodes += 1;
+                if nodes > limits.nodes {
+                    return Err(XmlError::Limit("XML nodes"));
+                }
+                if depth + 1 > limits.depth.min(128) {
+                    return Err(XmlError::Limit("XML depth"));
+                }
+                let mut names = HashSet::new();
+                for attr in element.attributes() {
+                    let attr = attr.map_err(|e| XmlError::InvalidXml(e.to_string()))?;
+                    if attr.key.as_ref() == b"xmlns" || attr.key.as_ref().starts_with(b"xmlns:") {
+                        continue;
+                    }
+                    let (namespace, name) = reader.resolver().resolve_attribute(attr.key);
+                    let namespace = match namespace {
+                        ResolveResult::Bound(ns) => ns.as_ref().to_vec(),
+                        ResolveResult::Unbound => Vec::new(),
+                        ResolveResult::Unknown(_) => {
+                            return Err(XmlError::InvalidXml("undeclared attribute prefix".into()));
+                        }
+                    };
+                    if !names.insert((namespace, name.as_ref().to_vec())) {
+                        return Err(XmlError::InvalidXml(
+                            "duplicate expanded attribute name".into(),
+                        ));
+                    }
+                }
+                if !empty {
+                    depth += 1;
+                }
+            }
+            Event::End(_) => {
+                depth = depth
+                    .checked_sub(1)
+                    .ok_or_else(|| XmlError::InvalidXml("unexpected closing tag".into()))?;
+            }
+            Event::Decl(decl) => {
+                // roxmltree deliberately leaves declaration values partly unchecked.
+                let declaration =
+                    std::str::from_utf8(&decl).map_err(|e| XmlError::InvalidXml(e.to_string()))?;
+                let start = quick_xml::events::BytesStart::from_content(declaration, 3);
+                let mut last = 0;
+                for attr in start.attributes() {
+                    let attr = attr.map_err(|e| XmlError::InvalidXml(e.to_string()))?;
+                    let rank = match attr.key.as_ref() {
+                        b"version" => 1,
+                        b"encoding" => 2,
+                        b"standalone" if matches!(attr.value.as_ref(), b"yes" | b"no") => 3,
+                        _ => {
+                            return Err(XmlError::InvalidXml(
+                                "invalid XML declaration attribute".into(),
+                            ));
+                        }
+                    };
+                    if rank <= last {
+                        return Err(XmlError::InvalidXml(
+                            "XML declaration attributes are out of order".into(),
+                        ));
+                    }
+                    last = rank;
+                }
+
+                let version = decl
+                    .version()
+                    .map_err(|e| XmlError::InvalidXml(e.to_string()))?;
+                if version.as_ref() != b"1.0" {
+                    return Err(XmlError::UnsupportedXml(
+                        "XML version other than 1.0".into(),
+                    ));
+                }
+                if let Some(encoding) = decl.encoding() {
+                    let encoding = encoding.map_err(|e| XmlError::InvalidXml(e.to_string()))?;
+                    if !encoding.eq_ignore_ascii_case(b"UTF-8") {
+                        return Err(XmlError::UnsupportedXml("input must declare UTF-8".into()));
+                    }
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    if depth != 0 {
+        return Err(XmlError::InvalidXml("unclosed element".into()));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn declaration_policy_rejects_values_the_tree_parser_leaves_unchecked() {
+        for decl in [
+            "<?xml version='1.1'?>",
+            "<?xml version='1.0' encoding='ISO-8859-1'?>",
+            "<?xml version='1.0' standalone='maybe'?>",
+            "<?xml version='1.0' unknown='yes'?>",
+            "<?xml version='1.0' encoding='UTF-8' encoding='UTF-8'?>",
+            "<?xml version='1.0' standalone='yes' encoding='UTF-8'?>",
+        ] {
+            assert!(document(&format!("{decl}<r/> ")).is_err(), "{decl}");
+        }
+        for decl in [
+            "",
+            "<?xml version='1.0'?>",
+            "<?xml version='1.0' encoding='utf-8' standalone='yes'?>",
+        ] {
+            document(&format!("{decl}<r/> ")).unwrap();
+        }
+    }
+
+    #[test]
+    fn lexical_policy_bounds_input_and_rejects_dtds() {
+        assert!(matches!(
+            document("<!DOCTYPE r [<!ENTITY e 'x'>]><r>&e;</r>"),
+            Err(XmlError::UnsupportedXml(_))
+        ));
+        for (input, limits, expected) in [
+            (
+                "<r/>",
+                XmlLimits {
+                    xml_bytes: 3,
+                    nodes: 10,
+                    depth: 2,
+                },
+                "XML input bytes",
+            ),
+            (
+                "<r><a/></r>",
+                XmlLimits {
+                    xml_bytes: 100,
+                    nodes: 1,
+                    depth: 2,
+                },
+                "XML nodes",
+            ),
+            (
+                "<r><a/></r>",
+                XmlLimits {
+                    xml_bytes: 100,
+                    nodes: 10,
+                    depth: 1,
+                },
+                "XML depth",
+            ),
+        ] {
+            assert!(
+                matches!(preflight(input, &limits), Err(XmlError::Limit(label)) if label == expected)
+            );
+        }
+        document("<r><!-- <!DOCTYPE fake> --><![CDATA[<!DOCTYPE fake>]]></r>").unwrap();
+    }
+}

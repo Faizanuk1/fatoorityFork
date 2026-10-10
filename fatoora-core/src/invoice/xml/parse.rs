@@ -1,7 +1,11 @@
 //! XML parsing for invoices.
+use super::{
+    lexical,
+    nav::{self, Element},
+};
 use crate::Decimal;
 use crate::invoice::sign::SignedProperties;
-use crate::invoice::xml::constants::{CAC_NS, CBC_NS, DS_NS, INVOICE_NS, XADES_NS};
+use crate::invoice::xml::constants::{DS_NS, XADES_NS};
 use crate::invoice::{
     Address, CountryCode, CurrencyCode, FinalizedInvoice, InvoiceBuilder, InvoiceDate,
     InvoiceFlags, InvoiceSubType, InvoiceTimestamp, InvoiceType, LineItem, OriginalInvoiceRef,
@@ -9,7 +13,7 @@ use crate::invoice::{
 };
 use base64ct::{Base64, Encoding};
 use chrono::{NaiveDateTime, NaiveTime};
-use libxml::{parser::Parser, tree::Document, xpath};
+use roxmltree::Document;
 use std::path::Path;
 use thiserror::Error;
 
@@ -72,9 +76,7 @@ impl ParseError {
 /// # Errors
 /// Returns [`ParseError`] if the XML is invalid or required fields are missing.
 pub fn parse_finalized_invoice_xml(xml: &str) -> Result<FinalizedInvoice, ParseError> {
-    let doc = Parser::default()
-        .parse_string(xml)
-        .map_err(|e| ParseError::XmlParse(format!("{e:?}")))?;
+    let doc = lexical::document(xml).map_err(|e| ParseError::XmlParse(format!("{e:?}")))?;
     parse_finalized_invoice_doc(&doc)
 }
 
@@ -102,9 +104,7 @@ pub fn parse_finalized_invoice_xml_file(
 /// # Errors
 /// Returns [`ParseError`] if the XML is invalid or required fields are missing.
 pub fn parse_signed_invoice_xml(xml: &str) -> Result<SignedInvoice, ParseError> {
-    let doc = Parser::default()
-        .parse_string(xml)
-        .map_err(|e| ParseError::XmlParse(format!("{e:?}")))?;
+    let doc = lexical::document(xml).map_err(|e| ParseError::XmlParse(format!("{e:?}")))?;
     let finalized = parse_finalized_invoice_doc(&doc)?;
     let signing = parse_signed_properties(&doc)?;
     let signed = finalized
@@ -126,28 +126,27 @@ pub fn parse_signed_invoice_xml_file(path: impl AsRef<Path>) -> Result<SignedInv
     parse_signed_invoice_xml(&xml)
 }
 
-fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, ParseError> {
-    let ctx = build_context(doc)?;
+fn parse_finalized_invoice_doc(doc: &Document<'_>) -> Result<FinalizedInvoice, ParseError> {
+    let ctx = Element::invoice(doc);
 
-    let id = xpath_text_required(&ctx, "/ubl:Invoice/cbc:ID", "ID")?;
-    let uuid = xpath_text_required(&ctx, "/ubl:Invoice/cbc:UUID", "UUID")?;
-    let issue_date = xpath_text_required(&ctx, "/ubl:Invoice/cbc:IssueDate", "IssueDate")?;
-    let issue_time = xpath_text_required(&ctx, "/ubl:Invoice/cbc:IssueTime", "IssueTime")?;
+    let id = text_required(ctx.basic("ID").content(), "ID")?;
+    let uuid = text_required(ctx.basic("UUID").content(), "UUID")?;
+    let issue_date = text_required(ctx.basic("IssueDate").content(), "IssueDate")?;
+    let issue_time = text_required(ctx.basic("IssueTime").content(), "IssueTime")?;
     let invoice_type_code =
-        xpath_text_required(&ctx, "/ubl:Invoice/cbc:InvoiceTypeCode", "InvoiceTypeCode")?;
-    let invoice_type_name = xpath_text_required(
-        &ctx,
-        "/ubl:Invoice/cbc:InvoiceTypeCode/@name",
+        text_required(ctx.basic("InvoiceTypeCode").content(), "InvoiceTypeCode")?;
+    let invoice_type_name = text_required(
+        ctx.basic("InvoiceTypeCode").attribute("name"),
         "InvoiceTypeCode@name",
     )?;
-    let currency_code = xpath_text_required(
-        &ctx,
-        "/ubl:Invoice/cbc:DocumentCurrencyCode",
+    let currency_code = text_required(
+        ctx.basic("DocumentCurrencyCode").content(),
         "DocumentCurrencyCode",
     )?;
-    let payment_means_code = xpath_text_required(
-        &ctx,
-        "/ubl:Invoice/cac:PaymentMeans/cbc:PaymentMeansCode",
+    let payment_means_code = text_required(
+        ctx.aggregate("PaymentMeans")
+            .basic("PaymentMeansCode")
+            .content(),
         "PaymentMeansCode",
     )?;
 
@@ -161,13 +160,13 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
     } else {
         None
     };
-    let reason = xpath_content_optional(&ctx, "/ubl:Invoice/cac:PaymentMeans/cbc:InstructionNote")?
-        .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            xpath_content_optional(&ctx, "/ubl:Invoice/cbc:Note")
-                .ok()
-                .flatten()
-        });
+    let reason = content_optional(
+        ctx.aggregate("PaymentMeans")
+            .basic("InstructionNote")
+            .content(),
+    )?
+    .filter(|value| !value.trim().is_empty())
+    .or_else(|| content_optional(ctx.basic("Note").content()).ok().flatten());
     let invoice_type = parse_invoice_type(
         &invoice_type_name,
         &invoice_type_code,
@@ -177,17 +176,18 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
 
     let seller = parse_seller(&ctx)?;
 
-    let previous_invoice_hash = xpath_text_required(
-        &ctx,
-        "/ubl:Invoice/cac:AdditionalDocumentReference[cbc:ID='PIH']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+    let previous_invoice_hash = text_required(
+        nav::document_reference(ctx, "PIH")
+            .aggregate("Attachment")
+            .basic("EmbeddedDocumentBinaryObject")
+            .content(),
         "PIH",
     )?;
 
     let vat_category = parse_vat_category(&ctx)?;
     let line_items = parse_line_items(&ctx)?;
-    let invoice_counter_str = xpath_text_required(
-        &ctx,
-        "/ubl:Invoice/cac:AdditionalDocumentReference[cbc:ID='ICV']/cbc:UUID",
+    let invoice_counter_str = text_required(
+        nav::document_reference(ctx, "ICV").basic("UUID").content(),
         "ICV",
     )?;
     let invoice_counter =
@@ -218,32 +218,28 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
     for item in line_items {
         builder = builder.line_item(item);
     }
-    if let Some(note) = xpath_content_optional(&ctx, "/ubl:Invoice/cbc:Note")? {
-        let language = xpath_text_optional(&ctx, "/ubl:Invoice/cbc:Note/@languageID")?
+    if let Some(note) = content_optional(ctx.basic("Note").content())? {
+        let language = text_optional(ctx.basic("Note").attribute("languageID"))?
             .unwrap_or_else(|| "en".to_string());
         builder = builder.note(crate::invoice::InvoiceNote {
             language,
             text: note,
         });
     }
-    let adjustment_nodes = ctx
-        .evaluate("/ubl:Invoice/cac:AllowanceCharge")
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?
-        .get_nodes_as_vec();
     let mut discount = Decimal::ZERO;
     let mut charge = Decimal::ZERO;
     let mut adjustment_tax = None;
-    for index in 1..=adjustment_nodes.len() {
-        let base = format!("/ubl:Invoice/cac:AllowanceCharge[{index}]");
-        let amount = decimal_required(&ctx, &format!("{base}/cbc:Amount"), "AdjustmentAmount")?;
-        let category = xpath_text_required(
-            &ctx,
-            &format!("{base}/cac:TaxCategory/cbc:ID"),
+    for adjustment in nav::allowance_charges(ctx) {
+        let amount = decimal_required(adjustment.basic("Amount").content(), "AdjustmentAmount")?;
+        let category = text_required(
+            adjustment.aggregate("TaxCategory").basic("ID").content(),
             "AdjustmentVatCategory",
         )?;
         let rate = decimal_required(
-            &ctx,
-            &format!("{base}/cac:TaxCategory/cbc:Percent"),
+            adjustment
+                .aggregate("TaxCategory")
+                .basic("Percent")
+                .content(),
             "AdjustmentVatRate",
         )?;
         let category = match category.as_str() {
@@ -267,9 +263,8 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
         adjustment_tax = Some((category, rate));
         builder = builder.vat_category(category);
         builder.adjustment_vat_rate = Some(rate);
-        let is_charge = xpath_text_required(
-            &ctx,
-            &format!("{base}/cbc:ChargeIndicator"),
+        let is_charge = text_required(
+            adjustment.basic("ChargeIndicator").content(),
             "ChargeIndicator",
         )?;
         match is_charge.as_str() {
@@ -288,8 +283,7 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
                 value: amount.to_string(),
             });
         }
-        if let Some(reason) =
-            xpath_content_optional(&ctx, &format!("{base}/cbc:AllowanceChargeReason"))?
+        if let Some(reason) = content_optional(adjustment.basic("AllowanceChargeReason").content())?
         {
             builder = builder.allowance_reason(reason);
         }
@@ -321,72 +315,59 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
         ("AllowanceTotalAmount", discount),
         ("ChargeTotalAmount", charge),
     ] {
-        let path = format!("/ubl:Invoice/cac:LegalMonetaryTotal/cbc:{field}");
-        if let Some(value) = xpath_text_optional(&ctx, &path)? {
+        if let Some(value) =
+            text_optional(ctx.aggregate("LegalMonetaryTotal").basic(field).content())?
+        {
             check_amount(field, &value, expected)?;
         }
     }
     let currency = invoice.data().currency().as_str();
-    let tax_path = format!("/ubl:Invoice/cac:TaxTotal/cbc:TaxAmount[@currencyID='{currency}']");
-    let count = ctx
-        .evaluate(&tax_path)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?
-        .get_nodes_as_vec()
-        .len();
-    for index in 1..=count {
-        let value = xpath_text_required(&ctx, &format!("({tax_path})[{index}]"), "TaxAmount")?;
-        check_amount("TaxAmount", &value, invoice.totals().tax_amount())?;
-    }
-    let subtotal_path = format!(
-        "/ubl:Invoice/cac:TaxTotal[cbc:TaxAmount/@currencyID='{currency}']/cac:TaxSubtotal"
-    );
-    let subtotals = ctx
-        .evaluate(&subtotal_path)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?
-        .get_nodes_as_vec();
     let mut seen = Vec::new();
-    for index in 1..=subtotals.len() {
-        let base = format!("({subtotal_path})[{index}]");
-        let category = xpath_text_required(
-            &ctx,
-            &format!("{base}/cac:TaxCategory/cbc:ID"),
-            "VatCategory",
-        )?;
-        let rate = decimal_required(
-            &ctx,
-            &format!("{base}/cac:TaxCategory/cbc:Percent"),
-            "VatRate",
-        )?;
-        let group = invoice
-            .totals()
-            .vat_breakdown()
-            .iter()
-            .find(|g| {
-                let code = match g.category() {
-                    VatCategory::Standard => "S",
-                    VatCategory::Zero => "Z",
-                    VatCategory::Exempt => "E",
-                    VatCategory::OutOfScope => "O",
-                };
-                category == code && rate == g.rate()
-            })
-            .ok_or_else(|| ParseError::InvalidValue {
-                field: "TaxSubtotal",
-                value: format!("unknown category/rate {category}/{rate}"),
-            })?;
-        if seen.contains(&(category.clone(), rate)) {
-            return Err(ParseError::InvalidValue {
-                field: "TaxSubtotal",
-                value: "duplicate category/rate".into(),
-            });
-        }
-        seen.push((category, rate));
-        for (field, expected) in [
-            ("TaxableAmount", group.taxable_amount()),
-            ("TaxAmount", group.tax_amount()),
-        ] {
-            let value = xpath_text_required(&ctx, &format!("{base}/cbc:{field}"), field)?;
-            check_amount(field, &value, expected)?;
+    for tax_total in nav::tax_totals(ctx).filter(|total| {
+        total.basic("TaxAmount").attribute("currencyID").as_deref() == Some(currency)
+    }) {
+        let value = text_required(tax_total.basic("TaxAmount").content(), "TaxAmount")?;
+        check_amount("TaxAmount", &value, invoice.totals().tax_amount())?;
+        for subtotal in tax_total.children(super::constants::CAC_NS, "TaxSubtotal") {
+            let category = text_required(
+                subtotal.aggregate("TaxCategory").basic("ID").content(),
+                "VatCategory",
+            )?;
+            let rate = decimal_required(
+                subtotal.aggregate("TaxCategory").basic("Percent").content(),
+                "VatRate",
+            )?;
+            let group = invoice
+                .totals()
+                .vat_breakdown()
+                .iter()
+                .find(|g| {
+                    let code = match g.category() {
+                        VatCategory::Standard => "S",
+                        VatCategory::Zero => "Z",
+                        VatCategory::Exempt => "E",
+                        VatCategory::OutOfScope => "O",
+                    };
+                    category == code && rate == g.rate()
+                })
+                .ok_or_else(|| ParseError::InvalidValue {
+                    field: "TaxSubtotal",
+                    value: format!("unknown category/rate {category}/{rate}"),
+                })?;
+            if seen.contains(&(category.clone(), rate)) {
+                return Err(ParseError::InvalidValue {
+                    field: "TaxSubtotal",
+                    value: "duplicate category/rate".into(),
+                });
+            }
+            seen.push((category, rate));
+            for (field, expected) in [
+                ("TaxableAmount", group.taxable_amount()),
+                ("TaxAmount", group.tax_amount()),
+            ] {
+                let value = text_required(subtotal.basic(field).content(), field)?;
+                check_amount(field, &value, expected)?;
+            }
         }
     }
     let mut prepaid = Decimal::ZERO;
@@ -395,10 +376,9 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
         ("PrepaidAmount", &mut prepaid),
         ("PayableRoundingAmount", &mut rounding),
     ] {
-        if let Some(value) = xpath_text_optional(
-            &ctx,
-            &format!("/ubl:Invoice/cac:LegalMonetaryTotal/cbc:{field}"),
-        )? {
+        if let Some(value) =
+            text_optional(ctx.aggregate("LegalMonetaryTotal").basic(field).content())?
+        {
             *dest = value.parse().map_err(ParseError::from)?;
             if dest.scale() > 2 {
                 return Err(ParseError::InvalidValue { field, value });
@@ -417,9 +397,10 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
         .sub(prepaid)
         .and_then(|v| v.add(rounding))
         .map_err(ParseError::from)?;
-    if let Some(value) = xpath_text_optional(
-        &ctx,
-        "/ubl:Invoice/cac:LegalMonetaryTotal/cbc:PayableAmount",
+    if let Some(value) = text_optional(
+        ctx.aggregate("LegalMonetaryTotal")
+            .basic("PayableAmount")
+            .content(),
     )? {
         check_amount("PayableAmount", &value, payable)?;
     }
@@ -429,16 +410,14 @@ fn parse_finalized_invoice_doc(doc: &Document) -> Result<FinalizedInvoice, Parse
     Ok(invoice)
 }
 
-fn parse_signed_properties(doc: &Document) -> Result<SignedProperties, ParseError> {
-    let ctx = build_context(doc)?;
-    ctx.register_namespace("ds", DS_NS)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?;
-    ctx.register_namespace("xades", XADES_NS)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?;
+fn parse_signed_properties(doc: &Document<'_>) -> Result<SignedProperties, ParseError> {
+    let ctx = Element::invoice(doc);
 
-    let qr = xpath_text_required(
-        &ctx,
-        "/ubl:Invoice/cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
+    let qr = text_required(
+        nav::document_reference(ctx, "QR")
+            .aggregate("Attachment")
+            .basic("EmbeddedDocumentBinaryObject")
+            .content(),
         "QR",
     )?;
     let qr_fields = decode_qr_tlv(&qr)?;
@@ -457,9 +436,11 @@ fn parse_signed_properties(doc: &Document) -> Result<SignedProperties, ParseErro
         .ok_or(ParseError::MissingField("QR tag 8 (public key)"))?;
     let zatca_key_signature = qr_fields.get(&9).map(|v| Base64::encode_string(v));
 
-    let signing_time = xpath_text_required(
-        &ctx,
-        "//*[local-name()='SignedProperties']//*[local-name()='SigningTime']",
+    let signing_time = text_required(
+        nav::signed_properties(ctx)
+            .child(XADES_NS, "SignedSignatureProperties")
+            .child(XADES_NS, "SigningTime")
+            .content(),
         "SigningTime",
     )?;
     let signing_time = chrono::NaiveDateTime::parse_from_str(&signing_time, "%Y-%m-%dT%H:%M:%S")
@@ -469,24 +450,46 @@ fn parse_signed_properties(doc: &Document) -> Result<SignedProperties, ParseErro
         })?;
     let signing_time = signing_time.format("%Y-%m-%dT%H:%M:%S").to_string();
 
-    let cert_hash = xpath_text_required(
-        &ctx,
-        "//*[local-name()='CertDigest']//*[local-name()='DigestValue']",
+    let cert_hash = text_required(
+        nav::signed_properties(ctx)
+            .child(XADES_NS, "SignedSignatureProperties")
+            .child(XADES_NS, "SigningCertificate")
+            .child(XADES_NS, "Cert")
+            .child(XADES_NS, "CertDigest")
+            .child(DS_NS, "DigestValue")
+            .content(),
         "CertDigest",
     )?;
-    let issuer = xpath_text_required(
-        &ctx,
-        "//*[local-name()='IssuerSerial']//*[local-name()='X509IssuerName']",
+    let issuer = text_required(
+        nav::signed_properties(ctx)
+            .child(XADES_NS, "SignedSignatureProperties")
+            .child(XADES_NS, "SigningCertificate")
+            .child(XADES_NS, "Cert")
+            .child(XADES_NS, "IssuerSerial")
+            .child(DS_NS, "X509IssuerName")
+            .content(),
         "IssuerName",
     )?;
-    let serial = xpath_text_required(
-        &ctx,
-        "//*[local-name()='IssuerSerial']//*[local-name()='X509SerialNumber']",
+    let serial = text_required(
+        nav::signed_properties(ctx)
+            .child(XADES_NS, "SignedSignatureProperties")
+            .child(XADES_NS, "SigningCertificate")
+            .child(XADES_NS, "Cert")
+            .child(XADES_NS, "IssuerSerial")
+            .child(DS_NS, "X509SerialNumber")
+            .content(),
         "SerialNumber",
     )?;
-    let signed_props_hash = xpath_text_required(
-        &ctx,
-        "//*[local-name()='SignedInfo']//*[local-name()='Reference'][@URI='#xadesSignedProperties']//*[local-name()='DigestValue']",
+    let signed_props_hash = text_required(
+        nav::signature(ctx)
+            .child(DS_NS, "SignedInfo")
+            .children(DS_NS, "Reference")
+            .find(|reference| {
+                reference.attribute("URI").as_deref() == Some("#xadesSignedProperties")
+            })
+            .unwrap_or(Element(None))
+            .child(DS_NS, "DigestValue")
+            .content(),
         "SignedPropertiesDigest",
     )?;
 
@@ -555,22 +558,28 @@ fn parse_invoice_type(
     }
 }
 
-fn parse_original_ref(ctx: &xpath::Context) -> Result<OriginalInvoiceRef, ParseError> {
-    let id = xpath_text_required(
-        ctx,
-        "/ubl:Invoice/cac:BillingReference/cac:InvoiceDocumentReference/cbc:ID",
+fn parse_original_ref(ctx: &Element<'_, '_>) -> Result<OriginalInvoiceRef, ParseError> {
+    let id = text_required(
+        ctx.aggregate("BillingReference")
+            .aggregate("InvoiceDocumentReference")
+            .basic("ID")
+            .content(),
         "BillingReferenceID",
     )?;
     let mut original = OriginalInvoiceRef::new(id);
-    if let Some(uuid) = xpath_text_optional(
-        ctx,
-        "/ubl:Invoice/cac:BillingReference/cac:InvoiceDocumentReference/cbc:UUID",
+    if let Some(uuid) = text_optional(
+        ctx.aggregate("BillingReference")
+            .aggregate("InvoiceDocumentReference")
+            .basic("UUID")
+            .content(),
     )? {
         original = original.with_uuid(uuid);
     }
-    if let Some(issue_date) = xpath_text_optional(
-        ctx,
-        "/ubl:Invoice/cac:BillingReference/cac:InvoiceDocumentReference/cbc:IssueDate",
+    if let Some(issue_date) = text_optional(
+        ctx.aggregate("BillingReference")
+            .aggregate("InvoiceDocumentReference")
+            .basic("IssueDate")
+            .content(),
     )? {
         let date = InvoiceDate::parse(&issue_date).map_err(|e| ParseError::InvalidValue {
             field: "BillingReferenceIssueDate",
@@ -581,24 +590,33 @@ fn parse_original_ref(ctx: &xpath::Context) -> Result<OriginalInvoiceRef, ParseE
     Ok(original)
 }
 
-fn parse_seller(ctx: &xpath::Context) -> Result<Party<SellerRole>, ParseError> {
-    let name = xpath_content_required(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName",
+fn parse_seller(ctx: &Element<'_, '_>) -> Result<Party<SellerRole>, ParseError> {
+    let seller = nav::seller_party(*ctx);
+    let name = content_required(
+        seller
+            .aggregate("PartyLegalEntity")
+            .basic("RegistrationName")
+            .content(),
         "SellerName",
     )?;
-    let vat = xpath_text_required(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyTaxScheme/cbc:CompanyID",
+    let vat = text_required(
+        seller
+            .aggregate("PartyTaxScheme")
+            .basic("CompanyID")
+            .content(),
         "SellerVAT",
     )?;
-    let crn = xpath_text_optional(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID",
+    let crn = text_optional(
+        seller
+            .aggregate("PartyIdentification")
+            .basic("ID")
+            .content(),
     )?;
-    let crn_scheme = xpath_text_optional(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID/@schemeID",
+    let crn_scheme = text_optional(
+        seller
+            .aggregate("PartyIdentification")
+            .basic("ID")
+            .attribute("schemeID"),
     )?;
 
     let address = parse_address(ctx)?;
@@ -611,34 +629,48 @@ fn parse_seller(ctx: &xpath::Context) -> Result<Party<SellerRole>, ParseError> {
     Party::<SellerRole>::new(name, address, vat, other_id).map_err(ParseError::from)
 }
 
-fn parse_address(ctx: &xpath::Context) -> Result<Address, ParseError> {
-    let street = xpath_content_required(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:StreetName",
+fn parse_address(ctx: &Element<'_, '_>) -> Result<Address, ParseError> {
+    let seller = nav::seller_party(*ctx);
+    let street = content_required(
+        seller
+            .aggregate("PostalAddress")
+            .basic("StreetName")
+            .content(),
         "SellerStreet",
     )?;
-    let building_number = xpath_text_required(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:BuildingNumber",
+    let building_number = text_required(
+        seller
+            .aggregate("PostalAddress")
+            .basic("BuildingNumber")
+            .content(),
         "SellerBuildingNumber",
     )?;
-    let district = xpath_content_optional(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:CitySubdivisionName",
+    let district = content_optional(
+        seller
+            .aggregate("PostalAddress")
+            .basic("CitySubdivisionName")
+            .content(),
     )?;
-    let city = xpath_content_required(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:CityName",
+    let city = content_required(
+        seller
+            .aggregate("PostalAddress")
+            .basic("CityName")
+            .content(),
         "SellerCity",
     )?;
-    let postal_code = xpath_text_required(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:PostalZone",
+    let postal_code = text_required(
+        seller
+            .aggregate("PostalAddress")
+            .basic("PostalZone")
+            .content(),
         "SellerPostalCode",
     )?;
-    let country = xpath_text_required(
-        ctx,
-        "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cac:Country/cbc:IdentificationCode",
+    let country = text_required(
+        seller
+            .aggregate("PostalAddress")
+            .aggregate("Country")
+            .basic("IdentificationCode")
+            .content(),
         "SellerCountry",
     )?;
     let country_code = CountryCode::parse(&country).map_err(|_| ParseError::InvalidValue {
@@ -650,24 +682,33 @@ fn parse_address(ctx: &xpath::Context) -> Result<Address, ParseError> {
         country_code,
         city,
         street,
-        additional_street: xpath_content_optional(
-            ctx,
-            "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:AdditionalStreetName",
+        additional_street: content_optional(
+            seller
+                .aggregate("PostalAddress")
+                .basic("AdditionalStreetName")
+                .content(),
         )?,
         building_number,
-        additional_number: xpath_text_optional(
-            ctx,
-            "/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cbc:PlotIdentification",
+        additional_number: text_optional(
+            seller
+                .aggregate("PostalAddress")
+                .basic("PlotIdentification")
+                .content(),
         )?,
         postal_code,
         district,
     })
 }
 
-fn parse_vat_category(ctx: &xpath::Context) -> Result<VatCategory, ParseError> {
-    let category = xpath_text_required(
-        ctx,
-        "/ubl:Invoice/cac:InvoiceLine[1]/cac:Item/cac:ClassifiedTaxCategory/cbc:ID",
+fn parse_vat_category(ctx: &Element<'_, '_>) -> Result<VatCategory, ParseError> {
+    let category = text_required(
+        nav::invoice_lines(*ctx)
+            .next()
+            .unwrap_or(Element(None))
+            .aggregate("Item")
+            .aggregate("ClassifiedTaxCategory")
+            .basic("ID")
+            .content(),
         "VatCategory",
     )?;
     match category.as_str() {
@@ -682,53 +723,44 @@ fn parse_vat_category(ctx: &xpath::Context) -> Result<VatCategory, ParseError> {
     }
 }
 
-fn parse_line_items(ctx: &xpath::Context) -> Result<Vec<LineItem>, ParseError> {
-    let nodes = ctx
-        .evaluate("//cac:InvoiceLine")
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?
-        .get_nodes_as_vec();
+fn parse_line_items(ctx: &Element<'_, '_>) -> Result<Vec<LineItem>, ParseError> {
+    let nodes: Vec<_> = nav::invoice_lines(*ctx).collect();
     if nodes.is_empty() {
         return Err(ParseError::MissingField("InvoiceLine"));
     }
-
     let mut items = Vec::with_capacity(nodes.len());
-    for idx in 1..=nodes.len() {
-        let base = format!("(//cac:InvoiceLine)[{idx}]");
-        let _id = xpath_text_required(ctx, &format!("{base}/cbc:ID"), "LineID")?;
-        let name = xpath_content_required(ctx, &format!("{base}/cac:Item/cbc:Name"), "LineName")?;
-        let quantity = xpath_text_required(
-            ctx,
-            &format!("{base}/cbc:InvoicedQuantity"),
-            "InvoicedQuantity",
-        )?;
-        let unit_code = xpath_text_required(
-            ctx,
-            &format!("{base}/cbc:InvoicedQuantity/@unitCode"),
+    for line in nodes {
+        let _id = text_required(line.basic("ID").content(), "LineID")?;
+        let name = content_required(line.aggregate("Item").basic("Name").content(), "LineName")?;
+        let quantity = text_required(line.basic("InvoicedQuantity").content(), "InvoicedQuantity")?;
+        let unit_code = text_required(
+            line.basic("InvoicedQuantity").attribute("unitCode"),
             "InvoicedQuantity@unitCode",
         )?;
-        let line_extension = xpath_text_required(
-            ctx,
-            &format!("{base}/cbc:LineExtensionAmount"),
+        let line_extension = text_required(
+            line.basic("LineExtensionAmount").content(),
             "LineExtensionAmount",
         )?;
-        let price = xpath_text_required(
-            ctx,
-            &format!("{base}/cac:Price/cbc:PriceAmount"),
+        let price = text_required(
+            line.aggregate("Price").basic("PriceAmount").content(),
             "PriceAmount",
         )?;
-        let vat_rate = xpath_text_required(
-            ctx,
-            &format!("{base}/cac:Item/cac:ClassifiedTaxCategory/cbc:Percent"),
+        let vat_rate = text_required(
+            line.aggregate("Item")
+                .aggregate("ClassifiedTaxCategory")
+                .basic("Percent")
+                .content(),
             "LineVatPercent",
         )?;
-        let vat_category = xpath_text_required(
-            ctx,
-            &format!("{base}/cac:Item/cac:ClassifiedTaxCategory/cbc:ID"),
+        let vat_category = text_required(
+            line.aggregate("Item")
+                .aggregate("ClassifiedTaxCategory")
+                .basic("ID")
+                .content(),
             "LineVatCategory",
         )?;
-        let vat_amount = xpath_text_required(
-            ctx,
-            &format!("{base}/cac:TaxTotal/cbc:TaxAmount"),
+        let vat_amount = text_required(
+            line.aggregate("TaxTotal").basic("TaxAmount").content(),
             "LineTaxAmount",
         )?;
 
@@ -790,7 +822,7 @@ fn parse_line_items(ctx: &xpath::Context) -> Result<Vec<LineItem>, ParseError> {
             .map_err(ParseError::from)?;
         check_amount("LineExtensionAmount", &total_amount.to_string(), expected)?;
         if let Some(gross) =
-            xpath_text_optional(ctx, &format!("{base}/cac:TaxTotal/cbc:RoundingAmount"))?
+            text_optional(line.aggregate("TaxTotal").basic("RoundingAmount").content())?
         {
             check_amount(
                 "LineGrossAmount",
@@ -836,49 +868,21 @@ fn parse_datetime(date: &str, time: &str) -> Result<String, ParseError> {
     Ok(timestamp)
 }
 
-fn build_context(doc: &Document) -> Result<xpath::Context, ParseError> {
-    let ctx = xpath::Context::new(doc).map_err(|e| ParseError::XPath(format!("{e:?}")))?;
-    ctx.register_namespace("ubl", INVOICE_NS)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?;
-    ctx.register_namespace("cbc", CBC_NS)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?;
-    ctx.register_namespace("cac", CAC_NS)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?;
-    Ok(ctx)
+fn text_required(value: Option<String>, label: &'static str) -> Result<String, ParseError> {
+    text_optional(value)?.ok_or(ParseError::MissingField(label))
 }
-
-fn xpath_text_required(
-    ctx: &xpath::Context,
-    expr: &str,
-    label: &'static str,
-) -> Result<String, ParseError> {
-    xpath_text_optional(ctx, expr)?.ok_or(ParseError::MissingField(label))
-}
-
-fn xpath_text_optional(ctx: &xpath::Context, expr: &str) -> Result<Option<String>, ParseError> {
-    Ok(xpath_content_optional(ctx, expr)?
+fn text_optional(value: Option<String>) -> Result<Option<String>, ParseError> {
+    Ok(value
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty()))
 }
-
-// Free-text fields must retain their content; codes and numbers use the
-// normalized helper above. Required text still rejects whitespace-only values.
-fn xpath_content_required(
-    ctx: &xpath::Context,
-    expr: &str,
-    label: &'static str,
-) -> Result<String, ParseError> {
-    xpath_content_optional(ctx, expr)?
+fn content_required(value: Option<String>, label: &'static str) -> Result<String, ParseError> {
+    value
         .filter(|value| !value.trim().is_empty())
         .ok_or(ParseError::MissingField(label))
 }
-
-fn xpath_content_optional(ctx: &xpath::Context, expr: &str) -> Result<Option<String>, ParseError> {
-    let nodes = ctx
-        .evaluate(expr)
-        .map_err(|e| ParseError::XPath(format!("{e:?}")))?
-        .get_nodes_as_vec();
-    Ok(nodes.first().map(|node| node.get_content()))
+fn content_optional(value: Option<String>) -> Result<Option<String>, ParseError> {
+    Ok(value)
 }
 
 fn decode_qr_tlv(qr_b64: &str) -> Result<std::collections::HashMap<u8, Vec<u8>>, ParseError> {
@@ -921,12 +925,8 @@ fn bytes_to_string(bytes: &Vec<u8>) -> Option<String> {
     String::from_utf8(bytes.clone()).ok()
 }
 
-fn decimal_required(
-    ctx: &xpath::Context,
-    path: &str,
-    field: &'static str,
-) -> Result<Decimal, ParseError> {
-    let value = xpath_text_required(ctx, path, field)?;
+fn decimal_required(value: Option<String>, field: &'static str) -> Result<Decimal, ParseError> {
+    let value = text_required(value, field)?;
     value
         .parse()
         .map_err(|_| ParseError::InvalidValue { field, value })

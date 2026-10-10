@@ -200,6 +200,8 @@ mod helpers {
 }
 
 pub(crate) mod constants;
+pub(crate) mod lexical;
+pub(crate) mod nav;
 pub mod parse;
 
 struct InvoiceTotals<'a> {
