@@ -681,3 +681,69 @@ fn signing_qr_preserves_certificate_spki_point_encoding() {
         assert_eq!(&cursor[2..2 + usize::from(cursor[1])], spki.as_slice());
     }
 }
+
+#[test]
+fn signing_document_limits_apply_before_parsing_and_after_generation() {
+    let (_, key, certificate) = build_test_signing_material();
+    let signer = InvoiceSigner::from_der(&certificate, &key).unwrap();
+    let limit = 8 * 1024 * 1024;
+    // Invalid XML proves the byte boundary is checked before parser diagnostics.
+    let oversized = "!".repeat(limit + 1);
+    assert!(
+        signer
+            .sign_xml(&oversized)
+            .unwrap_err()
+            .to_string()
+            .contains("XML input bytes")
+    );
+    let xml = common::dummy_finalized_invoice().to_xml().unwrap();
+    let signed_size = signer.sign_xml(&xml).unwrap().len();
+    let remaining = limit - signed_size + 256 - "<!---->".len();
+    let near_limit = xml.replacen(
+        "</Invoice>",
+        &format!("<!--{}--></Invoice>", "x".repeat(remaining)),
+        1,
+    );
+    assert!(near_limit.len() < limit);
+    let error = signer.sign_xml(&near_limit).unwrap_err().to_string();
+    assert!(error.contains("document byte limit"), "{error}");
+    assert!(signer.sign_xml(&xml).is_ok());
+}
+
+#[test]
+fn builder_qr_accessor_matches_embedded_qr_with_padded_seller_name() {
+    let (_, key, certificate) = build_test_signing_material();
+    let signer = InvoiceSigner::from_der(&certificate, &key).unwrap();
+    let invoice = common::dummy_finalized_invoice_with_seller_name(" Acme Inc ");
+    let signed = invoice.sign(&signer).unwrap();
+    let document = roxmltree::Document::parse(signed.xml()).unwrap();
+    let reference = document
+        .descendants()
+        .find(|node| {
+            node.has_tag_name((
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
+                "AdditionalDocumentReference",
+            )) && node.children().any(|child| {
+                child.has_tag_name((
+                    "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                    "ID",
+                )) && child.text() == Some("QR")
+            })
+        })
+        .unwrap();
+    let embedded = reference
+        .descendants()
+        .find(|node| {
+            node.has_tag_name((
+                "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
+                "EmbeddedDocumentBinaryObject",
+            ))
+        })
+        .unwrap()
+        .text()
+        .unwrap();
+    assert_eq!(signed.qr_code(), embedded);
+    let bytes = Base64::decode_vec(signed.qr_code()).unwrap();
+    assert_eq!(bytes[0], 1);
+    assert_eq!(&bytes[2..2 + usize::from(bytes[1])], b" Acme Inc ");
+}

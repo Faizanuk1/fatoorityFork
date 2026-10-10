@@ -1126,8 +1126,8 @@ impl InvoiceData {
     }
 
     pub(crate) fn seller_name(&self) -> QrResult<&str> {
-        let name = self.seller.name.trim();
-        if name.is_empty() {
+        let name = self.seller.name.as_str();
+        if name.trim().is_empty() {
             return Err(QrCodeError::MissingSellerName);
         }
         Ok(name)
