@@ -1,5 +1,5 @@
 {
-  "implementation_commit": "454b4d8c6a8c2e3677d97fc862b932382fbd4563",
+  "implementation_commit": "99453698baecec4d6c57e14a556279115194ee14",
   "recorded_on": "2026-10-11",
   "source_sha256": {
     "Cargo.toml": "60a241a797142a129c31ea9ebca0f887b9f90a050b58a34b67d15ba80cbe3da6",
@@ -9,7 +9,7 @@
     "fatoora-core/src/invoice/qr.rs": "a299924e156523a3549b0282b5d56782baf250b4f6c82dee3e5ca70065d85b8d",
     "fatoora-core/src/invoice/validation/integrity.rs": "b10714bb05aa6d8da017576e54c680b0e027ec1fe70c246ed6bd7493d636e19d",
     "fatoora-core/src/invoice/validation/business_rules/xml.rs": "96968b09f7993701b6d41a1014a9ce5e6a432f5cf465840b44a1c7b04bf2a884",
-    "fatoora-core/src/invoice/validation/schemas.rs": "27180ab791a06c280f26a6851706c83af108de7482f82216a2968002e78caa94",
+    "fatoora-core/src/invoice/validation/schemas.rs": "8044b1c4b28037ca8c979d1b3d9fcffdc5bc2506e1d6c37bf7f530dfed20d096",
     "fatoora-core/src/invoice/xml/canonicalize.rs": "16dff3df49451cbf8f627fd5cc64fe68f7dd45f37cb56037d562b28511e5f21c",
     "fatoora-core/src/invoice/xml/constants.rs": "89e01e055a312d5345305eb641c242134adea62ad7c2ce23ab4915c2796f6512",
     "fatoora-core/src/invoice/xml/edit.rs": "23c88a7503b0cd6b6e47e71db8c0c9204388a07d80160fef930b0741acd4867d",
@@ -19,7 +19,7 @@
     "fatoora-core/src/invoice/xml/parse.rs": "bbe8f8d84058b1c82c067634d9542a037eb13abf1d5f07826adc7f39ec27986c"
   },
   "offline_workspace": {
-    "passed": 533,
+    "passed": 534,
     "failed": 0,
     "ignored": 5
   },
@@ -288,11 +288,19 @@
     "linux_import_inspection": "passed: ELF readelf and loader dependency inspection",
     "installed_wheel_smoke": "passed",
     "sha256": {
-      "fatoora-rs-cli": "02a70518a2a7da801d322e7b0e513f39ea90b521fd67c3425ddaece66f671292",
-      "libfatoora_ffi.so": "1f8ea0b70d1a443084fbdb16cbabefb42df0ab14b311f2ba8147b5d5b6aa8c1b",
-      "fatoora_rs-0.2.0-cp313-cp313-linux_x86_64.whl": "89738f44eb1c8708fb0b72446ed1dd1aaf61ed98a45ee295a3ec8a84c41edb32"
+      "fatoora-rs-cli": "9fa783a8f931b0468880125edace989eed689293a7f83b19c1494f68b7116606",
+      "libfatoora_ffi.so": "dd01e6fb93cfaf23ac2325b45b05516308a0dfb59ee82891f9fa5c2bfd4a198d",
+      "fatoora_rs-0.2.0-cp313-cp313-linux_x86_64.whl": "1b8cb569d40c034a9359878a0022ad7a43676b2061271f8011292448b3147726"
     },
-    "macos_and_windows": "pending: PR artifact jobs"
+    "macos_and_windows": "passed: CLI/FFI archives and native import inspection on implementation commit 9945369",
+    "cross_platform_ci": {
+      "status": "passed",
+      "implementation_commit": "99453698baecec4d6c57e14a556279115194ee14",
+      "release_run": "https://github.com/mqqz/fatoora-rs/actions/runs/38090450878",
+      "wheel_run": "https://github.com/mqqz/fatoora-rs/actions/runs/38090450804",
+      "rust_run": "https://github.com/mqqz/fatoora-rs/actions/runs/38090450872",
+      "fuzz_run": "https://github.com/mqqz/fatoora-rs/actions/runs/38090450856"
+    }
   },
   "simulation": {
     "status": "pending: no usable Simulation credentials found",
@@ -307,5 +315,10 @@
     "passed": 57,
     "failed": 0,
     "uses_installed_wheel": true
+  },
+  "windows_schema_portability": {
+    "fixed": "embedded resource lookup accepts host drive prefixes and separators without reading host files",
+    "tests": "all embedded resources, multiple drives, backslashes, and rejected external/unknown locations",
+    "ci_confirmation": "passed: Windows CPython wheel matrix with installed schema smoke and PE import inspection"
   }
 }
