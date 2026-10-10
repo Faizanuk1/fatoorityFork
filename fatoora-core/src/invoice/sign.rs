@@ -328,23 +328,23 @@ fn signing_time_from_doc(doc: &Document) -> Result<String, SigningError> {
             "XPath context error: {e:?}"
         )))
     })?;
-    ctx.register_namespace("cbc", CBC_NS).map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!(
-            "XPath context error: {e:?}"
-        )))
-    })?;
-    ctx.register_namespace("xades", XADES_NS).map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!(
-            "XPath context error: {e:?}"
-        )))
-    })?;
-
-    if let Ok(signing_time) = xpath_text_value(
-        &ctx,
-        "//*[local-name()='SignedProperties']//*[local-name()='SigningTime']",
-        "signing time",
-    ) {
-        let parsed = chrono::NaiveDateTime::parse_from_str(&signing_time, "%Y-%m-%dT%H:%M:%S")
+    register_namespaces(&ctx)?;
+    let times = ctx
+        .evaluate("/ubl:Invoice/ext:UBLExtensions/ext:UBLExtension[ext:ExtensionURI='urn:oasis:names:specification:ubl:dsig:enveloped:xades']/ext:ExtensionContent/sig:UBLDocumentSignatures/sac:SignatureInformation/ds:Signature/ds:Object/xades:QualifyingProperties/xades:SignedProperties/xades:SignedSignatureProperties/xades:SigningTime")
+        .map_err(|e| SigningError::Xml(crate::Diagnostic::new(format!("XPath error: {e:?}"))))?
+        .get_nodes_as_vec();
+    if times.len() > 1 {
+        return Err(SigningError::InvalidInput(crate::Diagnostic::new(
+            "Multiple owned signing times",
+        )));
+    }
+    if let Some(signing_time) = times
+        .first()
+        .map(|node| node.get_content())
+        .filter(|value| !value.trim().is_empty())
+    {
+        let signing_time = signing_time.trim();
+        let parsed = chrono::NaiveDateTime::parse_from_str(signing_time, "%Y-%m-%dT%H:%M:%S")
             .map_err(|e| {
                 SigningError::InvalidInput(crate::Diagnostic::new(format!(
                     "Invalid signing time '{signing_time}': {e:?}"
@@ -353,8 +353,8 @@ fn signing_time_from_doc(doc: &Document) -> Result<String, SigningError> {
         return Ok(parsed.format("%Y-%m-%dT%H:%M:%S").to_string());
     }
 
-    let issue_date = xpath_text_value(&ctx, "//cbc:IssueDate", "issue date")?;
-    let issue_time = xpath_text_value(&ctx, "//cbc:IssueTime", "issue time")?;
+    let issue_date = xpath_text_value(&ctx, "/ubl:Invoice/cbc:IssueDate", "issue date")?;
+    let issue_time = xpath_text_value(&ctx, "/ubl:Invoice/cbc:IssueTime", "issue time")?;
     let date = chrono::NaiveDate::parse_from_str(&issue_date, "%Y-%m-%d").map_err(|e| {
         SigningError::InvalidInput(crate::Diagnostic::new(format!(
             "Invalid issue date '{issue_date}': {e:?}"
@@ -395,16 +395,11 @@ fn remove_hash_exclusions(doc: &Document) -> Result<(), SigningError> {
             "XPath context error: {e:?}"
         )))
     })?;
-    ctx.register_namespace("cbc", CBC_NS).map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!(
-            "XPath context error: {e:?}"
-        )))
-    })?;
-
+    register_namespaces(&ctx)?;
     let xpaths = [
-        "/*[local-name()='Invoice']//*[local-name()='UBLExtensions']",
-        "//*[local-name()='AdditionalDocumentReference'][cbc:ID[normalize-space(text())='QR']]",
-        "/*[local-name()='Invoice']//*[local-name()='Signature']",
+        "//ext:UBLExtensions",
+        "//cac:AdditionalDocumentReference[cbc:ID='QR']",
+        "//cac:Signature",
     ];
 
     for xp in xpaths {
@@ -1245,6 +1240,32 @@ mod tests {
     }
 
     #[test]
+    fn signing_time_ignores_foreign_properties_and_empty_template() {
+        let xml = format!(
+            r#"<Invoice xmlns="{INVOICE_NS}" xmlns:cbc="{CBC_NS}" xmlns:xades="{XADES_NS}"><cbc:IssueDate>2024-01-02</cbc:IssueDate><cbc:IssueTime>03:04:05</cbc:IssueTime><xades:SignedProperties><xades:SigningTime>not-a-date</xades:SigningTime></xades:SignedProperties></Invoice>"#
+        );
+        let mut doc = Parser::default().parse_string(&xml).unwrap();
+        assert_eq!(signing_time_from_doc(&doc).unwrap(), "2024-01-02T03:04:05");
+        ensure_signature_structure(&mut doc).unwrap();
+        assert_eq!(signing_time_from_doc(&doc).unwrap(), "2024-01-02T03:04:05");
+    }
+
+    #[test]
+    fn hash_exclusions_match_expanded_names_and_exact_qr_id() {
+        let xml = format!(
+            r#"<Invoice xmlns="{INVOICE_NS}" xmlns:c="{CAC_NS}" xmlns:b="{CBC_NS}" xmlns:e="{EXT_NS}" xmlns:f="urn:foreign"><f:Signature>keep signature</f:Signature><f:UBLExtensions>keep extension</f:UBLExtensions><f:AdditionalDocumentReference><b:ID>QR</b:ID></f:AdditionalDocumentReference><c:AdditionalDocumentReference><b:ID> QR </b:ID></c:AdditionalDocumentReference><c:AdditionalDocumentReference><b:ID>Q<![CDATA[R]]></b:ID></c:AdditionalDocumentReference><e:UBLExtensions><c:Signature>drop nested</c:Signature></e:UBLExtensions><c:Signature>drop signature</c:Signature></Invoice>"#
+        );
+        let doc = Parser::default().parse_string(&xml).unwrap();
+        let actual = canonicalize_invoice(&doc).unwrap();
+        assert!(actual.contains("keep signature"));
+        assert!(actual.contains("keep extension"));
+        assert!(actual.contains("<f:AdditionalDocumentReference>"));
+        assert!(actual.contains("> QR <"));
+        assert_eq!(actual.matches(">QR<").count(), 1);
+        assert!(!actual.contains("drop"));
+    }
+
+    #[test]
     fn signing_time_rejects_invalid_or_empty_source_values() {
         for (path, value, message) in [
             ("//xades:SigningTime", "not-a-date", "Invalid signing time"),
@@ -1543,6 +1564,35 @@ mod sdk_canonical_corpus {
             );
             count += 1;
         }
-        assert!(count >= 30, "required canonical cases missing");
+        assert_eq!(count, 38, "required canonical cases missing");
+    }
+}
+
+#[cfg(test)]
+mod migration_canonical_corpus {
+    use super::*;
+
+    #[test]
+    fn corrected_dom_canonical_bytes_are_frozen() {
+        let root =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/xml-migration");
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(root.join("manifest.json")).unwrap()).unwrap();
+        let artifacts = manifest["artifacts"].as_object().unwrap();
+        assert_eq!(artifacts.len(), 10);
+        for (path, expected) in artifacts {
+            let bytes = std::fs::read(root.join(path)).unwrap();
+            assert_eq!(
+                format!("{:x}", Sha256::digest(&bytes)),
+                expected.as_str().unwrap(),
+                "{path}"
+            );
+            if let Some(case) = path.strip_suffix("/input.xml") {
+                let doc = Parser::default().parse_string(&bytes).unwrap();
+                let expected =
+                    std::fs::read_to_string(root.join(case).join("canonical.xml")).unwrap();
+                assert_eq!(canonicalize_invoice(&doc).unwrap(), expected, "{case}");
+            }
+        }
     }
 }
