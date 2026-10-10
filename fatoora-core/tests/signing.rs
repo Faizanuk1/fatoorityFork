@@ -345,6 +345,38 @@ fn signing_document_limits_apply_before_parsing_and_after_generation() {
     let (_, key, certificate) = build_test_signing_material();
     let signer = InvoiceSigner::from_der(&certificate, &key).unwrap();
     let limit = 8 * 1024 * 1024;
+    use fatoora_core::invoice::{
+        InvoiceBuilder, InvoiceNote, InvoiceSubType, InvoiceType, VatCategory,
+    };
+    let sample = common::dummy_finalized_invoice();
+    let typed = InvoiceBuilder::new(InvoiceType::Tax(InvoiceSubType::Simplified))
+        .id("INV-LARGE")
+        .uuid("8e6000cf-1a98-4174-b3e7-b5d5954bc10d")
+        .issue_datetime("2024-01-01T12:30:00Z")
+        .currency("SAR")
+        .previous_invoice_hash("hash")
+        .invoice_counter(0)
+        .seller(sample.data().seller().clone())
+        .payment_means_code("10")
+        .vat_category(VatCategory::Standard)
+        .line_item(sample.data().line_items()[0].clone())
+        .note(InvoiceNote::new("en", "x".repeat(limit)))
+        .build()
+        .unwrap();
+    assert!(
+        typed
+            .to_xml()
+            .unwrap_err()
+            .to_string()
+            .contains("XML output exceeds document byte limit")
+    );
+    let error = typed.sign(&signer).unwrap_err().to_string();
+    assert!(
+        error.contains("XML output exceeds document byte limit"),
+        "{error}"
+    );
+    assert!(!error.contains("XML parse error"));
+
     // Invalid XML proves the byte boundary is checked before parser diagnostics.
     let oversized = "!".repeat(limit + 1);
     assert!(
