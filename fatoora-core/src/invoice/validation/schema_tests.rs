@@ -336,3 +336,33 @@ fn cached_compilation_failure_is_reported_and_isolated_to_its_thread() {
     .unwrap();
     validate(INVOICE).unwrap();
 }
+
+#[test]
+fn bundled_schema_paths_ignore_host_drive_and_separator_spelling() {
+    for (name, expected) in RESOURCES {
+        let logical = format!("/fatoora-ubl/{name}");
+        for location in [
+            logical.clone(),
+            format!("C:{logical}"),
+            format!("Z:{logical}"),
+            format!("D:{logical}").replace('/', "\\"),
+        ] {
+            assert!(BundledLoader.can_load(&location), "{location}");
+            assert_eq!(resource_at(&location).unwrap().1, *expected);
+            assert!(BundledLoader.load(&location).is_ok());
+        }
+    }
+    for location in [
+        "/other/maindoc/UBL-Invoice-2.1.xsd",
+        r"C:\other\maindoc\UBL-Invoice-2.1.xsd",
+        "C:fatoora-ubl/maindoc/UBL-Invoice-2.1.xsd",
+        "file:///fatoora-ubl/maindoc/UBL-Invoice-2.1.xsd",
+        "https://example.com/ubl/maindoc/UBL-Invoice-2.1.xsd",
+        "//server/fatoora-ubl/maindoc/UBL-Invoice-2.1.xsd",
+        "/fatoora-ubl/../maindoc/UBL-Invoice-2.1.xsd",
+        "/fatoora-ubl/common/unknown.xsd",
+    ] {
+        assert!(!BundledLoader.can_load(location), "{location}");
+        assert!(BundledLoader.load(location).is_err(), "{location}");
+    }
+}
