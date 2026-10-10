@@ -238,6 +238,11 @@ impl InvoiceSigner {
         apply_signature_values(&mut doc, &signing, &self.csid, signed_invoice.qr_code())?;
 
         let signed_xml = doc.to_string();
+        if signed_xml.len() > super::xml::constants::MAX_XML_DOCUMENT_BYTES {
+            return Err(SigningError::Xml(crate::Diagnostic::new(
+                "XML signed document exceeds document byte limit",
+            )));
+        }
         Ok(signed_invoice.with_xml(signed_xml))
     }
 
@@ -252,6 +257,11 @@ impl InvoiceSigner {
     /// # Errors
     /// Returns [`SigningError`] if XML parsing or signature application fails.
     pub fn sign_xml(&self, xml: &str) -> Result<String, SigningError> {
+        if xml.len() > super::xml::constants::MAX_XML_DOCUMENT_BYTES {
+            return Err(SigningError::Xml(crate::Diagnostic::new(
+                "XML resource limit exceeded: XML input bytes",
+            )));
+        }
         let mut doc = Parser::default()
             .parse_string_with_options(xml, strict_parser_options())
             .map_err(|e| {
@@ -275,7 +285,13 @@ impl InvoiceSigner {
         apply_signed_properties_values(&mut doc, &signing)?;
         apply_signature_values(&mut doc, &signing, &self.csid, &qr_code)?;
 
-        Ok(doc.to_string())
+        let signed_xml = doc.to_string();
+        if signed_xml.len() > super::xml::constants::MAX_XML_DOCUMENT_BYTES {
+            return Err(SigningError::Xml(crate::Diagnostic::new(
+                "XML signed document exceeds document byte limit",
+            )));
+        }
+        Ok(signed_xml)
     }
     /// Export the certificate as DER bytes without exposing the certificate backend.
     pub fn certificate_der(&self) -> Result<Vec<u8>, SigningError> {

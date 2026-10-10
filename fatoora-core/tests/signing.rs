@@ -339,3 +339,31 @@ fn malformed_closing_tag_is_rejected_without_poisoning_the_signer() {
             .is_ok()
     );
 }
+
+#[test]
+fn signing_document_limits_apply_before_parsing_and_after_generation() {
+    let (_, key, certificate) = build_test_signing_material();
+    let signer = InvoiceSigner::from_der(&certificate, &key).unwrap();
+    let limit = 8 * 1024 * 1024;
+    // Invalid XML proves the byte boundary is checked before parser diagnostics.
+    let oversized = "!".repeat(limit + 1);
+    assert!(
+        signer
+            .sign_xml(&oversized)
+            .unwrap_err()
+            .to_string()
+            .contains("XML input bytes")
+    );
+    let xml = common::dummy_finalized_invoice().to_xml().unwrap();
+    let signed_size = signer.sign_xml(&xml).unwrap().len();
+    let remaining = limit - signed_size + 256 - "<!---->".len();
+    let near_limit = xml.replacen(
+        "</Invoice>",
+        &format!("<!--{}--></Invoice>", "x".repeat(remaining)),
+        1,
+    );
+    assert!(near_limit.len() < limit);
+    let error = signer.sign_xml(&near_limit).unwrap_err().to_string();
+    assert!(error.contains("document byte limit"), "{error}");
+    assert!(signer.sign_xml(&xml).is_ok());
+}
