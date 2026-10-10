@@ -631,12 +631,12 @@
       "fatoora-core/src/invoice/xml/lexical.rs": "17d00ada1ce6ca2a3ce9bc4a6d1a0daedd82862fee12998ef3c830b9148abfb9",
       "fatoora-core/src/invoice/xml/nav.rs": "e02fd358570d85c8df1c5480ae57a1d18abfb333366ca575118e380ba96a239b",
       "fatoora-core/src/invoice/xml/parse.rs": "bbe8f8d84058b1c82c067634d9542a037eb13abf1d5f07826adc7f39ec27986c",
-      "fatoora-core/tests/fixtures/invoices/malformed-closing-tag.xml": "6f0314fa8664ea567c0d3bbca328061f46c9dc3b6f1887edd23145b00ac20085",
       "fatoora-core/tests/parse_boundaries.rs": "3a81305b04b6a3dc2289f22e9d27b27778d0b17cbfe46a98402a63169cf4941c",
       "fatoora-core/tests/sdk_parity.rs": "6decd4cfa317e7f06917129e276bc159fd94b70de63cb7c066547f1ae500afdb",
-      "fatoora-core/tests/signing.rs": "9aebd1bfe3deeacebda9e7b5e686adde38f1f527bc76e5ecbc56307f83c1cabf",
+      "fatoora-core/tests/signing.rs": "e78e90a70ae8c4e189035178ecbda3f8c475fce35f937788c367a46104521699",
       "fuzz/README.md": "d4b92f48ed7c0e118e7fb8b4cf8026565e4d181316e512dce0a045e938771710",
-      "fuzz/seeds/signing_inputs/malformed-close-tag": "c468b7844d5d7809d1fc2a3fc684f3946cef3335ac1ef2390ac086087284119d"
+      "fuzz/seeds/signing_inputs/malformed-close-tag": "c468b7844d5d7809d1fc2a3fc684f3946cef3335ac1ef2390ac086087284119d",
+      "fatoora-core/tests/fixtures/malformed/closing-tag.xml": "6f0314fa8664ea567c0d3bbca328061f46c9dc3b6f1887edd23145b00ac20085"
     },
     "offline_workspace": {
       "passed": 545,
@@ -918,6 +918,7 @@
     "external_gates": [
       "Newest official SDK archive version and checksum not verified"
     ],
-    "simulation": "Not performed; no access. User explicitly removed Simulation as a migration and merge gate on 2026-10-11."
+    "simulation": "Not performed; no access. User explicitly removed Simulation as a migration and merge gate on 2026-10-11.",
+    "fixture_layout": "Malformed leak fixture is outside the valid-invoice hash corpus; preparation-stage hash suite and rejection regression passed after relocation"
   }
 }
