@@ -5,7 +5,12 @@ use base64ct::{Base64, Encoding};
 use k256::ecdsa::{Signature, SigningKey};
 use k256::pkcs8::DecodePrivateKey;
 use k256::pkcs8::EncodePublicKey;
-use libxml::{parser::{Parser, ParserOptions}, tree::Document, tree::Node, xpath};
+use libxml::{
+    parser::{Parser, ParserOptions},
+    tree::Document,
+    tree::Node,
+    xpath,
+};
 use sha2::{Digest, Sha256};
 use std::fmt::Write;
 use thiserror::Error;
