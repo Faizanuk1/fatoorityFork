@@ -6,7 +6,7 @@ use k256::ecdsa::{Signature, SigningKey};
 use k256::pkcs8::DecodePrivateKey;
 use k256::pkcs8::EncodePublicKey;
 use libxml::{
-    parser::Parser,
+    parser::{Parser, ParserOptions},
     tree::Node,
     tree::{Document, c14n},
     xpath,
@@ -220,9 +220,11 @@ impl InvoiceSigner {
 
     pub(crate) fn sign(&self, invoice: FinalizedInvoice) -> Result<SignedInvoice, SigningError> {
         let unsigned_xml = invoice.to_xml().map_err(SigningError::from)?;
-        let mut doc = Parser::default().parse_string(&unsigned_xml).map_err(|e| {
-            SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
-        })?;
+        let mut doc = Parser::default()
+            .parse_string_with_options(&unsigned_xml, strict_parser_options())
+            .map_err(|e| {
+                SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
+            })?;
 
         ensure_signature_structure(&mut doc)?;
 
@@ -250,9 +252,11 @@ impl InvoiceSigner {
     /// # Errors
     /// Returns [`SigningError`] if XML parsing or signature application fails.
     pub fn sign_xml(&self, xml: &str) -> Result<String, SigningError> {
-        let mut doc = Parser::default().parse_string(xml).map_err(|e| {
-            SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
-        })?;
+        let mut doc = Parser::default()
+            .parse_string_with_options(xml, strict_parser_options())
+            .map_err(|e| {
+                SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
+            })?;
 
         ensure_signature_structure(&mut doc)?;
 
@@ -290,6 +294,14 @@ impl InvoiceSigner {
 
 // TODO this pattern (hash -> base64) is repeated, (Use base64 func for that)
 // Internal helper: compute the base64 invoice hash from a parsed XML document.
+fn strict_parser_options() -> ParserOptions<'static> {
+    ParserOptions {
+        recover: false,
+        no_net: true,
+        ..ParserOptions::default()
+    }
+}
+
 pub(crate) fn invoice_hash_base64(doc: &Document) -> Result<String, SigningError> {
     let canonicalized = canonicalize_invoice(doc)?;
     let hash = Sha256::digest(canonicalized.as_bytes());
@@ -298,9 +310,11 @@ pub(crate) fn invoice_hash_base64(doc: &Document) -> Result<String, SigningError
 }
 
 pub(crate) fn invoice_hash_base64_from_xml(xml: &str) -> Result<String, SigningError> {
-    let doc = Parser::default().parse_string(xml).map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
-    })?;
+    let doc = Parser::default()
+        .parse_string_with_options(xml, strict_parser_options())
+        .map_err(|e| {
+            SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
+        })?;
     invoice_hash_base64(&doc)
 }
 
