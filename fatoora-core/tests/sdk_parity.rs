@@ -242,7 +242,7 @@ fn sdk_and_fresh_rust_signatures_and_qr_are_verified() {
             .unwrap_or_else(|e| panic!("SDK {id}: {e}"));
         let doc = checks::document(&sdk).unwrap();
         assert_eq!(
-            checks::qr(&checks::context(&doc)).unwrap(),
+            checks::qr(checks::context(&doc)).unwrap(),
             checks::tlv(&Base64::decode_vec(expected["qr"].as_str().unwrap()).unwrap()).unwrap(),
             "SDK QR {id}"
         );
@@ -266,8 +266,8 @@ fn sdk_and_fresh_rust_signatures_and_qr_are_verified() {
             "//xades:CertDigest/ds:DigestValue",
         ] {
             assert_eq!(
-                checks::text(&rust_ctx, field).unwrap(),
-                checks::text(&sdk_ctx, field).unwrap(),
+                checks::text(rust_ctx, field).unwrap(),
+                checks::text(sdk_ctx, field).unwrap(),
                 "{id}: {field}"
             );
         }
@@ -378,13 +378,12 @@ fn typed_serialization_and_signing_match_frozen_inputs() {
 
 fn mutate(xml: &str, xpath: &str, value: &str) -> String {
     let doc = checks::document(xml).unwrap();
-    let ctx = checks::context(&doc);
-    let nodes = ctx.evaluate(xpath).unwrap().get_nodes_as_vec();
-    assert_eq!(nodes.len(), 1, "mutation target {xpath}");
-    let mut node = nodes.into_iter().next().unwrap();
-    assert_ne!(node.get_content(), value, "ineffective mutation");
-    node.set_content(value).unwrap();
-    doc.to_string()
+    assert_ne!(
+        checks::text(&doc, xpath).unwrap(),
+        value,
+        "ineffective mutation"
+    );
+    checks::replace_text(xml, xpath, value)
 }
 
 #[test]

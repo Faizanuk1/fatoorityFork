@@ -33,8 +33,7 @@ fn replace(input: &str, old: &str, new: &str) -> String {
 fn text(input: &str, path: &str) -> String {
     let doc = independent::document(input).unwrap();
     let ctx = independent::context(&doc);
-    ctx.register_namespace("ubl", UBL).unwrap();
-    independent::text(&ctx, path).unwrap()
+    independent::text(ctx, path).unwrap()
 }
 
 fn replace_text(input: &str, path: &str, value: &str) -> String {

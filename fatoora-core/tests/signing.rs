@@ -6,8 +6,9 @@ use fatoora_core::csr::{CsrProperties, SigningKey as CoreSigningKey};
 use fatoora_core::invoice::sign::{InvoiceSigner, SigningError};
 use k256::ecdsa::SigningKey as K256SigningKey;
 use k256::pkcs8::DecodePrivateKey;
-use libxml::parser::Parser;
-use libxml::xpath;
+#[path = "support/xml.rs"]
+#[allow(dead_code)]
+mod test_xml;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -18,9 +19,6 @@ use x509_cert::serial_number::SerialNumber;
 use x509_cert::spki::EncodePublicKey;
 use x509_cert::spki::SubjectPublicKeyInfo;
 use x509_cert::time::Validity;
-
-const CBC_NS: &str = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
-const CAC_NS: &str = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
 
 #[test]
 fn sign_invoice_emits_signature_and_qr() {
@@ -44,19 +42,8 @@ fn sign_invoice_emits_signature_and_qr() {
     println!("{}", xml);
     assert!(xml.contains("ds:SignatureValue"));
 
-    let doc = Parser::default()
-        .parse_string(&xml)
-        .expect("parse signed xml");
-    let ctx = xpath::Context::new(&doc).expect("xpath context");
-    ctx.register_namespace("cbc", CBC_NS).expect("cbc ns");
-    ctx.register_namespace("cac", CAC_NS).expect("cac ns");
-
-    let nodes = ctx
-        .evaluate("//cac:AdditionalDocumentReference[cbc:ID[normalize-space(text())='QR']]/cac:Attachment/cbc:EmbeddedDocumentBinaryObject")
-        .expect("qr xpath")
-        .get_nodes_as_vec();
-    assert!(!nodes.is_empty(), "missing QR node");
-    let qr_value = nodes[0].get_content();
+    let doc = roxmltree::Document::parse(&xml).unwrap();
+    let qr_value = test_xml::text(&doc, "//cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject").unwrap();
     assert!(!qr_value.trim().is_empty(), "empty QR value");
 }
 
@@ -134,16 +121,8 @@ fn sign_xml_emits_signature_and_signing_time() {
     let signed_xml: String = signer.sign_xml(&unsigned_xml).expect("sign xml");
     assert!(signed_xml.contains("ds:SignatureValue"));
 
-    let doc = Parser::default()
-        .parse_string(&signed_xml)
-        .expect("parse signed xml");
-    let ctx = xpath::Context::new(&doc).expect("xpath context");
-    let nodes = ctx
-        .evaluate("//*[local-name()='SigningTime']")
-        .expect("signing time xpath")
-        .get_nodes_as_vec();
-    assert!(!nodes.is_empty(), "missing SigningTime");
-    let signing_time = nodes[0].get_content();
+    let doc = roxmltree::Document::parse(&signed_xml).unwrap();
+    let signing_time = test_xml::text(&doc, "//xades:SigningTime").unwrap();
     assert_eq!(signing_time.trim(), "2024-01-01T12:30:00");
 }
 
@@ -780,4 +759,25 @@ fn builder_qr_accessor_matches_embedded_qr_with_padded_seller_name() {
         assert_eq!(bytes[0], 1);
         assert_eq!(&bytes[2..2 + usize::from(bytes[1])], name.as_bytes());
     }
+}
+
+#[test]
+fn resigning_rejects_changed_owned_reference_bindings() {
+    let (signer, _) = build_test_signer();
+    let input = common::dummy_finalized_invoice().to_xml().unwrap();
+    let signed = signer.sign_xml(&input).unwrap();
+    for (old, replacement) in [
+        ("Target=\"signature\"", "Target=\"external\""),
+        ("Id=\"xadesSignedProperties\"", "Id=\"external\""),
+        ("Id=\"invoiceSignedData\"", "Id=\"external\""),
+        ("URI=\"#xadesSignedProperties\"", "URI=\"#external\""),
+    ] {
+        assert_eq!(signed.matches(old).count(), 1);
+        let changed = signed.replace(old, replacement);
+        assert_eq!(
+            signer.sign_xml(&changed).unwrap_err().kind(),
+            fatoora_core::ErrorKind::InvalidInput
+        );
+    }
+    assert_eq!(signer.sign_xml(&signed).unwrap(), signed);
 }

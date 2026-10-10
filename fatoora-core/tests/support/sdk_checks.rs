@@ -1,56 +1,29 @@
 //! Independent test readers/verifiers. Never call the production signer or QR parser here.
 use base64ct::{Base64, Encoding};
 use k256::ecdsa::{Signature, VerifyingKey, signature::Verifier};
-use libxml::{
-    parser::{Parser, ParserOptions},
-    tree::Document,
-    xpath::Context,
-};
+use roxmltree::Document;
+#[path = "xml.rs"]
+#[allow(dead_code)]
+mod test_xml;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+pub use test_xml::select;
+pub fn replace_text(xml: &str, path: &str, value: &str) -> String {
+    test_xml::replace_text(xml, path, value)
+}
 use x509_cert::{
     Certificate,
     der::{Decode, Encode},
 };
 
-pub fn document(xml: &str) -> Result<Document, String> {
-    Parser::default()
-        .parse_string_with_options(
-            xml,
-            ParserOptions {
-                recover: false,
-                ..Default::default()
-            },
-        )
-        .map_err(|e| format!("XML: {e}"))
+pub fn document(xml: &str) -> Result<Document<'_>, String> {
+    Document::parse(xml).map_err(|e| format!("XML: {e}"))
 }
-pub fn context(doc: &Document) -> Context {
-    let ctx = Context::new(doc).unwrap();
-    for (p, ns) in [
-        ("ds", "http://www.w3.org/2000/09/xmldsig#"),
-        ("xades", "http://uri.etsi.org/01903/v1.3.2#"),
-        (
-            "cbc",
-            "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-        ),
-        (
-            "cac",
-            "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-        ),
-    ] {
-        ctx.register_namespace(p, ns).unwrap();
-    }
-    ctx
+pub fn context<'a, 'input>(doc: &'a Document<'input>) -> &'a Document<'input> {
+    doc
 }
-pub fn text(ctx: &Context, expr: &str) -> Result<String, String> {
-    let nodes = ctx
-        .evaluate(expr)
-        .map_err(|e| format!("XPath: {e:?}"))?
-        .get_nodes_as_vec();
-    if nodes.len() != 1 {
-        return Err(format!("expected exactly one {expr}, got {}", nodes.len()));
-    }
-    Ok(nodes[0].get_content())
+pub fn text(doc: &Document<'_>, expr: &str) -> Result<String, String> {
+    test_xml::text(doc, expr)
 }
 pub fn decode(value: &str) -> Result<Vec<u8>, String> {
     Base64::decode_vec(value).map_err(|e| format!("base64: {e}"))
@@ -82,7 +55,7 @@ pub fn tlv(bytes: &[u8]) -> Result<BTreeMap<u8, Vec<u8>>, String> {
     Ok(tags)
 }
 
-pub fn qr(ctx: &Context) -> Result<BTreeMap<u8, Vec<u8>>, String> {
+pub fn qr(ctx: &Document<'_>) -> Result<BTreeMap<u8, Vec<u8>>, String> {
     tlv(&decode(&text(
         ctx,
         "//cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject",
@@ -100,13 +73,13 @@ pub fn verify_signed(
     let doc = document(xml)?;
     let ctx = context(&doc);
     let hash = text(
-        &ctx,
+        ctx,
         "//ds:Reference[@Id='invoiceSignedData']/ds:DigestValue",
     )?;
     if hash != expected_hash {
         return Err("invoice digest differs".into());
     }
-    let cert_bytes = decode(&text(&ctx, "//ds:X509Certificate")?)?;
+    let cert_bytes = decode(&text(ctx, "//ds:X509Certificate")?)?;
     if cert_bytes != expected_certificate {
         return Err("certificate differs".into());
     }
@@ -115,7 +88,7 @@ pub fn verify_signed(
     let verifying =
         VerifyingKey::from_sec1_bytes(spki.subject_public_key.as_bytes().ok_or("unaligned key")?)
             .map_err(|e| e.to_string())?;
-    let signature_bytes = decode(&text(&ctx, "//ds:SignatureValue")?)?;
+    let signature_bytes = decode(&text(ctx, "//ds:SignatureValue")?)?;
     let signature = Signature::from_der(&signature_bytes).map_err(|e| e.to_string())?;
     // Accept both mathematically equivalent high-S/low-S encodings from independent signers.
     let signature = signature.normalize_s();
@@ -129,15 +102,15 @@ pub fn verify_signed(
         )
         .as_bytes(),
     );
-    if text(&ctx, "//xades:CertDigest/ds:DigestValue")? != cert_digest {
+    if text(ctx, "//xades:CertDigest/ds:DigestValue")? != cert_digest {
         return Err("certificate digest".into());
     }
-    let tags = qr(&ctx)?;
+    let tags = qr(ctx)?;
     let expected = [
         (
             1,
             text(
-                &ctx,
+                ctx,
                 "//cac:AccountingSupplierParty//cac:PartyLegalEntity/cbc:RegistrationName",
             )?
             .into_bytes(),
@@ -145,7 +118,7 @@ pub fn verify_signed(
         (
             2,
             text(
-                &ctx,
+                ctx,
                 "//cac:AccountingSupplierParty//cac:PartyTaxScheme/cbc:CompanyID",
             )?
             .into_bytes(),
@@ -154,8 +127,8 @@ pub fn verify_signed(
             3,
             format!(
                 "{}T{}",
-                text(&ctx, "/*/cbc:IssueDate")?,
-                text(&ctx, "/*/cbc:IssueTime")?
+                text(ctx, "/*/cbc:IssueDate")?,
+                text(ctx, "/*/cbc:IssueTime")?
             )
             .into_bytes(),
         ),
@@ -164,12 +137,12 @@ pub fn verify_signed(
             if sdk_rounding_difference {
                 b"1000.00".to_vec()
             } else {
-                text(&ctx, "//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount")?.into_bytes()
+                text(ctx, "//cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount")?.into_bytes()
             },
         ),
         (
             5,
-            text(&ctx, "(/*/cac:TaxTotal/cbc:TaxAmount)[1]")?.into_bytes(),
+            text(ctx, "(/*/cac:TaxTotal/cbc:TaxAmount)[1]")?.into_bytes(),
         ),
         (6, hash.into_bytes()),
         (7, Base64::encode_string(&signature_bytes).into_bytes()),
@@ -189,13 +162,13 @@ pub fn verify_signed(
     {
         return Err("QR certificate signature differs".into());
     }
-    if text(&ctx, "/*/cbc:InvoiceTypeCode/@name")?.starts_with("02") && !tags.contains_key(&9) {
+    if text(ctx, "/*/cbc:InvoiceTypeCode/@name")?.starts_with("02") && !tags.contains_key(&9) {
         return Err("missing simplified QR certificate signature".into());
     }
-    let transforms = ctx
-        .evaluate("//ds:Reference[@Id='invoiceSignedData']/ds:Transforms/ds:Transform")
-        .map_err(|e| format!("{e:?}"))?
-        .get_nodes_as_vec();
+    let transforms = select(
+        ctx,
+        "//ds:Reference[@Id='invoiceSignedData']/ds:Transforms/ds:Transform",
+    );
     if transforms.len() != 4 {
         return Err("signature transform count".into());
     }
@@ -211,21 +184,21 @@ pub fn verify_signed(
             "//ds:Reference[@Id='invoiceSignedData']/ds:Transforms/ds:Transform[{}]",
             index + 1
         );
-        if text(&ctx, &format!("{base}/@Algorithm"))?
+        if text(ctx, &format!("{base}/@Algorithm"))?
             != "http://www.w3.org/TR/1999/REC-xpath-19991116"
-            || text(&ctx, &format!("{base}/ds:XPath"))? != *predicate
+            || text(ctx, &format!("{base}/ds:XPath"))? != *predicate
         {
             return Err("signature exclusion transform".into());
         }
     }
     if text(
-        &ctx,
+        ctx,
         "//ds:Reference[@Id='invoiceSignedData']/ds:Transforms/ds:Transform[4]/@Algorithm",
     )? != "http://www.w3.org/2006/12/xml-c14n11"
     {
         return Err("signature canonicalization transform".into());
     }
-    let time = text(&ctx, "//xades:SigningTime")?;
+    let time = text(ctx, "//xades:SigningTime")?;
     chrono::NaiveDateTime::parse_from_str(&time, "%Y-%m-%dT%H:%M:%S")
         .map_err(|e| format!("signing time: {e}"))?;
     for (expr, expected) in [
@@ -243,7 +216,7 @@ pub fn verify_signed(
             "http://www.w3.org/2001/04/xmlenc#sha256",
         ),
     ] {
-        if text(&ctx, expr)? != expected {
+        if text(ctx, expr)? != expected {
             return Err(format!("signature metadata: {expr}"));
         }
     }
@@ -256,14 +229,11 @@ pub fn verify_signed(
 pub fn properties_preimage(xml: &str) -> Result<String, String> {
     let doc = document(xml)?;
     let ctx = context(&doc);
-    let nodes = ctx
-        .evaluate("//xades:SignedProperties")
-        .map_err(|e| format!("{e:?}"))?
-        .get_nodes_as_vec();
+    let nodes = select(ctx, "//xades:SignedProperties");
     if nodes.len() != 1 {
         return Err("SignedProperties count".into());
     }
-    let mut raw = doc.node_to_string(&nodes[0]);
+    let mut raw = xml[nodes[0].range()].to_owned();
     if !raw.starts_with("<xades:SignedProperties xmlns:xades=") {
         raw = raw.replacen(
             "<xades:SignedProperties ",
@@ -290,11 +260,10 @@ pub fn properties_preimage(xml: &str) -> Result<String, String> {
 }
 
 pub fn verify_references(xml: &str) -> Result<(), String> {
-    use libxml::tree::c14n::{CanonicalizationMode, CanonicalizationOptions};
     let doc = document(xml)?;
     let ctx = context(&doc);
     let properties_hash = text(
-        &ctx,
+        ctx,
         "//ds:Reference[@URI='#xadesSignedProperties']/ds:DigestValue",
     )?;
     let bytes = properties_preimage(xml)?;
@@ -304,26 +273,35 @@ pub fn verify_references(xml: &str) -> Result<(), String> {
         return Err("SignedProperties digest".into());
     }
     let expected = text(
-        &ctx,
+        ctx,
         "//ds:Reference[@Id='invoiceSignedData']/ds:DigestValue",
     )?;
-    ctx.register_namespace(
-        "ext",
-        "urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2",
+    let mut ranges: Vec<_> = doc.descendants().filter(|node| {
+        let name = node.tag_name();
+        (name.namespace() == Some("urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2") && name.name() == "UBLExtensions")
+            || (name.namespace() == Some("urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2") && (name.name() == "Signature" || (name.name() == "AdditionalDocumentReference" && node.children().any(|child| child.tag_name().namespace() == Some("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2") && child.tag_name().name() == "ID" && test_xml::content(child) == "QR"))))
+    }).map(|node| node.range()).collect();
+    ranges.sort_by_key(|range| (range.start, std::cmp::Reverse(range.end)));
+    let mut retained: Vec<std::ops::Range<usize>> = Vec::new();
+    for range in ranges {
+        if !retained
+            .last()
+            .is_some_and(|parent| parent.end >= range.end)
+        {
+            retained.push(range);
+        }
+    }
+    let mut filtered = xml.to_owned();
+    for range in retained.into_iter().rev() {
+        filtered.replace_range(range, "");
+    }
+    let canonical = xml_sec::c14n::canonicalize_xml_with_backend(
+        filtered.as_bytes(),
+        &xml_sec::c14n::C14nAlgorithm::new(xml_sec::c14n::C14nMode::Inclusive1_1, false),
+        xml_sec::XmlBackend::Roxmltree,
     )
-    .unwrap();
-    for mut node in ctx.evaluate("//ext:UBLExtensions | //cac:Signature | //cac:AdditionalDocumentReference[cbc:ID='QR']").map_err(|e| format!("{e:?}"))?.get_nodes_as_vec() { node.unlink(); }
-    let canonical = doc
-        .canonicalize(
-            CanonicalizationOptions {
-                mode: CanonicalizationMode::Canonical1_1,
-                inclusive_ns_prefixes: vec![],
-                with_comments: false,
-            },
-            None,
-        )
-        .map_err(|e| format!("{e:?}"))?;
-    if expected != Base64::encode_string(&Sha256::digest(canonical.as_bytes())) {
+    .map_err(|e| e.to_string())?;
+    if expected != Base64::encode_string(&Sha256::digest(&canonical)) {
         return Err("signed content digest".into());
     }
     Ok(())
