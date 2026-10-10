@@ -1,3 +1,8 @@
+/// Maximum complete XML document size, including signed output.
+pub(crate) const MAX_XML_DOCUMENT_BYTES: usize = 8 * 1024 * 1024;
+/// Internal retained data / preimage ceiling, not a document-size allowance.
+pub(crate) const MAX_XML_RETAINED_BYTES: usize = 64 * 1024 * 1024;
+
 pub(crate) const INVOICE_NS: &str = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
 pub(crate) const CBC_NS: &str =
     "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";

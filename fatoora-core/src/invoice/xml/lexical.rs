@@ -21,7 +21,7 @@ pub(crate) struct XmlLimits {
 impl Default for XmlLimits {
     fn default() -> Self {
         Self {
-            xml_bytes: 8 * 1024 * 1024,
+            xml_bytes: super::constants::MAX_XML_DOCUMENT_BYTES,
             elements: 100_000,
             dom_nodes: 400_000,
             depth: 128,
@@ -200,6 +200,19 @@ mod tests {
         assert!(matches!(
             document(&input),
             Err(XmlError::Limit("XML nodes"))
+        ));
+    }
+
+    #[test]
+    fn document_size_limit_accepts_exact_boundary_and_rejects_one_more_byte() {
+        let limit = super::super::constants::MAX_XML_DOCUMENT_BYTES;
+        let mut input = format!("<r>{}</r>", "x".repeat(limit - 7));
+        assert_eq!(input.len(), limit);
+        document(&input).unwrap();
+        input.insert(3, 'x');
+        assert!(matches!(
+            document(&input),
+            Err(XmlError::Limit("XML input bytes"))
         ));
     }
 

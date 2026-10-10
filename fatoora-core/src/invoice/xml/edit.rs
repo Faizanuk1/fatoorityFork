@@ -30,8 +30,8 @@ pub(crate) fn apply(source: &str, mut edits: Vec<Edit>) -> Result<String, String
             .and_then(|size| size.checked_add(edit.replacement.len()))
             .ok_or("XML edit output exceeds byte limit")?;
     }
-    if output_bytes > 8 * 1024 * 1024 {
-        return Err("XML edit output exceeds input byte limit".into());
+    if output_bytes > super::constants::MAX_XML_DOCUMENT_BYTES {
+        return Err("XML edit output exceeds document byte limit".into());
     }
     let mut output = source.to_owned();
     for edit in edits.into_iter().rev() {
@@ -64,6 +64,24 @@ mod tests {
         .unwrap();
         assert_eq!(output, "أ<!--keep--><first/>\r\n<?keep yes?><last/>");
     }
+    #[test]
+    fn generated_document_limit_is_distinct_from_retained_memory() {
+        let limit = super::super::constants::MAX_XML_DOCUMENT_BYTES;
+        let source = "x".repeat(limit - 1);
+        let insert = |replacement: &str| {
+            vec![Edit {
+                range: source.len()..source.len(),
+                replacement: replacement.into(),
+            }]
+        };
+        assert_eq!(apply(&source, insert("x")).unwrap().len(), limit);
+        assert!(
+            apply(&source, insert("xx"))
+                .unwrap_err()
+                .contains("document byte limit")
+        );
+    }
+
     #[test]
     #[allow(clippy::single_range_in_vec_init)]
     fn invalid_overlapping_and_same_offset_edits_are_rejected() {

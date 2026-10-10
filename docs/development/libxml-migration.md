@@ -20,7 +20,12 @@ Dependency types stay out of public/domain APIs. Preserve public error categorie
 Lexical processing handles declaration version/encoding, DTD/entity rejection,
 resource limits, original prefixes and selected SignedProperties serialization.
 Semantic selection belongs exclusively to the tree. Preserve the current 8 MiB
-input, 100,000 element, 400,000 total DOM node, depth 128 and 64 MiB retained/output limits. Direct text
+document, 100,000 element, 400,000 total DOM node, depth 128 and 64 MiB internal
+retained/preimage limits. All XML entrypoints enforce a maximum complete
+document size of 8 MiB, including signed output. The 64 MiB retained/generated XML
+budget is a separate internal resource ceiling. Signing fails before returning an
+output that exceeds the document limit. No operation may produce XML that another
+supported operation rejects solely because of document size. Direct text
 coalesces CDATA; element, comment and PI boundaries retain existing semantics.
 
 ## Stages

@@ -171,7 +171,7 @@ thread_local! {
 }
 
 pub(super) fn validate(xml: &str) -> Result<(), XmlValidationError> {
-    roxmltree::Document::parse(xml).map_err(|error| XmlValidationError::XmlParse {
+    crate::invoice::xml::lexical::document(xml).map_err(|error| XmlValidationError::XmlParse {
         message: error.to_string(),
     })?;
     ADAPTER.with(|cache| match cache.get_or_init(Adapter::compile) {

@@ -1063,6 +1063,11 @@ fn to_xml_with_format<T: InvoiceView + ?Sized>(
     if buffer.contains('\r') {
         buffer = buffer.replace('\r', "&#13;");
     }
+    if buffer.len() > constants::MAX_XML_DOCUMENT_BYTES {
+        return Err(InvoiceXmlError::Serialize {
+            source: crate::Diagnostic::new("XML output exceeds document byte limit"),
+        });
+    }
     Ok(buffer)
 }
 

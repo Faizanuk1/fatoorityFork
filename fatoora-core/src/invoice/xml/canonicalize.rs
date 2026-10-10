@@ -11,7 +11,7 @@ use quick_xml::{
 use roxmltree::Node;
 use std::collections::BTreeMap;
 const XML: &str = "http://www.w3.org/XML/1998/namespace";
-const OUTPUT_LIMIT: usize = 64 * 1024 * 1024;
+const OUTPUT_LIMIT: usize = super::constants::MAX_XML_RETAINED_BYTES;
 
 fn excluded(node: Node<'_, '_>) -> bool {
     nav::is(node, EXT_NS, "UBLExtensions")
