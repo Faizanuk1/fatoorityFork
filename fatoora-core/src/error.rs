@@ -143,6 +143,67 @@ impl Error {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn schema_diagnostics_preserve_source_and_severity() {
+        let error = xsd_schema::validation::ValidationError {
+            constraint: "cvc-type.3.1.3",
+            message: "invalid decimal".into(),
+            location: Some(xsd_schema::parser::location::SourceLocation {
+                base_uri: "invoice.xml".into(),
+                line: 12,
+                column: 7,
+            }),
+            element_path: Some("/Invoice/PayableAmount".into()),
+        };
+        let message = error.to_string();
+        let diagnostic = super::Diagnostic::from_schema(error);
+        assert_eq!(diagnostic.message(), message);
+        assert_eq!(diagnostic.file(), Some("invoice.xml"));
+        assert_eq!(diagnostic.line(), Some(12));
+        assert_eq!(diagnostic.column(), Some(7));
+        assert_eq!(
+            diagnostic.severity(),
+            Some(super::DiagnosticSeverity::Error)
+        );
+    }
+
+    #[test]
+    fn schema_diagnostics_omit_unavailable_or_unrepresentable_locations() {
+        use xsd_schema::parser::location::SourceLocation;
+        let mut locations = vec![
+            None,
+            Some(SourceLocation {
+                base_uri: String::new(),
+                line: 0,
+                column: 0,
+            }),
+        ];
+        if let Ok(overflow) = usize::try_from(u64::from(u32::MAX) + 1) {
+            locations.push(Some(SourceLocation {
+                base_uri: String::new(),
+                line: overflow,
+                column: overflow,
+            }));
+        }
+        for location in locations {
+            let diagnostic =
+                super::Diagnostic::from_schema(xsd_schema::validation::ValidationError {
+                    constraint: "cvc-type",
+                    message: "invalid value".into(),
+                    location,
+                    element_path: None,
+                });
+            assert_eq!(diagnostic.file(), None);
+            assert_eq!(diagnostic.line(), None);
+            assert_eq!(diagnostic.column(), None);
+            assert_eq!(
+                diagnostic.severity(),
+                Some(super::DiagnosticSeverity::Error)
+            );
+            assert!(diagnostic.message().contains("invalid value"));
+        }
+    }
+
     use super::{Error, ErrorKind};
     use crate::invoice::validation::{
         ZatcaFailureKind, ZatcaValidationError, ZatcaValidationReport,

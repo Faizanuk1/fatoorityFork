@@ -5,7 +5,8 @@ use std::{cell::OnceCell, convert::Infallible};
 use xsd_schema::schema::model::DerivationSet;
 use xsd_schema::validation::{
     ElementStartView, EndElementInfo, ErrorOnlySink, SchemaInfo, SchemaValidator, SchemaValidity,
-    TextKind, TypeSource, ValidationEventHandler, ValidationFlags, drive_quick_xml_with,
+    TextKind, TypeSource, ValidationError, ValidationEventHandler, ValidationFlags,
+    drive_quick_xml_with,
 };
 use xsd_schema::{SchemaError, SchemaLoader, SchemaResult, SchemaSet, SchemaSetBuilder, TypeKey};
 
@@ -136,21 +137,30 @@ impl Adapter {
                 })?;
         let completion = runtime.end_validation();
         drop(runtime);
-        let mut diagnostics: Vec<_> = errors.into_iter().map(Diagnostic::from_schema).collect();
-        if let Err(error) = completion {
-            diagnostics.push(Diagnostic::from_schema(error));
+        validation_result(outcome.root_validity, errors, completion, handler.errors)
+    }
+}
+
+fn validation_result(
+    root_validity: Option<SchemaValidity>,
+    errors: Vec<ValidationError>,
+    completion: Result<(), ValidationError>,
+    decimal_errors: Vec<Diagnostic>,
+) -> Result<(), XmlValidationError> {
+    let mut diagnostics: Vec<_> = errors.into_iter().map(Diagnostic::from_schema).collect();
+    if let Err(error) = completion {
+        diagnostics.push(Diagnostic::from_schema(error));
+    }
+    diagnostics.extend(decimal_errors);
+    if diagnostics.is_empty() && root_validity == Some(SchemaValidity::Valid) {
+        Ok(())
+    } else {
+        if diagnostics.is_empty() {
+            diagnostics.push(Diagnostic::new("document has no valid UBL root"));
         }
-        diagnostics.extend(handler.errors);
-        if diagnostics.is_empty() && outcome.root_validity == Some(SchemaValidity::Valid) {
-            Ok(())
-        } else {
-            if diagnostics.is_empty() {
-                diagnostics.push(Diagnostic::new("document has no valid UBL root"));
-            }
-            Err(XmlValidationError::SchemaValidation {
-                errors: diagnostics,
-            })
-        }
+        Err(XmlValidationError::SchemaValidation {
+            errors: diagnostics,
+        })
     }
 }
 

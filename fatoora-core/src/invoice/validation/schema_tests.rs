@@ -273,3 +273,66 @@ fn certificate_serial_numbers_keep_existing_digit_string_constraint() {
     assert!(validate(&serial(&"9".repeat(100))).is_ok());
     assert!(validate(&serial("1.5")).is_err());
 }
+
+#[test]
+fn streaming_adapter_rejects_parse_errors_and_missing_roots() {
+    let adapter = Adapter::compile().unwrap();
+    assert!(matches!(
+        adapter.validate("<Invoice"),
+        Err(XmlValidationError::XmlParse { .. })
+    ));
+    let Err(XmlValidationError::SchemaValidation { errors }) = adapter.validate("") else {
+        panic!("an empty stream must not count as a valid document");
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message(), "document has no valid UBL root");
+    adapter.validate(INVOICE).unwrap();
+}
+
+#[test]
+fn completion_failure_overrides_valid_root_without_losing_diagnostics() {
+    let completion = ValidationError {
+        constraint: "validation-resource-limit",
+        message: "content model completion exceeded its execution limit".into(),
+        location: None,
+        element_path: Some("/Invoice".into()),
+    };
+    let Err(XmlValidationError::SchemaValidation { errors }) = validation_result(
+        Some(SchemaValidity::Valid),
+        Vec::new(),
+        Err(completion),
+        vec![Diagnostic::new("invalid decimal value")],
+    ) else {
+        panic!("a valid root cannot override a failed completion check");
+    };
+    assert_eq!(errors.len(), 2);
+    assert!(errors[0].message().contains("validation-resource-limit"));
+    assert!(errors[0].message().contains("/Invoice"));
+    assert_eq!(errors[0].severity(), Some(crate::DiagnosticSeverity::Error));
+    assert_eq!(errors[1].message(), "invalid decimal value");
+}
+
+#[test]
+fn cached_compilation_failure_is_reported_and_isolated_to_its_thread() {
+    std::thread::spawn(|| {
+        let failure = SchemaSetBuilder::with_loader(Box::new(BundledLoader))
+            .add("", "/fatoora-ubl/missing.xsd")
+            .and_then(|builder| builder.compile())
+            .err()
+            .expect("an unbundled schema must not compile")
+            .to_string();
+        ADAPTER.with(|cache| assert!(cache.set(Err(failure.clone())).is_ok()));
+        for _ in 0..2 {
+            let error = validate(INVOICE).unwrap_err();
+            assert_eq!(error.kind(), crate::ErrorKind::Parse);
+            let XmlValidationError::SchemaParse { errors } = error else {
+                panic!("schema setup errors must preserve their public classification");
+            };
+            assert_eq!(errors.len(), 1);
+            assert_eq!(errors[0].message(), failure);
+        }
+    })
+    .join()
+    .unwrap();
+    validate(INVOICE).unwrap();
+}
