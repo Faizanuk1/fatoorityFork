@@ -31,7 +31,10 @@ pub(crate) fn prepare_invoice_digest_input(xml: &str) -> Result<Vec<u8>, String>
             .filter(|node| excluded(*node) && !node.ancestors().skip(1).any(excluded))
             .map(|node| Edit {
                 range: node.range(),
-                replacement: String::new(),
+                // Keep adjacent character data lexically separate: deletion can
+                // otherwise join `]]` and `>` into forbidden XML. C14N without
+                // comments omits this barrier, matching DOM subtree removal.
+                replacement: "<!---->".into(),
             })
             .collect();
         edit::apply(xml, edits)?
@@ -364,6 +367,7 @@ mod tests {
             "processing-instructions",
             "nested-exclusions",
             "foreign-and-lexical",
+            "text-boundaries",
         ] {
             let input = std::fs::read_to_string(root.join(case).join("input.xml")).unwrap();
             let expected = std::fs::read(root.join(case).join("canonical.xml")).unwrap();
