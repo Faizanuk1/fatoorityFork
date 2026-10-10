@@ -78,7 +78,13 @@ pub fn validate_xml_invoice_report_from_str(
     xml: &str,
     config: &Config,
 ) -> Result<ValidationReport, XmlValidationError> {
-    let issues = match validate_xml_invoice_from_str(xml, config) {
+    schema_validation_report(validate_xml_invoice_from_str(xml, config))
+}
+
+fn schema_validation_report(
+    result: ValidationResult,
+) -> Result<ValidationReport, XmlValidationError> {
+    let issues = match result {
         Ok(()) => Vec::new(),
         Err(XmlValidationError::SchemaValidation { errors }) => {
             let mut findings: Vec<_> = errors
@@ -119,4 +125,91 @@ pub fn validate_xml_invoice_report_from_str(
         layers_checked: vec![ValidationLayer::Xsd],
         issues,
     })
+}
+
+#[cfg(test)]
+mod schema_report_tests {
+    use super::*;
+
+    #[test]
+    fn failure_without_diagnostics_still_reports_an_error() {
+        let report = schema_validation_report(Err(XmlValidationError::SchemaValidation {
+            errors: Vec::new(),
+        }))
+        .unwrap();
+        assert!(report.has_errors());
+        assert_eq!(report.layers_checked, [ValidationLayer::Xsd]);
+        assert_eq!(report.issues.len(), 1);
+        assert_eq!(report.issues[0].code, "XSD_INVALID");
+        assert_eq!(report.issues[0].location, None);
+    }
+
+    #[test]
+    fn schema_report_preserves_backend_source_coordinates() {
+        for column in [0, 7] {
+            let diagnostic =
+                crate::Diagnostic::from_schema(xsd_schema::validation::ValidationError {
+                    constraint: "cvc-type.3.1.3",
+                    message: "invalid decimal".into(),
+                    location: Some(xsd_schema::parser::location::SourceLocation {
+                        base_uri: "invoice.xml".into(),
+                        line: 12,
+                        column,
+                    }),
+                    element_path: Some("/Invoice/Quantity".into()),
+                });
+            let message = diagnostic.message().to_owned();
+            let report = schema_validation_report(Err(XmlValidationError::SchemaValidation {
+                errors: vec![diagnostic],
+            }))
+            .unwrap();
+            assert_eq!(report.issues.len(), 1);
+            assert!(report.has_errors());
+            assert_eq!(report.issues[0].message, message);
+            assert_eq!(
+                report.issues[0].location,
+                Some(ValidationLocation::Xml {
+                    line: 12,
+                    column: (column > 0).then_some(column as u32),
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn incomplete_validation_remains_an_error_instead_of_a_report() {
+        for (error, kind) in [
+            (
+                XmlValidationError::InvalidXsdPath {
+                    path: "missing.xsd".into(),
+                },
+                crate::ErrorKind::InvalidInput,
+            ),
+            (
+                XmlValidationError::SchemaParse {
+                    errors: vec![crate::Diagnostic::new("bad schema")],
+                },
+                crate::ErrorKind::Parse,
+            ),
+            (
+                XmlValidationError::XmlParse {
+                    message: "bad XML".into(),
+                },
+                crate::ErrorKind::Xml,
+            ),
+        ] {
+            let original = error.to_string();
+            let returned = schema_validation_report(Err(error)).unwrap_err();
+            assert_eq!(returned.kind(), kind);
+            assert_eq!(returned.to_string(), original);
+        }
+        assert_eq!(
+            XmlValidationError::SchemaValidation { errors: vec![] }.kind(),
+            crate::ErrorKind::Validation
+        );
+        assert!(matches!(
+            validate_xml_invoice_report_from_str("<Invoice", &Config::default()),
+            Err(XmlValidationError::XmlParse { .. })
+        ));
+    }
 }
