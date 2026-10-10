@@ -5,12 +5,7 @@ use base64ct::{Base64, Encoding};
 use k256::ecdsa::{Signature, SigningKey};
 use k256::pkcs8::DecodePrivateKey;
 use k256::pkcs8::EncodePublicKey;
-use libxml::{
-    parser::{Parser, ParserOptions},
-    tree::Node,
-    tree::{Document, c14n},
-    xpath,
-};
+use libxml::{parser::{Parser, ParserOptions}, tree::Document, tree::Node, xpath};
 use sha2::{Digest, Sha256};
 use std::fmt::Write;
 use thiserror::Error;
@@ -310,12 +305,9 @@ pub(crate) fn invoice_hash_base64(doc: &Document) -> Result<String, SigningError
 }
 
 pub(crate) fn invoice_hash_base64_from_xml(xml: &str) -> Result<String, SigningError> {
-    let doc = Parser::default()
-        .parse_string_with_options(xml, strict_parser_options())
-        .map_err(|e| {
-            SigningError::Xml(crate::Diagnostic::new(format!("XML parse error: {e:?}")))
-        })?;
-    invoice_hash_base64(&doc)
+    let canonical = super::xml::canonicalize::prepare_invoice_digest_input(xml)
+        .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e)))?;
+    Ok(Base64::encode_string(&Sha256::digest(canonical)))
 }
 
 /// Compute the base64 invoice hash from an XML string.
@@ -384,54 +376,9 @@ fn signing_time_from_doc(doc: &Document) -> Result<String, SigningError> {
 }
 
 fn canonicalize_invoice(doc: &Document) -> Result<String, SigningError> {
-    let xml = doc.dup().map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!(
-            "Failed to duplicate xml: {e:?}"
-        )))
-    })?;
-    remove_hash_exclusions(&xml)?;
-
-    let canon_opts = c14n::CanonicalizationOptions {
-        mode: c14n::CanonicalizationMode::Canonical1_1,
-        inclusive_ns_prefixes: vec![],
-        with_comments: false,
-    };
-    xml.canonicalize(canon_opts, None).map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!(
-            "Failed to canonicalize xml: {e:?}"
-        )))
-    })
-}
-
-fn remove_hash_exclusions(doc: &Document) -> Result<(), SigningError> {
-    let ctx = xpath::Context::new(doc).map_err(|e| {
-        SigningError::Xml(crate::Diagnostic::new(format!(
-            "XPath context error: {e:?}"
-        )))
-    })?;
-    register_namespaces(&ctx)?;
-    let xpaths = [
-        "//ext:UBLExtensions",
-        "//cac:AdditionalDocumentReference[cbc:ID='QR']",
-        "//cac:Signature",
-    ];
-
-    for xp in xpaths {
-        let nodes = ctx
-            .evaluate(xp)
-            .map_err(|e| {
-                SigningError::Xml(crate::Diagnostic::new(format!(
-                    "XPath context error: {e:?}"
-                )))
-            })?
-            .get_nodes_as_vec();
-        // Dropping an unlinked node frees its subtree. Matches are in document
-        // order, so remove descendants before their ancestors.
-        for mut node in nodes.into_iter().rev() {
-            node.unlink();
-        }
-    }
-    Ok(())
+    let bytes = super::xml::canonicalize::prepare_invoice_digest_input(&doc.to_string())
+        .map_err(|e| SigningError::Xml(crate::Diagnostic::new(e)))?;
+    String::from_utf8(bytes).map_err(|e| SigningError::Xml(crate::Diagnostic::new(e.to_string())))
 }
 
 fn xpath_text_value(ctx: &xpath::Context, expr: &str, label: &str) -> Result<String, SigningError> {
