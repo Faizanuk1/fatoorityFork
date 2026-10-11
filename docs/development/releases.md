@@ -10,6 +10,9 @@ Use a branch named `release/<version>` so its PR runs the Linux, macOS, and
 Windows wheel and native builds. Update all four crate manifests, their internal
 dependency requirements, and `bindings/python/pyproject.toml`. Refresh the root
 `Cargo.lock` and `bindings/python/uv.lock` without upgrading unrelated packages.
+Refresh `fuzz/Cargo.lock` and `scripts/xsd-compat/Cargo.lock` as well; their
+independent workspaces resolve SDK path dependencies at the new version.
+The release metadata checker validates those local SDK entries.
 The root Cargo lockfile governs workspace builds; the historical member
 lockfiles are not used by these commands.
 

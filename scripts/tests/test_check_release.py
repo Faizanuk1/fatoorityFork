@@ -46,6 +46,29 @@ version = "0.2.0"
         self.assertEqual(release.check_release(self.root), "0.2.0")
         self.assertEqual(release.check_release(self.root, "v0.2.0"), "0.2.0")
 
+    def test_tool_workspaces_reject_stale_transitive_sdk_versions(self):
+        for directory, core_path in (("fuzz", "../core"), ("scripts/xsd-compat", "../../core")):
+            with self.subTest(directory=directory):
+                self.write(f"{directory}/Cargo.toml", f'''[package]
+name = "tool"
+version = "0.0.0"
+[workspace]
+[dependencies]
+fatoora-core = {{ path = "{core_path}" }}
+''')
+                self.write(f"{directory}/Cargo.lock", self.root.joinpath("Cargo.lock").read_text())
+                self.assertEqual(release.check_release(self.root), "0.2.0")
+                self.replace(f"{directory}/Cargo.lock", 'name = "fatoora-derive"\nversion = "0.2.0"', 'name = "fatoora-derive"\nversion = "0.1.3"')
+                with self.assertRaisesRegex(ValueError, "must be locked"):
+                    release.check_release(self.root)
+                self.replace(f"{directory}/Cargo.lock", 'version = "0.1.3"', 'version = "0.2.0"')
+
+    def test_tool_workspace_rejects_missing_direct_sdk_entry(self):
+        self.write("fuzz/Cargo.toml", '[workspace]\n[dependencies]\nfatoora-core = { path = "../core" }\n')
+        self.write("fuzz/Cargo.lock", '[[package]]\nname = "tool"\nversion = "0.0.0"\n')
+        with self.assertRaisesRegex(ValueError, "fatoora-core must be locked"):
+            release.check_release(self.root)
+
     def test_rejects_wrong_tag_or_manual_branch(self):
         for tag in ("v0.1.3", "0.2.0", "main", "v0.2.0-rc.1", ""):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
