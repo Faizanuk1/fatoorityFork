@@ -1,28 +1,75 @@
 # Changelog
 
-## [0.2.0] - Unreleased
+## [0.3.0] - Unreleased
+
+Upgrade bindings and their native library together. This release replaces the
+C ABI and Python native loader, adds complete local ZATCA validation, and
+removes libxml2 from ordinary builds and distributed artifacts.
+
+### Breaking changes
+
+- Replace handwritten C exports with Diplomat-generated `fatoora_Type_method`
+  symbols. Recompile C/C++ clients against the matching generated headers.
+  Strings are length-delimited UTF-8 views, numeric getters write to
+  `DiplomatWrite`, and fallible results contain an owned `BindingError`.
+  See the [binding migration guide](docs/development/diplomat.md).
+- Python keeps its high-level API but removes `FfiLibrary`, the CFFI loader,
+  and custom native-library/header environment overrides. Install the matching
+  wheel, which bundles its Nanobind extension and native library.
+- XML entrypoints require UTF-8 XML 1.0 without DTDs and enforce an 8 MiB limit
+  for complete documents, including signed output. Signing rejects mismatched
+  keys, different existing certificates, invalid reference bindings, and
+  externally owned or ambiguous signatures.
+
+### Added
+
+- Complete local ZATCA validation through Rust, CLI, C/C++, and Python: XSD,
+  all 257 CEN/KSA assertions, and applicable signature/QR integrity checks.
+  Reports distinguish rejection, missing context, and execution failure.
+  See [local validation](docs/reference/invoice-validation.md).
+- Generated C++ ownership wrappers and Python native bindings for invoices,
+  signing, keys, CSRs, credentials, and HTTP responses.
+- Seeded property tests, bounded XML/QR/signing fuzz targets, and independent
+  canonicalization, signature-tampering, and schema-negative regressions.
+
+### Fixed
+
+- Preserve unrelated XML bytes, comments, processing instructions, and extension
+  content during signing. Re-signing with the same certificate and preserved
+  signing time produces identical bytes and verifies the complete result.
+- Align hash exclusions with exact QR identifiers and preserve valid text across
+  excluded subtree boundaries. Preserve the certificate's original SPKI encoding
+  in QR tag 8 and escape issuer text consistently with SignedProperties digests.
+- Preserve invoice flags and free-text values, including CR/CRLF, across XML
+  import and output. Reject truncated or duplicate QR TLV tags.
+- Preserve literal CSR distinguished-name values and improve binding ownership,
+  failure recovery, HTTP, and CLI regression coverage.
+- Validate large UBL decimal values with a narrowly scoped compatibility shim;
+  retain lexical, declared-type, attribute, ordering, and namespace constraints.
+  Resolve bundled schema paths consistently across platforms.
+
+### Distribution
+
+- Synchronize all four Rust crates and the Python package at 0.3.0.
+- Use roxmltree for XML interpretation, xml-sec for C14N 1.1, and xsd-schema for
+  XSD validation. libxml2 remains only in optional reference tools.
+- Remove libxml2 installation, linking, and bundling from normal builds,
+  Linux/macOS/Windows CLI and FFI archives, and Python wheels. Verify the actual
+  artifact dependency closure in CI.
+- Ship generated C/C++ headers with FFI archives and retain the bundled native
+  library layout in repaired Python wheels.
+
+## [0.2.0] - 2026-09-18
 
 This release breaks compatibility with 0.1.x in Rust, the C ABI, Python, and
 serialized invoice data. Upgrade bindings and their native library together.
 
-### Added
-
-- Diplomat-generated C, C++, and Python native bindings for invoices, signing,
-  keys, CSRs, credentials, and HTTP responses. See the
-  [binding workflow](docs/development/diplomat.md).
-
 ### Breaking changes
-
-- The handwritten C ABI is replaced by generated `fatoora_Type_method` symbols.
-  Recompile C/C++ clients against the matching generated headers. Python retains
-  its high-level API but removes `FfiLibrary`, the CFFI loader, and custom library
-  or header environment overrides; wheels bundle their native implementation.
 
 - Invoice numbers use the crate-owned `Decimal` type. Rust callers construct
   values from strings or integers; JSON encodes them as decimal strings. Python
   accepts `decimal.Decimal`, `str`, or `int` and rejects floats. C numeric inputs
-  are length-delimited UTF-8 strings; numeric getters write decimal text to
-  `DiplomatWrite`. See the
+  are UTF-8 strings, and numeric getters return owned strings. See the
   [numeric migration guide](docs/reference/numbers.md#bindings-and-migration).
 - Rust `InvoiceBuilder` configuration methods consume and return the builder.
   Chain calls or assign their result back. `build()` consumes the builder on
@@ -54,9 +101,8 @@ serialized invoice data. Upgrade bindings and their native library together.
   including half-up rounding, VAT category aggregation, supplied line VAT,
   prepayments, and payable-rounding adjustments.
 - Enforce validated wrapper invariants during deserialization and expose
-  structured invoice validation reports. Local ZATCA validation covers XSD,
-  all 257 CEN/KSA assertions, and applicable integrity checks; reports retain
-  missing-context and execution-failure details.
+  structured invoice validation reports. Rust XML validation covers XSD;
+  complete ZATCA business-rule validation remains separate work.
 - Preserve optional address fields during XML import and output.
 - Preserve HTTP error status and bodies, reject unexpected redirects, and
   report malformed success responses without treating them as acceptance.
@@ -81,10 +127,14 @@ serialized invoice data. Upgrade bindings and their native library together.
   assets upload only after every native build succeeds.
 - Use the Cargo lockfile for native builds. Test installed wheels by calling
   the native library, and restrict Windows wheels to the supported AMD64 target.
-- Bundle the generated Nanobind extension and native library in Python wheels.
-  Ship generated C/C++ headers with the native FFI archives.
+- Bundle the generated ABI header in Python wheels so address constructors and
+  the complete binding declarations are available outside a source checkout.
 - Repair Windows wheels for runtime-loaded DLL dependencies. Windows CLI and
   FFI ZIP archives include vcpkg DLLs and their installed license material.
   Windows CLI users should extract the complete archive before running it.
+- Require CFFI 1.17+ so Windows loads repaired wheel dependencies through the
+  registered DLL search directories.
 
 [0.2.0]: https://github.com/mqqz/fatoora-rs/compare/v0.1.3...v0.2.0
+
+[0.3.0]: https://github.com/mqqz/fatoora-rs/compare/v0.2.0...v0.3.0
