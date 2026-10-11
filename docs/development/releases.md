@@ -16,7 +16,8 @@ lockfiles are not used by these commands.
 Add a curated entry to the root [changelog](https://github.com/mqqz/fatoora-rs/blob/main/CHANGELOG.md).
 Keep its date as `Unreleased` until publication. Include migration instructions
 for Rust, C/C++, Python, and serialized data when their contracts change. A
-breaking change to 0.1.x requires 0.2.0 under Cargo's compatibility conventions.
+breaking change before 1.0 requires a new minor version under Cargo's
+compatibility conventions; breaking changes to 0.2.x require 0.3.0.
 
 Release tooling needs Cargo 1.90+ for workspace publication and Python 3.11+ for
 the metadata checker. This tooling requirement does not declare a minimum
@@ -25,7 +26,7 @@ supported Rust version for library consumers; CI currently tests stable Rust.
 ## Validate the committed candidate
 
 ```sh
-python3 scripts/check_release.py --tag v0.2.0
+python3 scripts/check_release.py --tag v0.3.0
 python3 -m unittest discover -s scripts/tests -v
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -82,8 +83,8 @@ After review and successful checks, merge the release PR and tag the exact
 tested release commit. Replace `TESTED_COMMIT_SHA` below with that commit:
 
 ```sh
-git tag -a v0.2.0 TESTED_COMMIT_SHA -m "Release v0.2.0"
-git push origin v0.2.0
+git tag -a v0.3.0 TESTED_COMMIT_SHA -m "Release v0.3.0"
+git push origin v0.3.0
 ```
 
 The tag starts publication. Rust publishes derive, core, FFI, then CLI. Python
