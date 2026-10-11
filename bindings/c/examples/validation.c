@@ -1,29 +1,54 @@
 /* --8<-- [start:example] */
-#include "SignedInvoice.h"
-#include "BindingError.h"
-#include <assert.h>
+#include "fatoora.h"
 #include <stdio.h>
-#include <string.h>
-#ifndef FATOORA_DOC_SIGNED_XML
-#define FATOORA_DOC_SIGNED_XML "path/to/signed_invoice.xml"
-#endif
-static DiplomatStringView s(const char *v) { return (DiplomatStringView){v,strlen(v)}; }
-#include "Config.h"
-#include "Xml.h"
-int main(void) {
-    fatoora_Config_new_result config = fatoora_Config_new(0);
-    assert(config.is_ok);
-    fatoora_SignedInvoice_from_file_result invoice = fatoora_SignedInvoice_from_file(s(FATOORA_DOC_SIGNED_XML));
-    assert(invoice.is_ok);
-    DiplomatWrite *xml = diplomat_buffer_write_create(0);
-    fatoora_SignedInvoice_xml_result copied = fatoora_SignedInvoice_xml(invoice.ok, xml);
-    assert(copied.is_ok);
-    fatoora_SignedInvoice_destroy(invoice.ok);
-    DiplomatStringView view = {(const char *)diplomat_buffer_write_get_bytes(xml), diplomat_buffer_write_len(xml)};
-    fatoora_Xml_validate_result valid = fatoora_Xml_validate(config.ok, view);
-    assert(valid.is_ok && valid.ok);
-    diplomat_buffer_write_destroy(xml);
-    fatoora_Config_destroy(config.ok);
-    return 0;
+#include <stdlib.h>
+
+static char *read_xml(const char *path) {
+    FILE *file = fopen(path, "rb");
+    if (!file) return NULL;
+    char *xml = NULL;
+    if (fseek(file, 0, SEEK_END)) goto done;
+    long size = ftell(file);
+    if (size < 0 || size > 1024 * 1024) goto done;
+    rewind(file);
+    xml = malloc((size_t)size + 1);
+    if (!xml) goto done;
+    if (fread(xml, 1, (size_t)size, file) != (size_t)size) {
+        free(xml);
+        xml = NULL;
+    } else {
+        xml[size] = '\0';
+    }
+done:
+    fclose(file);
+    return xml;
+}
+
+int main(int argc, char **argv) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s invoice.xml\n", argv[0]);
+        return 1;
+    }
+    FatooraConfig *config = NULL;
+    FatooraError *error = NULL;
+    char *xml = read_xml(argv[1]);
+    if (!xml) {
+        fputs("Unable to read invoice XML.\n", stderr);
+        return 1;
+    }
+    bool valid = false;
+    FatooraStatus status = FATOORA_OK;
+#define TRY(call) do { status = (call); if (status != FATOORA_OK) goto cleanup; } while (0)
+    TRY(fatoora_config_new(FATOORA_NON_PRODUCTION, &config, &error));
+    /* Validate original XML; parsing/reserializing would change the input. */
+    TRY(fatoora_xml_validate(config, xml, &valid, &error));
+    printf("XSD valid: %s\n", valid ? "true" : "false");
+cleanup:
+    if (status != FATOORA_OK)
+        fprintf(stderr, "Error %d: %s\n", (int)status, fatoora_error_message(error));
+    free(xml);
+    fatoora_config_free(config);
+    fatoora_error_free(error);
+    return status == FATOORA_OK && valid ? 0 : 1;
 }
 /* --8<-- [end:example] */

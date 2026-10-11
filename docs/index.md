@@ -51,6 +51,8 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
 
 === "C (FFI)"
     Download the precompiled ffi library and headers for your platform from [github releases](https://github.com/mqqz/fatoority/releases)
+    and use the [C API](development/c-api.md) for plain strings,
+    named-field options, and shared error handling.
 
 === "CLI"
     You can either install the binary using `cargo install`:

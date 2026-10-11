@@ -1,4 +1,4 @@
-"""Check that every native release archive contains the pinned rule notices."""
+"""Check pinned rule notices and the C API in native release archives."""
 
 import argparse
 import stat
@@ -7,6 +7,12 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 RULE_NOTICES = ("LICENSE-LGPL-3.0.txt", "LICENSE-GPL-3.0.txt", "NOTICE.md")
+C_API_FILES = {
+    "fatoora.h": "include/fatoora.h",
+    "fatoora.c": "src/fatoora.c",
+    **{f"examples/{name}.c": f"examples/c/{name}.c" for name in
+       ("build_invoice", "csr", "invoice_signing", "qr", "validation", "api")},
+}
 
 
 def check_archive(path, expected):
@@ -58,7 +64,17 @@ def check_packages(directory, root):
     if not packages:
         raise ValueError(f"{directory}: no native release archives")
     for path in packages:
-        check_archive(path, expected)
+        package_expected = dict(expected)
+        if path.name.startswith("fatoora-ffi-"):
+            package_expected.update({
+                destination: (root / "bindings/c" / name).read_bytes()
+                for name, destination in C_API_FILES.items()
+            })
+            package_expected.update({
+                f"include/generated/{header.name}": header.read_bytes()
+                for header in (root / "bindings/c/generated").glob("*.h")
+            })
+        check_archive(path, package_expected)
     return len(packages)
 
 
@@ -72,7 +88,7 @@ def main():
         count = check_packages(args.directory, Path(__file__).resolve().parents[1])
     except (OSError, ValueError, tarfile.TarError, zipfile.BadZipFile) as error:
         parser.exit(1, f"Native package check failed: {error}\n")
-    print(f"Verified pinned rule notices in {count} native release archive(s)")
+    print(f"Verified native package contents in {count} release archive(s)")
 
 
 if __name__ == "__main__":

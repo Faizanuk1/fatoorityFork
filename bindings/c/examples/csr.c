@@ -1,68 +1,36 @@
 /* --8<-- [start:example] */
-#include "BindingError.h"
-#include "Csr.h"
-#include "CsrProperties.h"
-#include "SigningKey.h"
-
+#include "fatoora.h"
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#ifndef FATOORA_DOC_CSR_PROPS
-#define FATOORA_DOC_CSR_PROPS "path/to/csr.properties"
-#endif
-
-static DiplomatStringView s(const char *value) {
-  return (DiplomatStringView){value, strlen(value)};
-}
-
-static void report_error(BindingError *error) {
-  DiplomatWrite *output = diplomat_buffer_write_create(0);
-  fatoora_BindingError_details_json(error, output);
-  fwrite(diplomat_buffer_write_get_bytes(output), 1,
-         diplomat_buffer_write_len(output), stderr);
-  fputc('\n', stderr);
-  diplomat_buffer_write_destroy(output);
-  fatoora_BindingError_destroy(error);
-}
-
-int main(void) {
-  int status = EXIT_FAILURE;
-  CsrProperties *properties = NULL;
-  SigningKey *key = NULL;
-  Csr *csr = NULL;
-  DiplomatWrite *pem = NULL;
-
-  fatoora_CsrProperties_parse_csr_config_file_result parsed =
-      fatoora_CsrProperties_parse_csr_config_file(s(FATOORA_DOC_CSR_PROPS));
-  if (!parsed.is_ok) { report_error(parsed.err); goto cleanup; }
-  properties = parsed.ok;
-
-  fatoora_SigningKey_generate_result generated = fatoora_SigningKey_generate();
-  if (!generated.is_ok) { report_error(generated.err); goto cleanup; }
-  key = generated.ok;
-
-  /* Environment 0 selects the non-production CSR template. */
-  fatoora_CsrProperties_build_result built =
-      fatoora_CsrProperties_build(properties, key, 0);
-  if (!built.is_ok) { report_error(built.err); goto cleanup; }
-  csr = built.ok;
-
-  pem = diplomat_buffer_write_create(0);
-  fatoora_Csr_to_pem_result encoded = fatoora_Csr_to_pem(csr, pem);
-  if (!encoded.is_ok) { report_error(encoded.err); goto cleanup; }
-  size_t length = diplomat_buffer_write_len(pem);
-  if (fwrite(diplomat_buffer_write_get_bytes(pem), 1, length, stdout) != length) {
-    fputs("Failed to write CSR PEM.\n", stderr);
-    goto cleanup;
-  }
-  status = EXIT_SUCCESS;
-
+int main(int argc, char **argv) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s csr.properties\n", argv[0]);
+        return 1;
+    }
+    FatooraCsrProperties *properties = NULL;
+    FatooraSigningKey *key = NULL;
+    FatooraCsr *csr = NULL;
+    FatooraError *error = NULL;
+    char *csr_pem = NULL, *key_pem = NULL;
+    FatooraStatus status = FATOORA_OK;
+    int exit_code = 1;
+#define TRY(call) do { status = (call); if (status != FATOORA_OK) goto cleanup; } while (0)
+    TRY(fatoora_csr_properties_parse_csr_config_file(argv[1], &properties, &error));
+    TRY(fatoora_signing_key_generate(&key, &error));
+    TRY(fatoora_csr_properties_build(properties, key, FATOORA_NON_PRODUCTION, &csr, &error));
+    TRY(fatoora_csr_to_pem(csr, &csr_pem, &error));
+    TRY(fatoora_signing_key_to_pem(key, &key_pem, &error));
+    /* Save the private key securely; it is needed when signing invoices. */
+    printf("%s\n%s\n", key_pem, csr_pem);
+    exit_code = 0;
 cleanup:
-  if (pem) diplomat_buffer_write_destroy(pem);
-  if (csr) fatoora_Csr_destroy(csr);
-  if (key) fatoora_SigningKey_destroy(key);
-  if (properties) fatoora_CsrProperties_destroy(properties);
-  return status;
+    if (exit_code) fprintf(stderr, "Error %d: %s\n", (int)status, fatoora_error_message(error));
+    fatoora_string_free(key_pem);
+    fatoora_string_free(csr_pem);
+    fatoora_csr_free(csr);
+    fatoora_signing_key_free(key);
+    fatoora_csr_properties_free(properties);
+    fatoora_error_free(error);
+    return exit_code;
 }
 /* --8<-- [end:example] */

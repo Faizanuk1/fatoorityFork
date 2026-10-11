@@ -88,9 +88,9 @@ Numeric getters return `decimal.Decimal`.
 builder.add_line_item("Item", 3, "PCE", "0.3333", "15", VatCategory.STANDARD)
 ```
 
-C inputs are length-delimited UTF-8 decimal strings (`DiplomatStringView`).
-Numeric getters write decimal text to `DiplomatWrite`; release buffer writers with
-`diplomat_buffer_write_destroy`. The backing decimal library has no public ABI representation.
+C inputs are NUL-terminated UTF-8 decimal strings, such as `"0.3333"`.
+Numeric getters return owned decimal text through `char **out`; release it with
+`fatoora_string_free()`. The backing decimal library has no public ABI representation.
 
 ## Regression checks
 

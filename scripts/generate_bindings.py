@@ -4,6 +4,7 @@ import os
 import argparse
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +16,7 @@ def main():
     args = parser.parse_args()
     tool = os.environ.get("DIPLOMAT_TOOL", "diplomat-tool")
     for backend, output in (
-        ("c", "bindings/c"),
+        ("c", "bindings/c/generated"),
         ("cpp", "bindings/cpp"),
         ("nanobind", "bindings/python/native/generated"),
     ):
@@ -41,6 +42,10 @@ def main():
                 else:
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(source.read_bytes())
+    subprocess.run([
+        sys.executable, str(ROOT / "scripts/generate_c_facade.py"),
+        *(["--check"] if args.check else []),
+    ], cwd=ROOT, check=True)
 
 
 if __name__ == "__main__":

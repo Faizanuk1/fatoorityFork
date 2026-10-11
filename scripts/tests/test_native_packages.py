@@ -82,6 +82,33 @@ class NativePackageChecks(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "expected a .tar.gz or .zip archive"):
             native.check_packages(self.dist, self.root)
 
+    def test_ffi_archives_require_current_c_api(self):
+        facade = self.root / "bindings/c"
+        entries = list(self.entries)
+        for name, destination in native.C_API_FILES.items():
+            source = facade / name
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_text(f"Facade source: {name}\n")
+            entries.append((destination, source.read_bytes()))
+        generated = facade / "generated/diplomat_runtime.h"
+        generated.parent.mkdir(parents=True)
+        generated.write_text("Generated runtime\n")
+        entries.append(("include/generated/diplomat_runtime.h", generated.read_bytes()))
+        for extension in ("tar.gz", "zip"):
+            for omit in ("public", "generated", None):
+                with self.subTest(extension=extension, omit=omit):
+                    contents = self.entries if omit == "public" else entries[:-1] if omit == "generated" else entries
+                    path = self.package(extension, contents)
+                    ffi = path.with_name(f"fatoora-ffi-test.{extension}")
+                    path.rename(ffi)
+                    if omit:
+                        missing = "include/fatoora.h" if omit == "public" else "include/generated/diplomat_runtime.h"
+                        with self.assertRaisesRegex(ValueError, "missing.*" + missing):
+                            native.check_packages(self.dist, self.root)
+                    else:
+                        self.assertEqual(native.check_packages(self.dist, self.root), 1)
+                    ffi.unlink()
+
 
 if __name__ == "__main__":
     unittest.main()

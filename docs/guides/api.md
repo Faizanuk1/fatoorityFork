@@ -14,7 +14,7 @@ Using the `fatoora-core` API client for compliance, reporting, and clearance API
     --8<-- "bindings/python/examples/api.py:example"
     ```
 
-=== "C/C++"
+=== "C"
     ```c
     --8<-- "bindings/c/examples/api.c:example"
     ```
@@ -38,7 +38,7 @@ optional document is present or decodable.
 
 Non-2xx invoice responses return structured errors with `http_status`, response
 text, and parsed JSON when available. Python exposes these in `error.details`;
-C exposes them through `fatoora_BindingError_details_json`.
+C exposes them through `fatoora_error_details_json()`.
 
 ## Notes
 
@@ -50,3 +50,6 @@ C exposes them through `fatoora_BindingError_details_json`.
   endpoints return credential handles and retain their existing response rules.
 
 See also: [API Client Reference](../reference/api-client.md)
+
+C examples include `fatoora.h`; compile the adapter once with your application.
+See the [C build instructions](../development/c-api.md#build-and-run).

@@ -1,6 +1,6 @@
 # CSR
 
-See [C and C++ bindings](bindings/c.md) for ownership rules and text output.
+C signatures use the [C API](../development/c-api.md). See [C and C++ bindings](bindings/c.md) for ownership and build instructions.
 The declarations below come from the generated headers. C++ exposes the same types
 in namespace `fatoora` through `fatoora/Type.hpp` headers.
 
@@ -45,9 +45,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsrProperties.h"
+        #include "fatoora.h"
 
-        fatoora_CsrProperties_new_result fatoora_CsrProperties_new(DiplomatStringView common_name, DiplomatStringView serial_number, DiplomatStringView organization_identifier, DiplomatStringView organization_unit_name, DiplomatStringView organization_name, DiplomatStringView country_name, DiplomatStringView invoice_type, DiplomatStringView location_address, DiplomatStringView industry_business_category);
+        FatooraStatus fatoora_csr_properties_new(const FatooraCsrOptions *options,
+            FatooraCsrProperties **out,
+            FatooraError **error);
         ```
 
 ### `from_properties_str`
@@ -67,9 +69,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsrProperties.h"
+        #include "fatoora.h"
 
-        fatoora_CsrProperties_from_properties_str_result fatoora_CsrProperties_from_properties_str(DiplomatStringView properties);
+        FatooraStatus fatoora_csr_properties_from_properties_str(const char *properties,
+            FatooraCsrProperties **out,
+            FatooraError **error);
         ```
 
 ### `parse_csr_config`
@@ -89,9 +93,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsrProperties.h"
+        #include "fatoora.h"
 
-        fatoora_CsrProperties_from_properties_str_result fatoora_CsrProperties_from_properties_str(DiplomatStringView properties);
+        FatooraStatus fatoora_csr_properties_from_properties_str(const char *properties,
+            FatooraCsrProperties **out,
+            FatooraError **error);
         ```
 
 ### `parse_csr_config_file`
@@ -111,9 +117,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsrProperties.h"
+        #include "fatoora.h"
 
-        fatoora_CsrProperties_parse_csr_config_file_result fatoora_CsrProperties_parse_csr_config_file(DiplomatStringView path);
+        FatooraStatus fatoora_csr_properties_parse_csr_config_file(const char *path,
+            FatooraCsrProperties **out,
+            FatooraError **error);
         ```
 
 ### `build`
@@ -133,9 +141,13 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsrProperties.h"
+        #include "fatoora.h"
 
-        fatoora_CsrProperties_build_result fatoora_CsrProperties_build(const CsrProperties* self, const SigningKey* key, uint8_t env);
+        FatooraStatus fatoora_csr_properties_build(const FatooraCsrProperties *self,
+            const FatooraSigningKey *key,
+            int32_t env,
+            FatooraCsr **out,
+            FatooraError **error);
         ```
 
 ## SigningKey
@@ -157,9 +169,10 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "SigningKey.h"
+        #include "fatoora.h"
 
-        fatoora_SigningKey_generate_result fatoora_SigningKey_generate(void);
+        FatooraStatus fatoora_signing_key_generate(FatooraSigningKey **out,
+            FatooraError **error);
         ```
 
 ### `from_pem`
@@ -179,9 +192,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "SigningKey.h"
+        #include "fatoora.h"
 
-        fatoora_SigningKey_from_pem_result fatoora_SigningKey_from_pem(DiplomatStringView pem);
+        FatooraStatus fatoora_signing_key_from_pem(const char *pem,
+            FatooraSigningKey **out,
+            FatooraError **error);
         ```
 
 ### `from_der`
@@ -201,9 +216,12 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "SigningKey.h"
+        #include "fatoora.h"
 
-        fatoora_SigningKey_from_der_result fatoora_SigningKey_from_der(DiplomatU8View der);
+        FatooraStatus fatoora_signing_key_from_der(const uint8_t *der,
+            size_t der_len,
+            FatooraSigningKey **out,
+            FatooraError **error);
         ```
 
 ### `to_pem`
@@ -223,9 +241,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "SigningKey.h"
+        #include "fatoora.h"
 
-        fatoora_SigningKey_to_pem_result fatoora_SigningKey_to_pem(const SigningKey* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signing_key_to_pem(const FatooraSigningKey *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `to_der`
@@ -245,9 +265,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "SigningKey.h"
+        #include "fatoora.h"
 
-        fatoora_SigningKey_to_der_result fatoora_SigningKey_to_der(const SigningKey* self);
+        FatooraStatus fatoora_signing_key_to_der(const FatooraSigningKey *self,
+            FatooraBytes **out,
+            FatooraError **error);
         ```
 
 ## Csr
@@ -269,9 +291,12 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "Csr.h"
+        #include "fatoora.h"
 
-        fatoora_Csr_from_der_result fatoora_Csr_from_der(DiplomatU8View der);
+        FatooraStatus fatoora_csr_from_der(const uint8_t *der,
+            size_t der_len,
+            FatooraCsr **out,
+            FatooraError **error);
         ```
 
 ### `to_pem`
@@ -290,9 +315,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "Csr.h"
+        #include "fatoora.h"
 
-        fatoora_Csr_to_pem_result fatoora_Csr_to_pem(const Csr* self, DiplomatWrite* write);
+        FatooraStatus fatoora_csr_to_pem(const FatooraCsr *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `to_der`
@@ -311,9 +338,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "Csr.h"
+        #include "fatoora.h"
 
-        fatoora_Csr_to_der_result fatoora_Csr_to_der(const Csr* self);
+        FatooraStatus fatoora_csr_to_der(const FatooraCsr *self,
+            FatooraBytes **out,
+            FatooraError **error);
         ```
 
 ### `to_base64`
@@ -332,9 +361,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "Csr.h"
+        #include "fatoora.h"
 
-        fatoora_Csr_to_base64_result fatoora_Csr_to_base64(const Csr* self, DiplomatWrite* write);
+        FatooraStatus fatoora_csr_to_base64(const FatooraCsr *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `to_pem_base64`
@@ -353,9 +384,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "Csr.h"
+        #include "fatoora.h"
 
-        fatoora_Csr_to_pem_base64_result fatoora_Csr_to_pem_base64(const Csr* self, DiplomatWrite* write);
+        FatooraStatus fatoora_csr_to_pem_base64(const FatooraCsr *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `subject_string`
@@ -374,9 +407,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "Csr.h"
+        #include "fatoora.h"
 
-        fatoora_Csr_subject_string_result fatoora_Csr_subject_string(const Csr* self, DiplomatWrite* write);
+        FatooraStatus fatoora_csr_subject_string(const FatooraCsr *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `extension_values_der`
@@ -395,9 +430,11 @@ CSR parsing and generation helpers shared by Rust, FFI, and Python.
 
     === "{{ lang.c }}"
         ```c
-        #include "Csr.h"
+        #include "fatoora.h"
 
-        fatoora_Csr_extension_values_der_result fatoora_Csr_extension_values_der(const Csr* self);
+        FatooraStatus fatoora_csr_extension_values_der(const FatooraCsr *self,
+            FatooraBytesList **out,
+            FatooraError **error);
         ```
 
 ## Errors

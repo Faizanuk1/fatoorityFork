@@ -72,9 +72,36 @@ meaning; private diagnostic fields can grow behind accessors.
 
 ## C ownership
 
+The C API uses opaque `FatooraError` owners and a shared `FatooraStatus`:
+
+```c
+#include "fatoora.h"
+
+FatooraStatus fatoora_error_code(const FatooraError *error);
+const char *fatoora_error_message(const FatooraError *error);
+const char *fatoora_error_details_json(const FatooraError *error);
+void fatoora_error_free(FatooraError *error);
+```
+
+Pass `FatooraError **error` as the last argument of an operation, or `NULL` when
+only the status matters. `FATOORA_OK` indicates success; other values preserve
+the numeric classification and structured native details. The error's message
+and JSON strings are borrowed until `fatoora_error_free()`. Output slots are
+cleared on entry: release a previous error before reusing its slot.
+
+C allocation failure can leave the error or its diagnostic strings unavailable;
+use the operation's returned status to decide success. Error accessors accept
+`NULL`: code returns `FATOORA_OK`, message returns an empty string, and details
+returns `{}`. Freeing `NULL` is safe. See the [C API](../development/c-api.md)
+for owned string outputs and allocation rules.
+
+### Raw ABI and C++ errors
+
 `BindingError` is opaque. Include `BindingError.h` and use its generated accessors:
 
 ```c
+#include "BindingError.h"
+
 int32_t fatoora_BindingError_code(const BindingError *error);
 void fatoora_BindingError_message(const BindingError *error, DiplomatWrite *out);
 void fatoora_BindingError_details_json(const BindingError *error, DiplomatWrite *out);
@@ -210,7 +237,7 @@ details object has type `zatca_validation_execution` and these fields:
 
 The `rule_evaluation` classification describes interrupted execution. Ordinary
 business-rule violations remain findings in a successfully returned report.
-For C, `fatoora_Xml_validate_zatca_result.is_ok` therefore describes whether a report was returned;
+For C, `fatoora_xml_validate_zatca()` returning `FATOORA_OK` therefore describes whether a report was returned;
 it does not replace `is_valid`. Python raises the mapped exception for execution
 failures and exposes the partial report at `error.details["report"]`.
 
@@ -250,15 +277,21 @@ Convert an operation's error with `?` or `.into()`.
 Replace `signer.certificate()` with `signer.certificate_der()` or
 `signer.certificate_pem()`. These return owned bytes or text and `SigningError`
 on failure. Python retains its certificate export methods; C uses
-`fatoora_Signer_certificate_der` and `fatoora_Signer_certificate_pem`.
+`fatoora_signer_certificate_der` and `fatoora_signer_certificate_pem`.
 
 `InvoiceFlags` now wraps its bitflags implementation privately. Its constants
 and bit operations remain available through crate-owned types. JSON representation
 and iteration are preserved. Code that used the `bitflags::Flags` trait or named bitflags
 iterator types must use the `InvoiceFlags` methods and owned iterators instead.
 
-The generated C ABI is a breaking replacement. Recompile against matching
-headers in `bindings/c` or `bindings/cpp`. Replace `FfiResult` handling with the
+The generated C ABI is a breaking replacement of the former handwritten ABI.
+For a simpler source interface, migrate to the [C API](../development/c-api.md):
+include its new `fatoora.h`, compile the C adapter once, use `FatooraStatus` and
+`FatooraError`, and release objects with `fatoora_<type>_free()`. This is a new
+contract, not compatibility with the former handwritten `fatoora.h`.
+
+For callers using the raw ABI directly, recompile against matching
+headers in `bindings/c/generated` or `bindings/cpp`. Replace `FfiResult` handling with the
 per-function result's `is_ok` discriminator and `ok`/`err` union members. Replace
 `FfiError` accessors with `fatoora_BindingError_*`, text-buffer frees with
 `DiplomatWrite` ownership, and owned-object `*_free` calls with generated

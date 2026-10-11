@@ -14,7 +14,7 @@ Generating QR payloads from finalized/signed invoices and reading embedded QR pa
     --8<-- "bindings/python/examples/qr.py:example"
     ```
 
-=== "C/C++"
+=== "C"
     ```c
     --8<-- "bindings/c/examples/qr.c:example"
     ```
@@ -32,3 +32,6 @@ Generating QR payloads from finalized/signed invoices and reading embedded QR pa
   totals) and includes signing tags when available.
 
 See also: [QR Reference](../reference/qr.md)
+
+C examples include `fatoora.h`; compile the adapter once with your application.
+See the [C build instructions](../development/c-api.md#build-and-run).

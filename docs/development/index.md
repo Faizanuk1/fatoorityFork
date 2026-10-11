@@ -33,10 +33,15 @@ The compiled library will be in `target/release/` for your platform (e.g. `libfa
 
 ## Regenerate C headers
 ```bash
-cargo build -p fatoora-ffi --release
+cargo install diplomat-tool --version 0.16.1 --locked
+python scripts/generate_bindings.py
+python scripts/generate_bindings.py --check
 ```
 
-Diplomat generates checked-in C/C++ headers and Python native sources. Follow the [binding workflow](diplomat.md); do not edit generated files manually.
+Diplomat generates checked-in C/C++ headers and Python native sources. The same
+workflow generates the [C API](c-api.md). Cargo builds do not
+regenerate these files. Follow the [binding workflow](diplomat.md); do not edit
+generated files manually.
 
 ## FFI workflow
 
@@ -45,10 +50,10 @@ Use this flow for any new public capability:
 1. Add or change the Rust API in `fatoora-core`.
 2. Expose it in `fatoora-ffi` through a Diplomat bridge module.
 3. Regenerate headers (see above).
-4. Update language bindings (Python, C/C++) to wrap the new symbols.
+4. Review the generated C facade and update public language facades where needed.
 5. Add or update binding tests and docs.
 
-FFI conventions:
+Raw bridge conventions:
 - Use opaque owners and generated `*_destroy` functions for ownership.
 - Return generated results with owned `BindingError` values for fallible calls.
 
