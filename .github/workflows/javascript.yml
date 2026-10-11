@@ -1,0 +1,29 @@
+name: javascript
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bindings/js/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci --prefix bindings/js
+      - run: cargo install diplomat-tool --version 0.16.1 --locked
+      - run: python3 scripts/generate_bindings.py --check
+      - run: python3 scripts/build_js.py
+      - run: npm run check --prefix bindings/js
+      - run: node bindings/js/tests/runtime.test.mjs
+      - run: npx --prefix bindings/js playwright install --with-deps chromium
+      - run: node bindings/js/tests/browser.mjs
+      - run: python3 scripts/check_js_package.py

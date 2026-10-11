@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Smoke-test the packed npm artifact from an isolated installed consumer."""
+from pathlib import Path
+import json
+import os
+import subprocess
+import tarfile
+import tempfile
+ROOT = Path(__file__).resolve().parents[1]
+with tempfile.TemporaryDirectory(prefix='fatoora-js-package-') as temporary:
+    directory = Path(temporary)
+    env = {**os.environ, 'npm_config_cache': str(directory / 'cache')}
+    packed = subprocess.check_output(['npm', 'pack', '--json', '--pack-destination', str(directory)], cwd=ROOT / 'bindings/js', text=True, env=env)
+    packages = json.loads(packed)
+    package = packages[0] if isinstance(packages, list) else next(iter(packages.values()))
+    tarball = directory / package['filename']
+    with tarfile.open(tarball) as archive:
+        names = set(archive.getnames())
+        for required in ('fatoora_ffi.wasm', 'index.mjs', 'index.d.mts', 'generated/index.mjs', 'LICENSE-MIT', 'LICENSE-APACHE', 'THIRD_PARTY_NOTICES.md', 'licenses/zatca/LICENSE-LGPL-3.0.txt', 'licenses/zatca/LICENSE-GPL-3.0.txt', 'licenses/zatca/NOTICE.md'):
+            assert f'package/{required}' in names, required
+        assert not any('/tests/' in name or '/node_modules/' in name for name in names)
+    (directory / 'package.json').write_text('{"type":"module","private":true}')
+    subprocess.run(['npm', 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', str(tarball)], cwd=directory, check=True, env=env)
+    subprocess.run(['node', '--input-type=module', '-e', '''
+import assert from 'node:assert/strict';
+import { SigningKey, Config, CsidCompliance, ZatcaClient } from 'fatoority';
+assert.match(SigningKey.generate().toPem(), /BEGIN PRIVATE KEY/);
+const client = new ZatcaClient(Config.new_(0), {fetch: async () => new Response(JSON.stringify({requestID: 2, binarySecurityToken: 'new', secret: 'secret'}))});
+const response = await client.postCcsidForPcsid(CsidCompliance.create(0, '1', 'token', 'secret'));
+assert.equal(response.binarySecurityToken(), 'new');
+console.log('Installed npm package: WASM loading, key generation and API response decoding passed');
+'''], cwd=directory, check=True, env=env)

@@ -1,6 +1,6 @@
 # Diplomat bindings
 
-Diplomat generates the C, C++, and Python native interfaces from `fatoora-ffi`.
+Diplomat generates the C, C++, Python and JavaScript/TypeScript interfaces from `fatoora-ffi`.
 The Rust core remains independent of the binding framework. The public Python
 API in [api.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py) wraps the generated private
 `fatoora._native` extension and supplies decimal conversion, exceptions, and
@@ -131,3 +131,9 @@ HTTP concurrency checks, and the bundled-library smoke test. Windows, macOS, and
 Python versions require their platform CI checks; local Linux results do not
 establish those outcomes. The [parity map](ffi-parity.md) records capability and
 test coverage separately.
+
+## JavaScript / TypeScript
+
+The [JS package](../../bindings/js/README.md) uses a WASM artifact and a small async fetch facade. `prepare_*` APIs are also exposed to native bindings so callers can supply their own transport. Requests own their bytes, headers and decoding context. Existing native blocking methods remain available.
+
+Run `npm ci --prefix bindings/js`, `python3 scripts/build_js.py`, and `python3 scripts/check_js_package.py` after generating bindings. The JavaScript CI job also checks TypeScript declarations and exercises Chromium.

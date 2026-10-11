@@ -1,0 +1,57 @@
+import { chromium } from 'playwright';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const root = new URL('../', import.meta.url);
+let redirected = 0;
+const server = createServer(async (req, res) => {
+  if (req.url === '/redirect') { res.writeHead(302, {location: '/unexpected'}).end(); return; }
+  if (req.url === '/unexpected') { redirected++; res.end(); return; }
+  if (req.url === '/slow') { return; }
+  try {
+    const path = req.url === '/' ? 'tests/browser.html' : req.url.slice(1);
+    const url = new URL(path, root);
+    if (!url.href.startsWith(root.href)) { res.writeHead(403).end(); return; }
+    const data = await readFile(url);
+    res.setHeader('Content-Type', path.endsWith('.mjs') ? 'text/javascript' : path.endsWith('.wasm') ? 'application/wasm' : 'text/html');
+    res.end(data);
+  } catch { res.writeHead(404).end(); }
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const browser = await chromium.launch({headless: true, ...(process.env.CHROMIUM_PATH ? {executablePath: process.env.CHROMIUM_PATH} : {})});
+try {
+  const page = await browser.newPage();
+  await page.goto(`http://127.0.0.1:${server.address().port}/`);
+  const result = await page.evaluate(async () => {
+    const sdk = await import('/index.mjs');
+    const raw = await import('/generated/index.mjs');
+    const key = sdk.SigningKey.generate();
+    const config = sdk.Config.new_(0);
+    const credentials = sdk.CsidCompliance.create(0, '123', 'token', 'secret');
+    const prepared = raw.ZatcaClient.create(config).preparePostCcsidForPcsid(credentials);
+    const response = await sdk.sendPrepared(prepared, {fetch: async (_url, init) => {
+      if (new Headers(init.headers).get('authorization') !== 'Basic dG9rZW46c2VjcmV0') throw new Error('bad auth');
+      return new Response(JSON.stringify({requestID: 2, binarySecurityToken: 'new', secret: 'secret'}));
+    }});
+    const client = new sdk.ZatcaClient(config, {fetch: (_url, init) => fetch('/redirect', init)});
+    let redirectBlocked = false;
+    try { await client.postCcsidForPcsid(credentials); } catch (e) { redirectBlocked = e instanceof sdk.TransportError; }
+    const controller = new AbortController();
+    const slow = new sdk.ZatcaClient(config, {fetch: (_url, init) => fetch('/slow', init)});
+    const pending = slow.postCcsidForPcsid(credentials, {signal: controller.signal});
+    controller.abort();
+    let aborted = false;
+    try { await pending; } catch (e) { aborted = e instanceof sdk.TransportError && e.cause.name === 'AbortError'; }
+    return {pem: key.toPem(), token: response.binarySecurityToken(), redirectBlocked, aborted};
+  });
+  assert.match(result.pem, /BEGIN PRIVATE KEY/);
+  assert.equal(result.token, 'new');
+  assert.equal(result.redirectBlocked, true);
+  assert.equal(result.aborted, true);
+  assert.equal(redirected, 0);
+  console.log('Chromium: WASM loading, randomness, prepared requests, redirect refusal and cancellation passed');
+} finally {
+  await browser.close();
+  server.closeAllConnections();
+  await new Promise(resolve => server.close(resolve));
+}

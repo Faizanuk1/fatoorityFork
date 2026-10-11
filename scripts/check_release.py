@@ -1,6 +1,7 @@
 """Check synchronized stable release metadata; requires Python 3.11+."""
 
 import argparse
+import json
 from pathlib import Path
 import re
 import tomllib
@@ -35,6 +36,13 @@ def check_release(root, tag=None):
     python = read_toml(root / "bindings/python/pyproject.toml")["project"]
     if python["version"] != version:
         raise ValueError(f"Python version {python['version']} differs from Cargo version {version}")
+
+    js_manifest = root / "bindings/js/package.json"
+    if js_manifest.exists():
+        js = json.loads(js_manifest.read_text())
+        lock = json.loads((js_manifest.parent / "package-lock.json").read_text())
+        if js["version"] != version or lock["version"] != version or lock["packages"][""]["version"] != version:
+            raise ValueError("JavaScript package and lockfile versions must match Cargo")
 
     for path, expected in (("Cargo.lock", names), ("bindings/python/uv.lock", {python["name"]})):
         packages = read_toml(root / path)["package"]
