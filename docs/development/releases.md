@@ -31,7 +31,7 @@ supported Rust version for library consumers; CI currently tests stable Rust.
 ## Validate the committed candidate
 
 ```sh
-python3 scripts/check_release.py --tag v0.4.0
+python3 scripts/check_release.py --tag v0.4.1
 python3 -m unittest discover -s scripts/tests -v
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -117,8 +117,8 @@ After review and successful checks, merge the release PR and tag the exact
 tested release commit. Replace `TESTED_COMMIT_SHA` below with that commit:
 
 ```sh
-git tag -a v0.4.0 TESTED_COMMIT_SHA -m "Release v0.4.0"
-git push origin v0.4.0
+git tag -a v0.4.1 TESTED_COMMIT_SHA -m "Release v0.4.1"
+git push origin v0.4.1
 ```
 
 The tag starts publication. Rust publishes derive, core, FFI, then CLI. Python

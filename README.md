@@ -82,7 +82,7 @@ python3 scripts/build_js.py
 (cd bindings/js && npm pack)
 ```
 
-Install the resulting `.tgz` in your application with `npm install /path/to/fatoority-0.4.0.tgz`.
+Install the resulting `.tgz` in your application with `npm install /path/to/fatoority-0.4.1.tgz`.
 Generated bindings are checked in. Version tags publish the tested package to npm through GitHub Actions.
 
 ```js
