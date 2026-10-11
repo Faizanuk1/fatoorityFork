@@ -28,6 +28,7 @@ nav:
       - CSR: reference/csr.md
       - Bindings:
           - Python: reference/bindings/python.md
+          - JavaScript / TypeScript: reference/bindings/javascript.md
           - C/C++ (FFI): reference/bindings/c.md
       - Invoice:
           - Model: reference/invoice-model.md

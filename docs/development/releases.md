@@ -1,6 +1,6 @@
 # Preparing a release
 
-Rust crates and the Python package share a release version. A `v*` tag starts
+Rust crates, the Python package and the JS/TS package share a release version. A `v*` tag starts
 three independent publication workflows: crates.io, PyPI, and GitHub native
 assets. Creating or merging a release PR does not publish packages.
 
@@ -8,7 +8,8 @@ assets. Creating or merging a release PR does not publish packages.
 
 Use a branch named `release/<version>` so its PR runs the Linux, macOS, and
 Windows wheel and native builds. Update all four crate manifests, their internal
-dependency requirements, and `bindings/python/pyproject.toml`. Refresh the root
+dependency requirements, `bindings/python/pyproject.toml`, and the version in
+`bindings/js/package.json` and `bindings/js/package-lock.json`. Refresh the root
 `Cargo.lock` and `bindings/python/uv.lock` without upgrading unrelated packages.
 Refresh `fuzz/Cargo.lock` and `scripts/xsd-compat/Cargo.lock` as well; their
 independent workspaces resolve SDK path dependencies at the new version.
@@ -61,6 +62,18 @@ CLI/FFI archives and wheels. It inspects ELF imports and loader dependencies,
 Mach-O load commands, and PE imports including delay imports. Distributed
 artifacts must neither link nor bundle libxml2. Preserve the bundled FFI
 library layout inside Python wheels.
+
+## JavaScript artifact
+
+Run the [JS/TS checks](../contributing.md#javascript-typescript-checks), including
+the installed tarball test and size budget, on the release candidate. Build only
+with `python3 scripts/build_js.py` so the size profile, `wasm-opt -Oz`, lossless
+schema compression and host-import checks are applied. Inspect the tarball's
+WASM module, declarations and license notices. Recheck Node and browser behavior
+after optimization changes.
+
+npm publication is not configured. A `v*` tag does not publish the JS package;
+registry ownership and publication setup remain a separate release task.
 
 ## Publication prerequisites
 

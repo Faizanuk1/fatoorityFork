@@ -25,6 +25,7 @@ fatoority is an unofficial toolkit for ZATCA Phase 1 and 2 compliant e-invoicing
 ## Getting Started
 - Rust toolchain (stable) and Cargo
 - Optional: `uv` for Python bindings development and tests
+- For JS/TS: Node 22+, npm and the `wasm32-unknown-unknown` Rust target
 
 Quick setup:
 ```bash
@@ -55,13 +56,15 @@ reference oracle and require its development headers when run explicitly.
 
 - Rust API docs: https://docs.rs/fatoora-core/latest/fatoora_core/
 
+- JavaScript/TypeScript bindings: [reference](reference/bindings/javascript.md)
+
 - Python bindings details: `bindings/python/README.md`
 
 - Bench results (CLI): `bench/cli/results/hash_bench.md`
 
 ## Bindings Development
 
-Diplomat generates C, C++, and Python native bindings from `fatoora-ffi`.
+Diplomat generates C, C++, Python and JavaScript/TypeScript bindings from `fatoora-ffi`.
 Regenerate with `python scripts/generate_bindings.py`, run
 `python scripts/check_native_bindings.py`, and install the Python package with
 `python -m pip install ./bindings/python`. See the
@@ -142,3 +145,21 @@ validation, publication, and recovery from a partial release.
 ## See also 
 
 - [Development](development/index.md)
+
+## JavaScript / TypeScript checks
+
+```sh
+npm ci --prefix bindings/js
+python3 scripts/build_js.py
+python3 scripts/check_wasm_size.py
+npm run check --prefix bindings/js
+node bindings/js/tests/runtime.test.mjs
+npx --prefix bindings/js playwright install chromium
+node bindings/js/tests/browser.mjs
+python3 scripts/check_js_package.py
+```
+
+The WASM build uses its own size profile and pinned Binaryen `wasm-opt -Oz`.
+It verifies compressed schemas byte-for-byte and enforces raw/gzip size budgets.
+See the [size breakdown](reference/bindings/javascript.md#artifact-size) before
+changing dependencies or removing validation functionality to reduce size.

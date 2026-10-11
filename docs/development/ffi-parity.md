@@ -2,7 +2,7 @@
 
 The [Rust core](https://github.com/mqqz/fatoority/tree/main/fatoora-core/src) defines behavior. The Diplomat bridge in
 [fatoora-ffi](https://github.com/mqqz/fatoority/tree/main/fatoora-ffi/src) exposes that behavior through generated C,
-C++, and Nanobind bindings. The public [Python facade](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py)
+C++, Nanobind and JavaScript/TypeScript bindings. The public [Python facade](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py)
 handles Python values, exceptions, and lifetimes. CFFI and the former handwritten
 C ABI have been removed.
 
@@ -87,3 +87,16 @@ by generated C/C++ contracts. Public behavior tests remain acceptance criteria f
 the Python facade. HTTP tests must use a Python server thread to detect calls that
 incorrectly retain the GIL. Concurrency regressions must also check that close or
 consumption waits while another operation uses the same owner.
+
+## JavaScript / TypeScript coverage
+
+JS uses the same bridge for keys, CSRs, invoice construction, signing, validation,
+metadata, credentials and response decoding. The async fetch facade supports all
+six gateway operations through owned prepared requests. Filesystem helpers and
+native blocking methods are excluded; the host supplies file contents and time.
+
+[Runtime tests](https://github.com/mqqz/fatoority/blob/main/bindings/js/tests/runtime.test.mjs)
+cover exact decimals, Arabic optional strings, consuming methods, memory growth,
+all gateway operations and valid/invalid schema inputs. Chromium and isolated npm
+consumer checks exercise the packaged WASM loader. These local tests do not prove
+live gateway or CORS acceptance. See the [JS/TS reference](../reference/bindings/javascript.md).

@@ -35,6 +35,11 @@ is nonempty.
     --8<-- "bindings/python/examples/validation.py:example"
     ```
 
+=== "JavaScript / TypeScript"
+    ```js
+    --8<-- "bindings/js/examples/sdk.mjs:validation"
+    ```
+
 === "C"
     ```c
     --8<-- "bindings/c/examples/validation.c:example"
@@ -71,3 +76,5 @@ See also: [Invoice Validation Reference](../reference/invoice-validation.md)
 
 C examples include `fatoora.h`; compile the adapter once with your application.
 See the [C build instructions](../development/c-api.md#build-and-run).
+
+See the [JavaScript / TypeScript reference](../reference/bindings/javascript.md) for installation and runtime contracts.

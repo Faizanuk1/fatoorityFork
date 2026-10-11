@@ -13,6 +13,11 @@ Create CSRs and private keys using Rust, Python, or C.
     --8<-- "bindings/python/examples/csr.py:example"
     ```
 
+=== "JavaScript / TypeScript"
+    ```js
+    --8<-- "bindings/js/examples/sdk.mjs:csr"
+    ```
+
 === "C"
     ```c
     --8<-- "bindings/c/examples/csr.c:example"
@@ -31,3 +36,5 @@ See also: [CSR Reference](../reference/csr.md)
 
 C examples include `fatoora.h`; compile the adapter once with your application.
 See the [C build instructions](../development/c-api.md#build-and-run).
+
+See the [JavaScript / TypeScript reference](../reference/bindings/javascript.md) for installation and runtime contracts.

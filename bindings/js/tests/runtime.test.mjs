@@ -125,3 +125,29 @@ test('clearance and compliance use their own acceptance fields', async () => {
   assert.equal((await client.checkInvoiceCompliance(invoice(), ccsid())).outcome().value, 'Accepted');
   await assert.rejects(client.clearStandardInvoice(invoice(), pcsid()));
 });
+
+test('compressed schemas preserve valid Arabic input and reject schema-invalid XML', () => {
+  const xml = loadFixture('sdk-parity/cases/simplified-invoice/sdk-signed.xml');
+  assert.equal(sdk.Xml.validate(config, xml), true);
+  const invalid = xml.replaceAll('cbc:ProfileID', 'cbc:InvalidProfileID');
+  assert.notEqual(invalid, xml);
+  assert.throws(() => sdk.Xml.validate(config, invalid), e => e.cause instanceof sdk.BindingError);
+  // Failed runs must not corrupt the cached compiled schema.
+  assert.equal(sdk.Xml.validate(config, xml), true);
+});
+
+test('documented examples and signing work in the optimized artifact', async () => {
+  const examples = await import('../examples/sdk.mjs');
+  const csr = examples.generateCsr(loadFixture('csr-configs/csr-config-example-EN.properties'));
+  assert.match(csr.csrPem, /BEGIN CERTIFICATE REQUEST/);
+  const xml = loadFixture('sdk-parity/cases/simplified-invoice/sdk-signed.xml');
+  assert.ok(examples.validateInvoice(xml, undefined, '2025-01-01T00:00:00Z').stages);
+  const response = await examples.reportInvoice(xml, 'token', 'secret', {fetch: async () => json(validationBody)});
+  assert.equal(response.outcome().value, 'Accepted');
+  const cert = readFileSync(new URL('../../../fatoora-core/tests/fixtures/sdk-parity/credentials/certificate.der', import.meta.url));
+  const key = readFileSync(new URL('../../../fatoora-core/tests/fixtures/sdk-parity/credentials/private-key.der', import.meta.url));
+  const signer = sdk.Signer.fromDer([...cert], [...key]);
+  const signed = examples.signInvoice(xml, signer.certificatePem(), sdk.SigningKey.fromDer([...key]).toPem());
+  assert.equal(sdk.Xml.hash(signed), sdk.Xml.hash(xml));
+  assert.ok(sdk.SignedInvoice.fromXml(signed).signature());
+});

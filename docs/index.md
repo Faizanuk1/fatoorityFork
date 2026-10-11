@@ -37,6 +37,8 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
 
     - Python (wrapper library over the FFI)
 
+    - JavaScript / TypeScript (WebAssembly with async fetch)
+
 ## Installation
 
 === "Rust"
@@ -48,6 +50,18 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
     ```bash
     pip install fatoority
     ```
+
+=== "JavaScript / TypeScript"
+    Build from a source checkout with Node 22+, Rust, npm and Python 3:
+    ```sh
+    rustup target add wasm32-unknown-unknown
+    npm ci --prefix bindings/js
+    python3 scripts/build_js.py
+    (cd bindings/js && npm pack)
+    ```
+    Install the resulting tarball in your application. See the
+    [JS/TS reference](reference/bindings/javascript.md) for browser deployment,
+    async API calls and package sizes. npm publication is not configured yet.
 
 === "C (FFI)"
     Download the precompiled ffi library and headers for your platform from [github releases](https://github.com/mqqz/fatoority/releases)
@@ -94,18 +108,16 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
     fatoora csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
     ```
 
-## Current Limitations
+## Runtime boundaries
 
-- Multithreaded usage is unsupported/untested, so use at your own risk
-
-- Only tested on sandbox, due to the difficulty of accessing the production environment
-
-- Test suite needs more edge cases
-
-- Invoice valdiation only covers the basic UBL format, no specific ZATCA/KSA rules yet.
+Local validation covers UBL schemas, ZATCA rules and applicable signature/QR checks.
+It does not establish gateway acceptance or certificate issuer trust.
+Browser API calls depend on gateway CORS; server-side Node uses its own fetch transport.
+JS objects belong to their WASM instance and cannot be shared between workers.
 
 ## Where to Go Next
 - [CLI](guides/cli.md)
+- [JavaScript / TypeScript](reference/bindings/javascript.md)
 - [Python Bindings](reference/bindings/python.md)
 - [Benchmarks](benchmarks.md)
 - [Contributing](contributing.md)

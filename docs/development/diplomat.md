@@ -134,6 +134,10 @@ test coverage separately.
 
 ## JavaScript / TypeScript
 
-The [JS package](../../bindings/js/README.md) uses a WASM artifact and a small async fetch facade. `prepare_*` APIs are also exposed to native bindings so callers can supply their own transport. Requests own their bytes, headers and decoding context. Existing native blocking methods remain available.
+The [JS package](../reference/bindings/javascript.md) uses a WASM artifact and a small async fetch facade. `prepare_*` APIs are also exposed to native bindings so callers can supply their own transport. Requests own their bytes, headers and decoding context. Existing native blocking methods remain available.
+
+See the [JS/TS reference](../reference/bindings/javascript.md) for usage and artifact size.
+The build applies the `wasm-release` profile, lossless schema compression and
+Binaryen `wasm-opt -Oz`; raw and gzip size limits run before packaging.
 
 Run `npm ci --prefix bindings/js`, `python3 scripts/build_js.py`, and `python3 scripts/check_js_package.py` after generating bindings. The JavaScript CI job also checks TypeScript declarations and exercises Chromium.

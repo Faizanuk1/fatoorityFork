@@ -15,7 +15,9 @@ node bindings/js/tests/runtime.test.mjs
 python3 scripts/check_js_package.py
 ```
 
-The package is built locally with `npm pack` in `bindings/js`; this PR does not configure npm publication.
+Build a local tarball with `npm pack` in `bindings/js`. npm publication is not configured yet.
+
+See the [JS/TS reference](https://docs.fatoority.com/reference/bindings/javascript/) for complete installation, browser deployment and API examples.
 
 ```js
 import { Config, SigningKey, CsidCompliance, ZatcaClient } from 'fatoority';
@@ -42,3 +44,9 @@ Generated Rust errors are JavaScript `Error` objects whose `cause` is a `Binding
 The browser loader resolves `fatoora_ffi.wasm` relative to the package modules. Deploy the generated modules and WASM together, or configure the bundler to copy the WASM at that URL. Direct gateway requests depend on the gateway's CORS policy. Keep signing keys and credentials in the host environment appropriate to your application.
 
 The WASM build uses getrandom's custom backend with Web Crypto. `xsd-schema` transitively enables Chrono's wasm-bindgen features; the pinned Binaryen step removes unused descriptor exports and maps its retained UTF-8 throw helper to Diplomat's equivalent host import. The build fails if any unsupported import remains, including a JS clock or wasm-bindgen object runtime. Native transport and clock behavior use the normal Rust dependencies.
+
+## WASM size
+
+The measured package is 3.525 MB raw and 1.512 MB gzipped, down from an 8.974 MB Rust release artifact. `scripts/build_js.py` selects `wasm-release` (`opt-level = "z"`, LTO, one codegen unit and symbol stripping), runs pinned Binaryen `wasm-opt -Oz`, and rejects artifacts above 4 MB raw or 1.8 MB gzip.
+
+The 15 UBL schemas originally totalled 2,996,782 bytes. WASM embeds them with lossless compression; each build verifies that decompression reproduces every source byte. Unicode regex behavior remains enabled. Run `python3 scripts/check_wasm_size.py --json` to inspect code/data sections and transfer size. Schema compilation still requires decompressed data in memory.
