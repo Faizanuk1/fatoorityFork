@@ -26,7 +26,7 @@ With bindings and support for many programming languages:
   
 - 🐍 Python <a href="https://pypi.org/project/fatoority/"><img src="https://img.shields.io/pypi/v/fatoority?logo=python" alt="PyPi Version"/></a>
 
-- JavaScript / TypeScript: [WASM package for Node and browsers](docs/reference/bindings/javascript.md)
+- 🇯‌🇸‌ JavaScript / TypeScript <a href="https://www.npmjs.com/package/fatoority"><img src="https://img.shields.io/npm/v/fatoority?logo=javascript" alt="NPM Version"/></a>
 
 - 🌀 C/C++ (through the C FFI see ![releases](https://github.com/mqqz/fatoority/releases))
 
@@ -48,16 +48,13 @@ Everything done by the official [ZATCA SDK](https://sandbox.zatca.gov.sa/downloa
 - 📨 [API Requests](https://docs.fatoority.com/guides/api/)
 
 🚀 *But we do it faster and better* e.g. ~190x faster invoice hashing than ZATCA's SDK (see [`bench/`](https://github.com/mqqz/fatoority/blob/main/bench/cli/results/hash_bench.md))
-
-## 🧩 Dependencies
-XML parsing, signing edits, canonicalization, and XSD validation use Rust crates.
-The library, CLI, and bindings do not require a system libxml2 installation.
++ rigorously tested with fuzzing and ~97% coverage
 
 ## 📥 Installation
 <details>
 <summary>Rust</summary>
   
-```
+```sh
 cargo add fatoora-core
 ```
 </details>
@@ -65,7 +62,7 @@ cargo add fatoora-core
 <details>
 <summary>Python</summary>
   
-```
+```sh
 pip install fatoority
 ```
 </details>
@@ -73,30 +70,9 @@ pip install fatoority
 <details>
 <summary>JavaScript / TypeScript</summary>
 
-Build the package from a source checkout (Node 22+, npm, Rust and Python 3):
-
 ```sh
-rustup target add wasm32-unknown-unknown
-npm ci --prefix bindings/js
-python3 scripts/build_js.py
-(cd bindings/js && npm pack)
+npm install fatoority
 ```
-
-Install the resulting `.tgz` in your application with `npm install /path/to/fatoority-0.4.1.tgz`.
-Generated bindings are checked in. Version tags publish the tested package to npm through GitHub Actions.
-
-```js
-import { SigningKey, Xml, Config } from 'fatoority';
-
-const key = SigningKey.generate();
-const report = JSON.parse(Xml.validateZatca(Config.new_(0), invoiceXml));
-console.log(report.is_valid);
-```
-
-The WASM package includes the Rust validator and bundled UBL schemas. See
-[JavaScript / TypeScript](docs/reference/bindings/javascript.md) for async fetch,
-errors, decimal strings, browser setup, and measured artifact sizes.
-</details>
 
 <details>
 <summary>C/C++</summary>
