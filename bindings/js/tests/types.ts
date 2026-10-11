@@ -1,0 +1,10 @@
+import { Config, ZatcaClient, CsidCompliance, Xml, type CsidProduction, sendPrepared } from 'fatoority';
+import { ZatcaClient as RawClient } from 'fatoority/raw';
+const config = Config.new_(0);
+const credentials = CsidCompliance.create(0, '1', 'token', 'secret');
+const client = new ZatcaClient(config, {fetch});
+const response: Promise<CsidProduction> = client.postCcsidForPcsid(credentials, {signal: new AbortController().signal});
+const prepared = RawClient.create(config).preparePostCcsidForPcsid(credentials);
+const sent: Promise<CsidProduction> = sendPrepared(prepared);
+const report: string = Xml.validateZatca(config, '<Invoice/>');
+void [response, sent, report];

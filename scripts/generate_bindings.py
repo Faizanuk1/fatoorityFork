@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate the checked-in bindings with diplomat-tool 0.16.1."""
 import os
+import re
 import argparse
 from pathlib import Path
 import subprocess
@@ -16,6 +17,7 @@ def main():
     args = parser.parse_args()
     tool = os.environ.get("DIPLOMAT_TOOL", "diplomat-tool")
     for backend, output in (
+        ("js", "bindings/js/generated"),
         ("c", "bindings/c/generated"),
         ("cpp", "bindings/cpp"),
         ("nanobind", "bindings/python/native/generated"),
@@ -26,9 +28,20 @@ def main():
                 *(["--config", "lib_name=_native", "--config", "custom_extra_code_location=fatoora-ffi/src"] if backend == "nanobind" else []),
                 backend, generated,
             ], cwd=ROOT, check=True)
+            if backend == "js":
+                # Diplomat's default loader has no custom host-import hook.
+                (Path(generated) / "diplomat-wasm.mjs").write_bytes(
+                    (ROOT / "scripts/js-wasm.mjs").read_bytes())
+                # ESM declarations must resolve under NodeNext as well as bundlers.
+                for declaration in Path(generated).glob("*.d.ts"):
+                    content = re.sub(r'"(\./[^"\n]+?)"',
+                        lambda m: '"' + m[1].removesuffix('.d.ts') + '.mjs"', declaration.read_text())
+                    content = content.replace("'./diplomat-runtime'", "'./diplomat-runtime.mjs'")
+                    declaration.with_suffix('.mts').write_text(content)
+                    declaration.unlink()
             expected = {p.relative_to(generated) for p in Path(generated).rglob("*") if p.is_file()}
             for existing in (ROOT / output).rglob("*"):
-                if "examples" not in existing.relative_to(ROOT / output).parts and existing.is_file() and existing.suffix in (".h", ".hpp", ".cpp") and existing.relative_to(ROOT / output) not in expected:
+                if "examples" not in existing.relative_to(ROOT / output).parts and existing.is_file() and existing.suffix in (".h", ".hpp", ".cpp", ".mjs", ".ts", ".mts") and existing.relative_to(ROOT / output) not in expected:
                     if args.check:
                         raise SystemExit(f"Obsolete generated file: {existing.relative_to(ROOT)}")
                     existing.unlink()

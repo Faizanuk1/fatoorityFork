@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ZatcaValidationOptions {
-    /// Evaluation instant and implicit timezone; omitted values use the validator's clock.
+    /// Evaluation instant and implicit timezone; omitted values use the native validator clock.
+    /// Required on WASM, where the host supplies time.
     pub evaluated_at: Option<DateTime<FixedOffset>>,
     /// Expected predecessor invoice hash, when chain context is available.
     pub previous_invoice_hash: Option<String>,

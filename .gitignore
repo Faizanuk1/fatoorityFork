@@ -49,3 +49,13 @@ zatca-einvoicing-sdk*
 /bindings/python/LICENSE-MIT
 /bindings/python/LICENSE-APACHE
 /bindings/python/THIRD_PARTY_NOTICES.md
+
+# JS package build outputs
+/bindings/js/fatoora_ffi.wasm
+/bindings/js/LICENSE-MIT
+/bindings/js/LICENSE-APACHE
+/bindings/js/THIRD_PARTY_NOTICES.md
+node_modules/
+*.tgz
+
+/bindings/js/licenses/

@@ -3,3 +3,5 @@ pub mod api;
 pub mod common;
 pub mod crypto;
 pub mod invoice;
+#[cfg(target_arch = "wasm32")]
+mod wasm;
