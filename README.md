@@ -83,7 +83,7 @@ python3 scripts/build_js.py
 ```
 
 Install the resulting `.tgz` in your application with `npm install /path/to/fatoority-0.4.0.tgz`.
-Generated bindings are checked in. This package has no npm publication workflow yet.
+Generated bindings are checked in. Version tags publish the tested package to npm through GitHub Actions.
 
 ```js
 import { SigningKey, Xml, Config } from 'fatoority';

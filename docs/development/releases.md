@@ -1,7 +1,7 @@
 # Preparing a release
 
 Rust crates, the Python package and the JS/TS package share a release version. A `v*` tag starts
-three independent publication workflows: crates.io, PyPI, and GitHub native
+four independent publication workflows: crates.io, PyPI, npm, and GitHub native
 assets. Creating or merging a release PR does not publish packages.
 
 ## Prepare the candidate
@@ -72,8 +72,17 @@ schema compression and host-import checks are applied. Inspect the tarball's
 WASM module, declarations and license notices. Recheck Node and browser behavior
 after optimization changes.
 
-npm publication is not configured. A `v*` tag does not publish the JS package;
-registry ownership and publication setup remain a separate release task.
+The `javascript` workflow publishes on `v*` tag pushes after metadata/tag checks,
+optimized WASM builds, size checks, TypeScript, Node and browser tests, and an
+installed-tarball test pass. The publish job downloads that exact tested tarball
+and authenticates to npm with the `NPM_TOKEN` repository secret, exposed only to
+`npm publish` as `NODE_AUTH_TOKEN`. The token needs publish access to `fatoority`.
+
+For an npm-only retry, dispatch the `javascript` workflow on the existing release
+tag with `publish: true`. Branch dispatches requesting publication fail the tag
+check. Dispatch without publication builds and tests only. Do not recreate a tag
+or bump versions to recover a failed publication; first check which registries
+accepted the release. npm does not allow overwriting an existing version.
 
 ## Publication prerequisites
 

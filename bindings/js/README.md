@@ -15,7 +15,7 @@ node bindings/js/tests/runtime.test.mjs
 python3 scripts/check_js_package.py
 ```
 
-Build a local tarball with `npm pack` in `bindings/js`. npm publication is not configured yet.
+Build a local tarball with `npm pack` in `bindings/js`. Version tags publish the tested package to npm through GitHub Actions.
 
 See the [JS/TS reference](https://docs.fatoority.com/reference/bindings/javascript/) for complete installation, browser deployment and API examples.
 

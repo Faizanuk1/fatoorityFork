@@ -61,7 +61,7 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
     ```
     Install the resulting tarball in your application. See the
     [JS/TS reference](reference/bindings/javascript.md) for browser deployment,
-    async API calls and package sizes. npm publication is not configured yet.
+    async API calls and package sizes. Version tags publish the tested package to npm through GitHub Actions.
 
 === "C (FFI)"
     Download the precompiled ffi library and headers for your platform from [github releases](https://github.com/mqqz/fatoority/releases)

@@ -19,7 +19,7 @@ Install the resulting tarball in your application:
 npm install /path/to/fatoority-0.4.0.tgz
 ```
 
-The generated bindings are checked in. Regeneration requires `diplomat-tool 0.16.1`; follow the [binding workflow](../../development/diplomat.md) when changing Rust bridge declarations. npm publication is not configured yet.
+The generated bindings are checked in. Regeneration requires `diplomat-tool 0.16.1`; follow the [binding workflow](../../development/diplomat.md) when changing Rust bridge declarations. Version tags publish the tested package to npm through GitHub Actions.
 
 ```js
 import { Config, SigningKey, Xml } from 'fatoority';

@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Smoke-test the packed npm artifact from an isolated installed consumer."""
 from pathlib import Path
+import argparse
+import shutil
 import json
 import os
 import subprocess
 import tarfile
 import tempfile
 ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output-dir', type=Path, help='Keep the tested tarball for release')
+args = parser.parse_args()
 with tempfile.TemporaryDirectory(prefix='fatoora-js-package-') as temporary:
     directory = Path(temporary)
     env = {**os.environ, 'npm_config_cache': str(directory / 'cache')}
@@ -30,3 +35,6 @@ const response = await client.postCcsidForPcsid(CsidCompliance.create(0, '1', 't
 assert.equal(response.binarySecurityToken(), 'new');
 console.log('Installed npm package: WASM loading, key generation and API response decoding passed');
 '''], cwd=directory, check=True, env=env)
+    if args.output_dir is not None:
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(tarball, args.output_dir / tarball.name)
