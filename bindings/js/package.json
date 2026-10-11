@@ -3,18 +3,20 @@
   "version": "0.4.0",
   "description": "ZATCA invoice SDK with Diplomat WebAssembly bindings",
   "type": "module",
-  "license": "MIT OR Apache-2.0",
+  "license": "SEE LICENSE IN THIRD_PARTY_NOTICES.md",
   "engines": {
     "node": ">=22"
   },
   "exports": {
     ".": {
       "types": "./index.d.mts",
-      "import": "./index.mjs"
+      "import": "./index.mjs",
+      "default": "./index.mjs"
     },
     "./raw": {
       "types": "./generated/index.d.mts",
-      "import": "./generated/index.mjs"
+      "import": "./generated/index.mjs",
+      "default": "./generated/index.mjs"
     }
   },
   "files": [

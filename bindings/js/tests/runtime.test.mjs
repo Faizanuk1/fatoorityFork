@@ -151,3 +151,17 @@ test('documented examples and signing work in the optimized artifact', async () 
   assert.equal(sdk.Xml.hash(signed), sdk.Xml.hash(xml));
   assert.ok(sdk.SignedInvoice.fromXml(signed).signature());
 });
+
+test('validation options preserve Rust errors before host clock injection', () => {
+  const xml = loadFixture('sdk-parity/cases/simplified-invoice/sdk-signed.xml');
+  for (const options of ['{', '', 'null', 'true', '42', '"text"', '[]', '[1]', '{"evaluated_at":42}', ' '.repeat(4096) + '{}', JSON.stringify({unknown: 'ع'.repeat(2048)})]) {
+    let expected;
+    try { raw.Xml.validateZatca(config, xml, options); }
+    catch (error) { expected = error; }
+    assert.ok(expected?.cause instanceof sdk.BindingError, options.slice(0, 40));
+    assert.throws(() => sdk.Xml.validateZatca(config, xml, options), code(expected.cause.code()));
+  }
+  for (const options of [null, '{}', '{"evaluated_at":null}', '{"evaluated_at":"2025-01-01T00:00:00Z"}']) {
+    assert.ok(JSON.parse(sdk.Xml.validateZatca(config, xml, options)).stages);
+  }
+});

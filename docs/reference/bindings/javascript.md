@@ -34,6 +34,18 @@ if (!report.is_valid) {
 
 Declarations are included and work with TypeScript `NodeNext` and `bundler` module resolution. No separate `@types` package is needed.
 
+## Licensing and build flags
+
+The WASM includes SDK-derived rule predicates and messages under the upstream
+terms documented in [third-party notices](https://github.com/mqqz/fatoority/blob/main/THIRD_PARTY_NOTICES.md),
+matching native distributions. The npm package is not entirely MIT/Apache-2.0;
+its license field points to its bundled notice. See the package README's
+[licensing explanation](https://github.com/mqqz/fatoority/blob/main/bindings/js/README.md#licensing)
+for the LGPL/GPL texts, source, and the recorded CEN provenance limitation.
+
+User-set `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS` override `.cargo/config.toml`;
+retain `--cfg getrandom_backend="custom"` when building WASM with either variable.
+
 ## API requests
 
 ```js

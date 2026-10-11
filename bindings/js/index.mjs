@@ -60,7 +60,17 @@ export class ZatcaClient {
 export class Xml extends NativeXml {
   /** Supply the host clock once; explicit evaluated_at remains reproducible. */
   static validateZatca(config, xml, optionsJson = null) {
-    const options = optionsJson === null ? {} : JSON.parse(optionsJson);
+    // Let Rust produce BindingError for malformed, non-object or oversized input.
+    // Check the original bytes before normalization so whitespace cannot evade the limit.
+    if (optionsJson !== null && new TextEncoder().encode(optionsJson).length > 4096) {
+      return NativeXml.validateZatca(config, xml, optionsJson);
+    }
+    let options;
+    try { options = optionsJson === null ? {} : JSON.parse(optionsJson); }
+    catch { return NativeXml.validateZatca(config, xml, optionsJson); }
+    if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+      return NativeXml.validateZatca(config, xml, optionsJson);
+    }
     options.evaluated_at ??= new Date().toISOString();
     return NativeXml.validateZatca(config, xml, JSON.stringify(options));
   }

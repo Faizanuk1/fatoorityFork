@@ -101,26 +101,34 @@ pub mod ffi {
         Rejected = 2,
     }
 
+    // Diplomat expands this macro for Rust and every generated language.
+    #[diplomat::macro_rules]
+    macro_rules! request_accessors {
+        () => {
+            pub fn method(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
+                boundary(|| write(self.0.request().method(), out))
+            }
+            pub fn url(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
+                boundary(|| write(self.0.request().url(), out))
+            }
+            pub fn headers_json(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
+                boundary(|| {
+                    let json = serde_json::to_string(self.0.request().headers())
+                        .map_err(|e| local_error(9, &e.to_string()))?;
+                    write(json, out)
+                })
+            }
+            pub fn body(&self) -> Result<Box<Bytes>, Box<BindingError>> {
+                boundary(|| Ok(Box::new(Bytes(self.0.request().body().to_vec()))))
+            }
+        };
+    }
+
     /// Owned request and decoding context; contains credentials.
     #[diplomat::opaque]
     pub struct InvoiceRequest(pub(crate) fatoora_core::api::InvoiceRequest);
     impl InvoiceRequest {
-        pub fn method(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| write(self.0.request().method(), out))
-        }
-        pub fn url(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| write(self.0.request().url(), out))
-        }
-        pub fn headers_json(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| {
-                let json = serde_json::to_string(self.0.request().headers())
-                    .map_err(|e| local_error(9, &e.to_string()))?;
-                write(json, out)
-            })
-        }
-        pub fn body(&self) -> Result<Box<Bytes>, Box<BindingError>> {
-            boundary(|| Ok(Box::new(Bytes(self.0.request().body().to_vec()))))
-        }
+        request_accessors!();
         pub fn decode(
             &self,
             status: u16,
@@ -138,22 +146,7 @@ pub mod ffi {
     #[diplomat::opaque]
     pub struct ComplianceRequest(pub(crate) fatoora_core::api::ComplianceRequest);
     impl ComplianceRequest {
-        pub fn method(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| write(self.0.request().method(), out))
-        }
-        pub fn url(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| write(self.0.request().url(), out))
-        }
-        pub fn headers_json(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| {
-                let json = serde_json::to_string(self.0.request().headers())
-                    .map_err(|e| local_error(9, &e.to_string()))?;
-                write(json, out)
-            })
-        }
-        pub fn body(&self) -> Result<Box<Bytes>, Box<BindingError>> {
-            boundary(|| Ok(Box::new(Bytes(self.0.request().body().to_vec()))))
-        }
+        request_accessors!();
         pub fn decode(
             &self,
             status: u16,
@@ -171,22 +164,7 @@ pub mod ffi {
     #[diplomat::opaque]
     pub struct ProductionRequest(pub(crate) fatoora_core::api::ProductionRequest);
     impl ProductionRequest {
-        pub fn method(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| write(self.0.request().method(), out))
-        }
-        pub fn url(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| write(self.0.request().url(), out))
-        }
-        pub fn headers_json(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
-            boundary(|| {
-                let json = serde_json::to_string(self.0.request().headers())
-                    .map_err(|e| local_error(9, &e.to_string()))?;
-                write(json, out)
-            })
-        }
-        pub fn body(&self) -> Result<Box<Bytes>, Box<BindingError>> {
-            boundary(|| Ok(Box::new(Bytes(self.0.request().body().to_vec()))))
-        }
+        request_accessors!();
         pub fn decode(
             &self,
             status: u16,

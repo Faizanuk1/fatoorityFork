@@ -43,7 +43,31 @@ Generated Rust errors are JavaScript `Error` objects whose `cause` is a `Binding
 
 The browser loader resolves `fatoora_ffi.wasm` relative to the package modules. Deploy the generated modules and WASM together, or configure the bundler to copy the WASM at that URL. Direct gateway requests depend on the gateway's CORS policy. Keep signing keys and credentials in the host environment appropriate to your application.
 
+If you set `RUSTFLAGS` or `CARGO_ENCODED_RUSTFLAGS`, retain `--cfg getrandom_backend="custom"`: these override `.cargo/config.toml` and otherwise break the WASM random backend.
+
 The WASM build uses getrandom's custom backend with Web Crypto. `xsd-schema` transitively enables Chrono's wasm-bindgen features; the pinned Binaryen step removes unused descriptor exports and maps its retained UTF-8 throw helper to Diplomat's equivalent host import. The build fails if any unsupported import remains, including a JS clock or wasm-bindgen object runtime. Native transport and clock behavior use the normal Rust dependencies.
+
+## Licensing
+
+This package follows the native CLI/FFI archives and Python wheels: the compiled
+validator includes SDK-derived rule predicates and messages, and the upstream
+notices are distributed with it. This is not an entirely MIT/Apache-2.0 artifact.
+
+Original project code is `MIT OR Apache-2.0`. The 257 translated assertion sites
+and imported messages retain the terms recorded for ZATCA SDK `238-R3.4.8`,
+including LGPL v3. The included GPL v3 text is incorporated by LGPL v3; its
+presence is not a separate relicensing of all project code. The SDK's CEN
+stylesheet claims LGPL v3 through EUPL compatibility; the exact upstream revision
+and conversion basis remain unverified, as recorded in the existing native notices.
+
+The npm `license` field points to [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Read that file and [licenses/zatca/NOTICE.md](licenses/zatca/NOTICE.md), alongside
+[LGPL v3](licenses/zatca/LICENSE-LGPL-3.0.txt) and
+[GPL v3](licenses/zatca/LICENSE-GPL-3.0.txt). Copying notices alone does not resolve
+all distribution obligations; downstream distribution must account for the
+applicable source and relinking requirements. The source and build instructions
+are in the [Fatoority repository](https://github.com/mqqz/fatoority), with versioned
+source under the corresponding release tag. No ZATCA SDK JAR is bundled.
 
 ## WASM size
 

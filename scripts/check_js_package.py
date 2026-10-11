@@ -23,6 +23,14 @@ with tempfile.TemporaryDirectory(prefix='fatoora-js-package-') as temporary:
         names = set(archive.getnames())
         for required in ('fatoora_ffi.wasm', 'index.mjs', 'index.d.mts', 'generated/index.mjs', 'LICENSE-MIT', 'LICENSE-APACHE', 'THIRD_PARTY_NOTICES.md', 'licenses/zatca/LICENSE-LGPL-3.0.txt', 'licenses/zatca/LICENSE-GPL-3.0.txt', 'licenses/zatca/NOTICE.md'):
             assert f'package/{required}' in names, required
+        manifest = json.load(archive.extractfile('package/package.json'))
+        assert manifest['license'] == 'SEE LICENSE IN THIRD_PARTY_NOTICES.md'
+        for export in manifest['exports'].values():
+            assert export['default'] == export['import']
+        notices = archive.extractfile('package/THIRD_PARTY_NOTICES.md').read()
+        assert notices == (ROOT / 'THIRD_PARTY_NOTICES.md').read_bytes()
+        for name in ('NOTICE.md', 'LICENSE-LGPL-3.0.txt', 'LICENSE-GPL-3.0.txt'):
+            assert archive.extractfile(f'package/licenses/zatca/{name}').read() == (ROOT / 'fatoora-core/tests/fixtures/business-rules' / name).read_bytes()
         assert not any('/tests/' in name or '/node_modules/' in name for name in names)
     (directory / 'package.json').write_text('{"type":"module","private":true}')
     subprocess.run(['npm', 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', str(tarball)], cwd=directory, check=True, env=env)
