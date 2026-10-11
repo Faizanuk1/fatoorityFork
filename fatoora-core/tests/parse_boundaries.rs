@@ -3,7 +3,9 @@
 use base64ct::{Base64, Encoding};
 use fatoora_core::invoice::xml::parse::{parse_finalized_invoice_xml, parse_signed_invoice_xml};
 use fatoora_core::{Error, ErrorKind};
-use libxml::{parser::Parser, xpath::Context};
+#[path = "support/xml.rs"]
+#[allow(dead_code)]
+mod test_xml;
 use serde_json::Value;
 
 const XML: &str = include_str!("fixtures/invoices/sample-simplified-invoice.xml");
@@ -11,28 +13,7 @@ const ROOT: &str = "/ubl:Invoice";
 const LINE: &str = "/ubl:Invoice/cac:InvoiceLine[1]";
 
 fn change(xml: &str, path: &str, value: &str) -> String {
-    let doc = Parser::default().parse_string(xml).unwrap();
-    let ctx = Context::new(&doc).unwrap();
-    for (prefix, namespace) in [
-        (
-            "ubl",
-            "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2",
-        ),
-        (
-            "cac",
-            "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2",
-        ),
-        (
-            "cbc",
-            "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2",
-        ),
-    ] {
-        ctx.register_namespace(prefix, namespace).unwrap();
-    }
-    let mut nodes = ctx.evaluate(path).unwrap().get_nodes_as_vec();
-    assert_eq!(nodes.len(), 1, "mutation must target one field: {path}");
-    nodes[0].set_content(value).unwrap();
-    doc.to_string()
+    test_xml::replace_text(xml, path, value)
 }
 
 fn invalid(xml: &str, field: &str) {
@@ -178,10 +159,9 @@ fn malformed_dates_and_counters_are_not_normalized() {
 
 #[test]
 fn signed_parser_rejects_incomplete_or_ambiguous_qr_tlv() {
-    let doc = Parser::default().parse_string(XML).unwrap();
-    let ctx = Context::new(&doc).unwrap();
+    let doc = roxmltree::Document::parse(XML).unwrap();
     let qr_path = "//*[local-name()='AdditionalDocumentReference'][*[local-name()='ID']='QR']//*[local-name()='EmbeddedDocumentBinaryObject']";
-    let qr = ctx.evaluate(qr_path).unwrap().get_nodes_as_vec()[0].get_content();
+    let qr = test_xml::text(&doc, qr_path).unwrap();
     let raw = Base64::decode_vec(&qr).unwrap();
     let mut trailing_header = raw.clone();
     trailing_header.push(10);
@@ -241,11 +221,9 @@ fn imported_transaction_flags_survive_serialization() {
 #[test]
 fn signed_parser_requires_each_qr_signature_component() {
     use fatoora_core::invoice::xml::parse::ParseError;
-    let doc = Parser::default().parse_string(XML).unwrap();
-    let ctx = Context::new(&doc).unwrap();
+    let doc = roxmltree::Document::parse(XML).unwrap();
     let path = "//*[local-name()='AdditionalDocumentReference'][*[local-name()='ID']='QR']//*[local-name()='EmbeddedDocumentBinaryObject']";
-    let raw = Base64::decode_vec(&ctx.evaluate(path).unwrap().get_nodes_as_vec()[0].get_content())
-        .unwrap();
+    let raw = Base64::decode_vec(&test_xml::text(&doc, path).unwrap()).unwrap();
     for (missing, label) in [
         (6, "QR tag 6 (invoice hash)"),
         (7, "QR tag 7 (signature)"),
@@ -333,17 +311,18 @@ fn malformed_xml_and_missing_lines_are_distinct_import_failures() {
         assert!(matches!(error, ParseError::XmlParse(_)));
         assert_eq!(error.kind(), ErrorKind::Xml);
     }
-    let doc = Parser::default().parse_string(XML).unwrap();
-    let ctx = Context::new(&doc).unwrap();
-    for mut node in ctx
-        .evaluate("//*[local-name()='InvoiceLine']")
-        .unwrap()
-        .get_nodes_as_vec()
-    {
-        node.unlink();
+    let doc = roxmltree::Document::parse(XML).unwrap();
+    let mut without_lines = XML.to_owned();
+    let mut ranges: Vec<_> = test_xml::select(&doc, "//*[local-name()='InvoiceLine']")
+        .into_iter()
+        .map(|node| node.range())
+        .collect();
+    ranges.sort_by_key(|range| std::cmp::Reverse(range.start));
+    for range in ranges {
+        without_lines.replace_range(range, "");
     }
     assert!(matches!(
-        parse_finalized_invoice_xml(&doc.to_string()),
+        parse_finalized_invoice_xml(&without_lines),
         Err(ParseError::MissingField("VatCategory"))
     ));
     invalid(
@@ -354,4 +333,26 @@ fn malformed_xml_and_missing_lines_are_distinct_import_failures() {
         ),
         "LineVatCategory",
     );
+}
+
+#[test]
+fn complete_document_limit_is_shared_by_import_hashing_and_validation() {
+    let limit = 8 * 1024 * 1024;
+    let mut input = XML.to_owned();
+    let comment = format!("<!--{}-->", "x".repeat(limit + 1 - input.len() - 7));
+    input.insert_str(input.find("</Invoice>").unwrap(), &comment);
+    assert_eq!(input.len(), limit + 1);
+    let imported = parse_finalized_invoice_xml(&input).unwrap_err().to_string();
+    let hashed = fatoora_core::invoice::sign::invoice_hash_base64_from_xml_str(&input)
+        .unwrap_err()
+        .to_string();
+    let validated = fatoora_core::invoice::validation::validate_xml_invoice_from_str(
+        &input,
+        &fatoora_core::config::Config::default(),
+    )
+    .unwrap_err()
+    .to_string();
+    for error in [imported, hashed, validated] {
+        assert!(error.contains("XML input bytes"), "{error}");
+    }
 }

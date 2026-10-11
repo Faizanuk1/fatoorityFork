@@ -553,11 +553,6 @@ impl SignedInvoice {
         use base64ct::{Base64, Encoding};
         Base64::encode_string(self.signed_xml.as_bytes())
     }
-
-    pub(crate) fn with_xml(mut self, signed_xml: String) -> Self {
-        self.signed_xml = signed_xml;
-        self
-    }
 }
 
 pub(super) trait InvoiceView {

@@ -72,13 +72,24 @@ impl SchemaLoader for BundledLoader {
 }
 
 fn resource_at(location: &str) -> Option<(&'static str, &'static [u8])> {
-    let relative = std::path::Path::new(location)
-        .strip_prefix("/fatoora-ubl")
-        .ok()?;
+    // Upstream resolves the virtual root as a filesystem path. Windows adds
+    // the current drive and uses backslashes; neither changes resource identity.
+    let normalized = location.replace('\\', "/");
+    let rooted = if normalized
+        .as_bytes()
+        .first()
+        .is_some_and(u8::is_ascii_alphabetic)
+        && normalized.as_bytes().get(1) == Some(&b':')
+    {
+        &normalized[2..]
+    } else {
+        &normalized
+    };
+    let relative = rooted.strip_prefix("/fatoora-ubl/")?;
     RESOURCES
         .iter()
         .copied()
-        .find(|(name, _)| std::path::Path::new(name) == relative)
+        .find(|(name, _)| *name == relative)
 }
 
 struct Adapter {
@@ -171,7 +182,7 @@ thread_local! {
 }
 
 pub(super) fn validate(xml: &str) -> Result<(), XmlValidationError> {
-    roxmltree::Document::parse(xml).map_err(|error| XmlValidationError::XmlParse {
+    crate::invoice::xml::lexical::document(xml).map_err(|error| XmlValidationError::XmlParse {
         message: error.to_string(),
     })?;
     ADAPTER.with(|cache| match cache.get_or_init(Adapter::compile) {

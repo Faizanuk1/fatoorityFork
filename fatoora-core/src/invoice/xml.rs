@@ -199,7 +199,12 @@ mod helpers {
     }
 }
 
+pub(crate) mod canonicalize;
 pub(crate) mod constants;
+pub(crate) mod edit;
+pub(crate) mod fragments;
+pub(crate) mod lexical;
+pub(crate) mod nav;
 pub mod parse;
 
 struct InvoiceTotals<'a> {
@@ -1058,6 +1063,11 @@ fn to_xml_with_format<T: InvoiceView + ?Sized>(
     // references preserve the caller's value (including CR followed by LF).
     if buffer.contains('\r') {
         buffer = buffer.replace('\r', "&#13;");
+    }
+    if buffer.len() > constants::MAX_XML_DOCUMENT_BYTES {
+        return Err(InvoiceXmlError::Serialize {
+            source: crate::Diagnostic::new("XML output exceeds document byte limit"),
+        });
     }
     Ok(buffer)
 }

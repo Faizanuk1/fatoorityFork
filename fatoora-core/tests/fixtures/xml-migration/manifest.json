@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "oracle": "libxml 0.3.8 / C14N 1.1 without comments / expanded-name subtree removal",
+  "artifacts": {
+    "foreign-and-lexical/canonical.xml": "f0abe1457c37955be249d1dba35c5c24c2619ab3e1886b8498b7d14624762dbd",
+    "foreign-and-lexical/input.xml": "bc1583e3c156fad6b58e64a5699c8126d334dbf7e74db6def91313cdbe57f45d",
+    "inherited-xml/canonical.xml": "f497f57e0eb304fe08e2d3cbc1194e98c5848d63e380d6da785dd1efdf195804",
+    "inherited-xml/input.xml": "8bd8bc41b7c63974c5e2302e8e78ddff165638e47dfc221ce68c0ebe52658d72",
+    "namespace-axis/canonical.xml": "ea49e9259a7f239028e8c9673e4000d3459101d34b53be75028b2cf574c6d967",
+    "namespace-axis/input.xml": "69be0ca4b3a375a108be6566a87e3a3704b42b0a711683db3758d94498981388",
+    "nested-exclusions/canonical.xml": "a7b1c0da93b6a883723c0f04d97cae8b67e9efa1e35704d0a60cadbca590c5e7",
+    "nested-exclusions/input.xml": "99e6e07259f74ca8bdb3c7c3e821b1794cd6854315efba188002279c212650e9",
+    "processing-instructions/canonical.xml": "02cdc40df01e6d30b3196d84af46b343e2542486f1d487df404bd94b1db7aa86",
+    "processing-instructions/input.xml": "d5f9cfb2603fc9384e07b61fd5ebd1076661f0edec0c080148952aa066351470"
+  }
+}

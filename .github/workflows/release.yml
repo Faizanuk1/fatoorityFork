@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'remove-libxml-v2')
     strategy:
       fail-fast: false
       matrix:
@@ -60,41 +60,7 @@ jobs:
           workspaces: |
             .
 
-      - name: Install libxml2 (vcpkg)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          VCPKG_ROOT: C:\vcpkg
-          VCPKG_INSTALLATION_ROOT: C:\vcpkg
-          VCPKG_BUILD_TYPE: release
-        run: |
-          if (-not (Test-Path $env:VCPKG_INSTALLATION_ROOT)) { throw "VCPKG_INSTALLATION_ROOT is not set on this runner." }
-          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_INSTALLATION_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_DEFAULT_TRIPLET=x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKGRS_TRIPLET=x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_BUILD_TYPE=release" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          & $env:VCPKG_INSTALLATION_ROOT\vcpkg.exe install libxml2:x64-windows --triplet x64-windows --vcpkg-root $env:VCPKG_INSTALLATION_ROOT
-      
-      - name: Verify libxml2 install (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $inc = Join-Path $env:VCPKG_INSTALLATION_ROOT "installed\x64-windows\include\libxml2\libxml\parser.h"
-          $lib = Join-Path $env:VCPKG_INSTALLATION_ROOT "installed\x64-windows\lib\libxml2.lib"
-          if (-not (Test-Path $inc)) { throw "Missing libxml2 header: $inc" }
-          if (-not (Test-Path $lib)) { throw "Missing libxml2 import library: $lib" }
-
       - name: Build CLI
-        env:
-          VCPKG_ROOT: ${{ runner.os == 'Windows' && 'C:\\vcpkg' || '' }}
-          VCPKG_INSTALLATION_ROOT: ${{ runner.os == 'Windows' && 'C:\\vcpkg' || '' }}
-          VCPKG_DEFAULT_TRIPLET: ${{ runner.os == 'Windows' && 'x64-windows' || '' }}
-          VCPKGRS_TRIPLET: ${{ runner.os == 'Windows' && 'x64-windows' || '' }}
-          VCPKG_BUILD_TYPE: ${{ runner.os == 'Windows' && 'release' || '' }}
-          VCPKG_LIBXML2_INCLUDE: ${{ runner.os == 'Windows' && 'C:\\vcpkg\\installed\\x64-windows\\include' || '' }}
-          VCPKG_LIBXML2_LIB: ${{ runner.os == 'Windows' && 'C:\\vcpkg\\installed\\x64-windows\\lib' || '' }}
-          VCPKGRS_DYNAMIC: "1"
         run: cargo build -p fatoora-rs-cli --release --locked --target ${{ matrix.target }}
 
       - name: Package CLI (unix)
@@ -115,14 +81,15 @@ jobs:
           $pkg = "fatoora-rs-cli-${{ matrix.target }}"
           New-Item -ItemType Directory -Force -Path "package/$pkg" | Out-Null
           Copy-Item target/${{ matrix.target }}/release/fatoora-rs-cli.exe "package/$pkg/"
-          Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" "package/$pkg/"
           Copy-Item LICENSE-MIT, LICENSE-APACHE, THIRD_PARTY_NOTICES.md "package/$pkg/"
-          Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/share" "package/$pkg/licenses" -Recurse
           New-Item -ItemType Directory -Force -Path "package/$pkg/licenses/zatca" | Out-Null
           Copy-Item fatoora-core/tests/fixtures/business-rules/LICENSE-LGPL-3.0.txt, fatoora-core/tests/fixtures/business-rules/LICENSE-GPL-3.0.txt, fatoora-core/tests/fixtures/business-rules/NOTICE.md "package/$pkg/licenses/zatca/"
           & "./package/$pkg/fatoora-rs-cli.exe" --version
           if ($LASTEXITCODE -ne 0) { throw "Packaged CLI failed to start" }
           Compress-Archive -Path "package/$pkg/*" -DestinationPath "dist/$pkg.zip"
+
+      - name: Verify native dependency closure
+        run: python scripts/check_xml_free_artifacts.py dist
 
       - name: Verify packaged rule notices
         run: python scripts/check_native_packages.py dist
@@ -137,7 +104,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'remove-libxml-v2')
     strategy:
       fail-fast: false
       matrix:
@@ -180,41 +147,7 @@ jobs:
           workspaces: |
             .
 
-      - name: Install libxml2 (vcpkg)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          VCPKG_ROOT: C:\vcpkg
-          VCPKG_INSTALLATION_ROOT: C:\vcpkg
-          VCPKG_BUILD_TYPE: release
-        run: |
-          if (-not (Test-Path $env:VCPKG_INSTALLATION_ROOT)) { throw "VCPKG_INSTALLATION_ROOT is not set on this runner." }
-          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_INSTALLATION_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_DEFAULT_TRIPLET=x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKGRS_TRIPLET=x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_BUILD_TYPE=release" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          & $env:VCPKG_INSTALLATION_ROOT\vcpkg.exe install libxml2:x64-windows --triplet x64-windows --vcpkg-root $env:VCPKG_INSTALLATION_ROOT
-      
-      - name: Verify libxml2 install (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $inc = Join-Path $env:VCPKG_INSTALLATION_ROOT "installed\x64-windows\include\libxml2\libxml\parser.h"
-          $lib = Join-Path $env:VCPKG_INSTALLATION_ROOT "installed\x64-windows\lib\libxml2.lib"
-          if (-not (Test-Path $inc)) { throw "Missing libxml2 header: $inc" }
-          if (-not (Test-Path $lib)) { throw "Missing libxml2 import library: $lib" }
-
       - name: Build FFI
-        env:
-          VCPKG_ROOT: ${{ runner.os == 'Windows' && 'C:\\vcpkg' || '' }}
-          VCPKG_INSTALLATION_ROOT: ${{ runner.os == 'Windows' && 'C:\\vcpkg' || '' }}
-          VCPKG_DEFAULT_TRIPLET: ${{ runner.os == 'Windows' && 'x64-windows' || '' }}
-          VCPKGRS_TRIPLET: ${{ runner.os == 'Windows' && 'x64-windows' || '' }}
-          VCPKG_BUILD_TYPE: ${{ runner.os == 'Windows' && 'release' || '' }}
-          VCPKG_LIBXML2_INCLUDE: ${{ runner.os == 'Windows' && 'C:\\vcpkg\\installed\\x64-windows\\include' || '' }}
-          VCPKG_LIBXML2_LIB: ${{ runner.os == 'Windows' && 'C:\\vcpkg\\installed\\x64-windows\\lib' || '' }}
-          VCPKGRS_DYNAMIC: "1"
         run: cargo build -p fatoora-ffi --release --locked --target ${{ matrix.target }}
 
       - name: Package FFI (unix)
@@ -247,13 +180,14 @@ jobs:
           Copy-Item -Recurse "bindings\\cpp" "package\\$pkg\\include\\diplomat-cpp"
           Copy-Item "LICENSE-MIT", "LICENSE-APACHE", "THIRD_PARTY_NOTICES.md" "package\\$pkg\\"
           Copy-Item "README.md" "package\\$pkg\\README.md"
-          Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" "package/$pkg/"
-          Copy-Item "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/share" "package/$pkg/licenses" -Recurse
           New-Item -ItemType Directory -Force -Path "package/$pkg/licenses/zatca" | Out-Null
           Copy-Item fatoora-core/tests/fixtures/business-rules/LICENSE-LGPL-3.0.txt, fatoora-core/tests/fixtures/business-rules/LICENSE-GPL-3.0.txt, fatoora-core/tests/fixtures/business-rules/NOTICE.md "package/$pkg/licenses/zatca/"
           python -c "import ctypes; lib = ctypes.CDLL(r'package/$pkg/fatoora_ffi.dll'); assert lib.fatoora_Config_new"
           if ($LASTEXITCODE -ne 0) { throw "Packaged FFI failed to load" }
           Compress-Archive -Path "package/$pkg/*" -DestinationPath "dist/$pkg.zip"
+
+      - name: Verify native dependency closure
+        run: python scripts/check_xml_free_artifacts.py dist
 
       - name: Verify packaged rule notices
         run: python scripts/check_native_packages.py dist

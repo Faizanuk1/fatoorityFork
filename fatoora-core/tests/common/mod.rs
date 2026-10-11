@@ -7,8 +7,13 @@ use fatoora_core::invoice::{
 
 #[allow(dead_code)]
 pub fn dummy_finalized_invoice() -> FinalizedInvoice {
+    dummy_finalized_invoice_with_seller_name("Acme Inc")
+}
+
+#[allow(dead_code)]
+pub fn dummy_finalized_invoice_with_seller_name(name: &str) -> FinalizedInvoice {
     let seller = Party::<SellerRole>::new(
-        "Acme Inc".into(),
+        name.into(),
         dummy_seller_address(),
         "399999999900003",
         Some(OtherId::with_scheme("7003339333", "CRN")),

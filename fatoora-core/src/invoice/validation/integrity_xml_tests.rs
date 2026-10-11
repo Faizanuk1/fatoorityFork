@@ -153,7 +153,7 @@ fn properties_require_one_namespace_exact_signature_chain() {
 }
 
 #[test]
-fn integrity_preimages_reject_unsafe_or_malformed_xml_before_libxml() {
+fn integrity_preimages_reject_unsafe_or_malformed_xml_before_canonicalization() {
     for xml in [
         "<!DOCTYPE x [<!ENTITY e SYSTEM 'file:///etc/passwd'>]><x>&e;</x>",
         "<?xml version='1.0' encoding='ISO-8859-1'?><x/>",

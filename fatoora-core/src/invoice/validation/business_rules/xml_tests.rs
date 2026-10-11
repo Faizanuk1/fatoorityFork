@@ -82,12 +82,26 @@ fn parser_enforces_input_depth_node_and_materialization_limits() {
         Err(FailureKind::Limit(_))
     ));
     let limits = Limits {
-        nodes: 2,
+        elements: 2,
         ..Limits::default()
     };
+    let view = XmlView::parse(
+        "<r><!--keep--><a>text<![CDATA[ more]]></a><?keep yes?></r>",
+        &limits,
+    )
+    .unwrap();
+    assert_eq!(view.node(1).text, "text more");
     assert!(matches!(
         XmlView::parse("<r><a/><b/></r>", &limits),
         Err(FailureKind::Limit(_))
+    ));
+    let limits = Limits {
+        dom_nodes: 3,
+        ..Limits::default()
+    };
+    assert!(matches!(
+        XmlView::parse("<r><a>text</a></r>", &limits),
+        Err(FailureKind::Limit("XML DOM nodes"))
     ));
     let limits = Limits {
         retained_bytes: 2,
@@ -103,17 +117,31 @@ fn parser_enforces_input_depth_node_and_materialization_limits() {
 fn locations_resolve_to_original_nodes_with_namespace_aliases_and_quotes() {
     let input = r#"<r xmlns:a="urn:a'&quot;b" xmlns:b="urn:a'&quot;b"><a:n>first</a:n><b:n>second</b:n><n>third</n></r>"#;
     let view = XmlView::parse(input, &Limits::default()).unwrap();
-    let document = libxml::parser::Parser::default()
-        .parse_string(input)
-        .unwrap();
-    let xpath = libxml::xpath::Context::new(&document).unwrap();
-    for id in view.node(0).children.iter().copied() {
-        let nodes = xpath
-            .evaluate(&view.node(id).location)
-            .unwrap()
-            .get_nodes_as_vec();
-        assert_eq!(nodes.len(), 1);
-        assert_eq!(nodes[0].get_content(), view.node(id).text);
+    let document = roxmltree::Document::parse(input).unwrap();
+    let expected_locations = [
+        r#"/*[local-name()='r' and namespace-uri()=''][1]/*[local-name()='n' and namespace-uri()=concat('urn:a',"'",'"b')][1]"#,
+        r#"/*[local-name()='r' and namespace-uri()=''][1]/*[local-name()='n' and namespace-uri()=concat('urn:a',"'",'"b')][2]"#,
+        "/*[local-name()='r' and namespace-uri()=''][1]/*[local-name()='n' and namespace-uri()=''][1]",
+    ];
+    for ((id, original), expected) in view
+        .node(0)
+        .children
+        .iter()
+        .copied()
+        .zip(
+            document
+                .root_element()
+                .children()
+                .filter(roxmltree::Node::is_element),
+        )
+        .zip(expected_locations)
+    {
+        assert_eq!(view.node(id).location, expected);
+        assert_eq!(view.node(id).text, original.text().unwrap());
+        assert_eq!(
+            view.node(id).namespace,
+            original.tag_name().namespace().unwrap_or_default()
+        );
     }
     for input in [
         r#"<r xmlns:a="urn:a" xmlns:b="urn:a" a:x="1" b:x="2"/>"#,

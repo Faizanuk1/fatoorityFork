@@ -24,7 +24,6 @@ fatoora-rs is an unofficial toolkit for ZATCA Phase 1 and 2 compliant e-invoicin
 
 ## Getting Started
 - Rust toolchain (stable) and Cargo
-- `libxml2` installed for XML parsing (usually preinstalled on Linux/macOS)
 - Optional: `uv` for Python bindings development and tests
 
 Quick setup:
@@ -32,7 +31,9 @@ Quick setup:
 cargo check
 ```
 
-If `libxml2` is missing, install it via your system package manager and re-run `cargo check`.
+Ordinary builds and tests require no system XML library. The isolated maintenance
+probes in `scripts/xml-reference` and `scripts/xsd-compat` use libxml2 as a
+reference oracle and require its development headers when run explicitly.
 
 ## Workspace Layout
 

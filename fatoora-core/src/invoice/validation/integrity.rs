@@ -3,16 +3,16 @@ use super::{
     Severity, ValidationFinding, ValidationLayer, ZatcaFinding, ZatcaStage, ZatcaStageStatus,
     ZatcaValidationReport, integrity_xml,
 };
+use crate::invoice::xml::{
+    lexical,
+    nav::{self, Nodes},
+};
 use base64ct::{Base64, Encoding};
 use k256::{
     ecdsa::{Signature, VerifyingKey, signature::Verifier},
     pkcs8::DecodePublicKey,
 };
-use libxml::{
-    parser::{Parser, ParserOptions},
-    tree::{Document, Node},
-    xpath::Context,
-};
+use roxmltree::{Document, Node};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use x509_cert::{
@@ -27,9 +27,6 @@ const DS: &str = "http://www.w3.org/2000/09/xmldsig#";
 const XADES: &str = "http://uri.etsi.org/01903/v1.3.2#";
 const C14N: &str = "http://www.w3.org/2006/12/xml-c14n11";
 const SHA256: &str = "http://www.w3.org/2001/04/xmlenc#sha256";
-const SIGNATURE: &str = "/ubl:Invoice/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/sig:UBLDocumentSignatures/sac:SignatureInformation/ds:Signature";
-const PIH: &str = "/ubl:Invoice/cac:AdditionalDocumentReference[cbc:ID='PIH']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject";
-const QR: &str = "/ubl:Invoice/cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject";
 #[derive(Debug)]
 enum CheckError {
     Violation(&'static str, String),
@@ -39,90 +36,99 @@ type Checked<T> = Result<T, CheckError>;
 fn bad(code: &'static str, message: impl Into<String>) -> CheckError {
     CheckError::Violation(code, message.into())
 }
-struct Xml {
-    _doc: Document,
-    ctx: Context,
+struct Xml<'input> {
+    doc: Document<'input>,
 }
-impl Xml {
-    fn parse(xml: &str) -> Result<Self, String> {
-        super::business_rules::check_input(xml).map_err(|e| e.to_string())?;
-        let doc = Parser::default()
-            .parse_string_with_options(
-                xml,
-                ParserOptions {
-                    recover: false,
-                    no_net: true,
-                    huge: false,
-                    ..Default::default()
-                },
+impl<'input> Xml<'input> {
+    fn parse(xml: &'input str) -> Result<Self, String> {
+        lexical::document(xml)
+            .map(|doc| Self { doc })
+            .map_err(|e| e.to_string())
+    }
+    fn root(&self) -> Nodes<'_, 'input> {
+        let root = self.doc.root_element();
+        Nodes(
+            nav::is(root, UBL, "Invoice")
+                .then_some(root)
+                .into_iter()
+                .collect(),
+        )
+    }
+    fn signature(&self) -> Nodes<'_, 'input> {
+        self.root()
+            .children(EXT, "UBLExtensions")
+            .children(EXT, "UBLExtension")
+            .children(EXT, "ExtensionContent")
+            .children(
+                crate::invoice::xml::constants::SIG_NS,
+                "UBLDocumentSignatures",
             )
-            .map_err(|e| e.to_string())?;
-        let ctx = Context::new(&doc).map_err(|_| "could not create integrity XML context")?;
-        for (prefix, uri) in [
-            ("ubl", UBL),
-            ("cbc", CBC),
-            ("cac", CAC),
-            ("ext", EXT),
-            ("ds", DS),
-            ("xades", XADES),
-            (
-                "sig",
-                "urn:oasis:names:specification:ubl:schema:xsd:CommonSignatureComponents-2",
-            ),
-            (
-                "sac",
-                "urn:oasis:names:specification:ubl:schema:xsd:SignatureAggregateComponents-2",
-            ),
-            ("xml", "http://www.w3.org/XML/1998/namespace"),
-        ] {
-            ctx.register_namespace(prefix, uri)
-                .map_err(|_| "could not register integrity XML namespace")?;
-        }
-        Ok(Self { _doc: doc, ctx })
+            .children(
+                crate::invoice::xml::constants::SAC_NS,
+                "SignatureInformation",
+            )
+            .children(DS, "Signature")
     }
-    fn nodes(&self, path: &str) -> Checked<Vec<Node>> {
-        self.ctx
-            .evaluate(path)
-            .map(|v| v.get_nodes_as_vec())
-            .map_err(|_| CheckError::Backend("integrity XML selection failed".into()))
+    fn document_reference(&self, id: &str) -> Nodes<'_, 'input> {
+        self.root()
+            .children(CAC, "AdditionalDocumentReference")
+            .filter(|node| {
+                node.children()
+                    .any(|child| nav::is(child, CBC, "ID") && nav::content(child) == id)
+            })
+            .children(CAC, "Attachment")
+            .children(CBC, "EmbeddedDocumentBinaryObject")
     }
-    fn one(&self, path: &str) -> Checked<Node> {
-        let nodes = self.nodes(path)?;
-        if nodes.len() != 1 {
-            return Err(bad(
+    fn all(&self, ns: &str, local: &str) -> Nodes<'_, 'input> {
+        Nodes(
+            self.doc
+                .descendants()
+                .filter(|node| nav::is(*node, ns, local))
+                .collect(),
+        )
+    }
+    fn one<'a>(&self, nodes: &Nodes<'a, 'input>) -> Checked<Node<'a, 'input>> {
+        match nodes.0.as_slice() {
+            [node] => Ok(*node),
+            nodes => Err(bad(
                 "INTEGRITY_STRUCTURE",
-                format!("Expected exactly one {path}; found {}", nodes.len()),
-            ));
+                format!("Expected exactly one XML value; found {}", nodes.len()),
+            )),
         }
-        Ok(nodes[0].clone())
     }
-    fn text(&self, path: &str) -> Checked<String> {
-        let node = self.one(path)?;
-        if !node.get_child_elements().is_empty() {
-            return Err(bad(
-                "INTEGRITY_STRUCTURE",
-                format!("Expected a scalar value at {path}"),
-            ));
+    fn text(&self, nodes: &Nodes<'_, 'input>) -> Checked<String> {
+        let node = self.one(nodes)?;
+        if node.children().any(|node| node.is_element()) {
+            return Err(bad("INTEGRITY_STRUCTURE", "Expected a scalar XML value"));
         }
-        Ok(node.get_content())
+        Ok(nav::content(node))
     }
-    fn expect(&self, path: &str, value: &str) -> Checked<()> {
-        if self.text(path)? != value {
-            return Err(bad(
-                "SIGNATURE_ALGORITHM",
-                format!("Unsupported signature metadata at {path}"),
-            ));
+    fn attribute(&self, nodes: &Nodes<'_, 'input>, name: &str) -> Checked<String> {
+        self.one(nodes)?
+            .attribute(name)
+            .map(str::to_owned)
+            .ok_or_else(|| bad("INTEGRITY_STRUCTURE", format!("Missing {name} attribute")))
+    }
+    fn expect(&self, nodes: &Nodes<'_, 'input>, value: &str) -> Checked<()> {
+        if self.text(nodes)? != value {
+            return Err(bad("SIGNATURE_ALGORITHM", "Unsupported signature metadata"));
         }
         Ok(())
     }
-    fn algorithm(&self, path: &str, value: &str) -> Checked<()> {
-        let node = self.one(path)?;
-        if node.get_property_no_ns("Algorithm").as_deref() != Some(value)
-            || !node.get_child_elements().is_empty()
+    fn expect_attribute(&self, nodes: &Nodes<'_, 'input>, name: &str, value: &str) -> Checked<()> {
+        if self.attribute(nodes, name)? != value {
+            return Err(bad("SIGNATURE_ALGORITHM", "Unsupported signature metadata"));
+        }
+        Ok(())
+    }
+    fn algorithm(&self, nodes: &Nodes<'_, 'input>, value: &str) -> Checked<()> {
+        let node = self.one(nodes)?;
+        if node.attribute("Algorithm") != Some(value)
+            || node.children().any(|node| node.is_element())
         {
             return Err(bad(
                 "SIGNATURE_ALGORITHM",
-                format!("Unsupported algorithm or parameters at {path}"),
+                "Unsupported algorithm or parameters",
             ));
         }
         Ok(())
@@ -148,47 +154,55 @@ fn decode(value: &str, maximum: usize, code: &'static str) -> Checked<Vec<u8>> {
     }
     Ok(bytes)
 }
-fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
-    let signature = xml.one(SIGNATURE)?;
-    if xml.nodes("//ds:Signature")? != vec![signature.clone()] {
+fn signature(xml: &Xml<'_>, input: &str) -> Checked<Verified> {
+    let signature = xml.one(&xml.signature())?;
+    if (xml.all(DS, "Signature")).0 != vec![signature] {
         return Err(bad(
             "SIGNATURE_STRUCTURE",
             "Signature must be unique and anchored in the UBL signature extension",
         ));
     }
     let mut ids = BTreeSet::new();
-    for attr in xml.nodes("//@Id | //@ID | //@id | //@xml:id")? {
-        let id = attr.get_content();
-        if id.is_empty() || !ids.insert(id) {
-            return Err(bad(
-                "SIGNATURE_DUPLICATE_ID",
-                "Signature reference IDs must be nonempty and unique",
-            ));
+    for node in xml.doc.descendants().filter(Node::is_element) {
+        for attr in node.attributes().filter(|attr| {
+            (attr.namespace().is_none() && matches!(attr.name(), "Id" | "ID" | "id"))
+                || (attr.namespace() == Some("http://www.w3.org/XML/1998/namespace")
+                    && attr.name() == "id")
+        }) {
+            let id = attr.value();
+            if id.is_empty() || !ids.insert(id.to_owned()) {
+                return Err(bad(
+                    "SIGNATURE_DUPLICATE_ID",
+                    "Signature reference IDs must be nonempty and unique",
+                ));
+            }
         }
     }
     let signature_id = signature
-        .get_property_no_ns("Id")
+        .attribute("Id")
         .filter(|v| !v.is_empty())
         .ok_or_else(|| bad("SIGNATURE_STRUCTURE", "Signature Id is required"))?;
-    let info = format!("{SIGNATURE}/ds:SignedInfo");
+    let info = xml.signature().children(DS, "SignedInfo");
     xml.one(&info)?;
-    xml.algorithm(&format!("{info}/ds:CanonicalizationMethod"), C14N)?;
+    xml.algorithm(&info.children(DS, "CanonicalizationMethod"), C14N)?;
     xml.algorithm(
-        &format!("{info}/ds:SignatureMethod"),
+        &info.children(DS, "SignatureMethod"),
         "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256",
     )?;
-    let references = xml.nodes(&format!("{info}/ds:Reference"))?;
+    let references = (info.children(DS, "Reference")).0;
     if references.len() != 2 {
         return Err(bad(
             "SIGNATURE_REFERENCES",
             "Exactly two signature references are required",
         ));
     }
-    let invoice = format!("{info}/ds:Reference[@Id='invoiceSignedData']");
+    let invoice = info
+        .children(DS, "Reference")
+        .filter(|node| node.attribute("Id") == Some("invoiceSignedData"));
     xml.one(&invoice)?;
-    xml.expect(&format!("{invoice}/@URI"), "")?;
-    xml.algorithm(&format!("{invoice}/ds:DigestMethod"), SHA256)?;
-    let transforms = xml.nodes(&format!("{invoice}/ds:Transforms/ds:Transform"))?;
+    xml.expect_attribute(&invoice, "URI", "")?;
+    xml.algorithm(&invoice.children(DS, "DigestMethod"), SHA256)?;
+    let transforms = (invoice.children(DS, "Transforms").children(DS, "Transform")).0;
     if transforms.len() != 4 {
         return Err(bad(
             "SIGNATURE_TRANSFORMS",
@@ -212,21 +226,30 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
             vec![("cac", CAC), ("cbc", CBC)],
         ),
     ] {
-        let transform = format!("{invoice}/ds:Transforms/ds:Transform[{index}]");
-        xml.expect(
-            &format!("{transform}/@Algorithm"),
+        let transform = invoice
+            .children(DS, "Transforms")
+            .children(DS, "Transform")
+            .at(index - 1);
+        xml.expect_attribute(
+            &transform,
+            "Algorithm",
             "http://www.w3.org/TR/1999/REC-xpath-19991116",
         )?;
-        xml.expect(&format!("{transform}/ds:XPath"), expression)?;
-        if transforms[index - 1].get_child_elements().len() != 1 {
+        xml.expect(&transform.children(DS, "XPath"), expression)?;
+        if transforms[index - 1]
+            .children()
+            .filter(Node::is_element)
+            .count()
+            != 1
+        {
             return Err(bad(
                 "SIGNATURE_TRANSFORMS",
                 "Unexpected transform parameters",
             ));
         }
-        let xpath = xml.one(&format!("{transform}/ds:XPath"))?;
+        let xpath = xml.one(&transform.children(DS, "XPath"))?;
         for (prefix, uri) in prefixes {
-            if xpath.lookup_namespace_uri(prefix).as_deref() != Some(uri) {
+            if xpath.lookup_namespace_uri(Some(prefix)) != Some(uri) {
                 return Err(bad(
                     "SIGNATURE_TRANSFORMS",
                     "Transform namespace binding differs from the pinned profile",
@@ -234,16 +257,28 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
             }
         }
     }
-    xml.algorithm(&format!("{invoice}/ds:Transforms/ds:Transform[4]"), C14N)?;
-    let properties =
-        format!("{SIGNATURE}/ds:Object/xades:QualifyingProperties/xades:SignedProperties");
+    xml.algorithm(
+        &invoice
+            .children(DS, "Transforms")
+            .children(DS, "Transform")
+            .at(3),
+        C14N,
+    )?;
+    let properties = xml
+        .signature()
+        .children(DS, "Object")
+        .children(XADES, "QualifyingProperties")
+        .children(XADES, "SignedProperties");
     let property_node = xml.one(&properties)?;
     let property_id = property_node
-        .get_property_no_ns("Id")
+        .attribute("Id")
         .filter(|v| !v.is_empty())
         .ok_or_else(|| bad("SIGNATURE_REFERENCES", "SignedProperties Id is required"))?;
-    let qualifier = format!("{SIGNATURE}/ds:Object/xades:QualifyingProperties");
-    let target = xml.text(&format!("{qualifier}/@Target"))?;
+    let qualifier = xml
+        .signature()
+        .children(DS, "Object")
+        .children(XADES, "QualifyingProperties");
+    let target = xml.attribute(&qualifier, "Target")?;
     if target != signature_id && target != format!("#{signature_id}") {
         return Err(bad(
             "SIGNATURE_REFERENCES",
@@ -252,15 +287,15 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
     }
     let properties_reference = references
         .iter()
-        .find(|r| r.get_property_no_ns("Id").as_deref() != Some("invoiceSignedData"))
+        .find(|r| r.attribute("Id") != Some("invoiceSignedData"))
         .ok_or_else(|| {
             bad(
                 "SIGNATURE_REFERENCES",
                 "SignedProperties reference is missing",
             )
         })?;
-    if properties_reference.get_property_no_ns("URI") != Some(format!("#{property_id}"))
-        || properties_reference.get_property_no_ns("Type").as_deref()
+    if properties_reference.attribute("URI") != Some(format!("#{property_id}").as_str())
+        || properties_reference.attribute("Type")
             != Some("http://www.w3.org/2000/09/xmldsig#SignatureProperties")
     {
         return Err(bad(
@@ -268,9 +303,11 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
             "SignedProperties reference is not bound to the selected subtree",
         ));
     }
-    let ref_path = format!("{info}/ds:Reference[not(@Id='invoiceSignedData')]");
-    xml.algorithm(&format!("{ref_path}/ds:DigestMethod"), SHA256)?;
-    if !xml.nodes(&format!("{ref_path}/ds:Transforms"))?.is_empty() {
+    let ref_path = info
+        .children(DS, "Reference")
+        .filter(|node| node.attribute("Id") != Some("invoiceSignedData"));
+    xml.algorithm(&ref_path.children(DS, "DigestMethod"), SHA256)?;
+    if !ref_path.children(DS, "Transforms").0.is_empty() {
         return Err(bad(
             "SIGNATURE_TRANSFORMS",
             "SignedProperties transforms are unsupported by this profile",
@@ -281,7 +318,7 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
     // explicit and no invoice-controlled algorithm is executed.
     let hash = integrity_xml::invoice_digest(input).map_err(CheckError::Backend)?;
     if decode(
-        &xml.text(&format!("{invoice}/ds:DigestValue"))?,
+        &xml.text(&invoice.children(DS, "DigestValue"))?,
         32,
         "SIGNATURE_DIGEST",
     )? != decode(&hash, 32, "SIGNATURE_DIGEST")?
@@ -294,7 +331,7 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
     let preimage = integrity_xml::properties_preimage(input).map_err(CheckError::Backend)?;
     let expected = format!("{:x}", Sha256::digest(preimage.as_bytes()));
     if decode(
-        &xml.text(&format!("{ref_path}/ds:DigestValue"))?,
+        &xml.text(&ref_path.children(DS, "DigestValue"))?,
         64,
         "SIGNED_PROPERTIES_DIGEST",
     )? != expected.as_bytes()
@@ -304,8 +341,12 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
             "SignedProperties digest does not match its original subtree",
         ));
     }
-    let certificate_path = format!("{SIGNATURE}/ds:KeyInfo/ds:X509Data/ds:X509Certificate");
-    if xml.nodes("//ds:X509Certificate")?.len() != 1 {
+    let certificate_path = xml
+        .signature()
+        .children(DS, "KeyInfo")
+        .children(DS, "X509Data")
+        .children(DS, "X509Certificate");
+    if (xml.all(DS, "X509Certificate")).0.len() != 1 {
         return Err(bad(
             "SIGNATURE_CERTIFICATE",
             "Exactly one embedded signing certificate is required",
@@ -330,7 +371,7 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
         )
     })?;
     let signature_bytes = decode(
-        &xml.text(&format!("{SIGNATURE}/ds:SignatureValue"))?,
+        &xml.text(&xml.signature().children(DS, "SignatureValue"))?,
         80,
         "SIGNATURE_VALUE",
     )?;
@@ -344,14 +385,20 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
                 "ECDSA signature does not verify with the embedded certificate",
             )
         })?;
-    let certificate_properties =
-        format!("{properties}/xades:SignedSignatureProperties/xades:SigningCertificate/xades:Cert");
-    xml.text(&format!(
-        "{properties}/xades:SignedSignatureProperties/xades:SigningTime"
-    ))?;
+    let certificate_properties = properties
+        .children(XADES, "SignedSignatureProperties")
+        .children(XADES, "SigningCertificate")
+        .children(XADES, "Cert");
+    xml.text(
+        &properties
+            .children(XADES, "SignedSignatureProperties")
+            .children(XADES, "SigningTime"),
+    )?;
     xml.one(&certificate_properties)?;
     xml.algorithm(
-        &format!("{certificate_properties}/xades:CertDigest/ds:DigestMethod"),
+        &certificate_properties
+            .children(XADES, "CertDigest")
+            .children(DS, "DigestMethod"),
         SHA256,
     )?;
     let digest = format!(
@@ -359,9 +406,11 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
         Sha256::digest(Base64::encode_string(&certificate_bytes).as_bytes())
     );
     if decode(
-        &xml.text(&format!(
-            "{certificate_properties}/xades:CertDigest/ds:DigestValue"
-        ))?,
+        &xml.text(
+            &certificate_properties
+                .children(XADES, "CertDigest")
+                .children(DS, "DigestValue"),
+        )?,
         64,
         "SIGNATURE_CERTIFICATE_DIGEST",
     )? != digest.as_bytes()
@@ -371,9 +420,11 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
             "Signing certificate digest differs",
         ));
     }
-    let issuer = xml.text(&format!(
-        "{certificate_properties}/xades:IssuerSerial/ds:X509IssuerName"
-    ))?;
+    let issuer = xml.text(
+        &certificate_properties
+            .children(XADES, "IssuerSerial")
+            .children(DS, "X509IssuerName"),
+    )?;
     let expected_issuer = certificate.tbs_certificate().issuer().to_string();
     let sdk_issuer = expected_issuer
         .split(',')
@@ -386,9 +437,11 @@ fn signature(xml: &Xml, input: &str) -> Checked<Verified> {
             "Certificate issuer name differs",
         ));
     }
-    let serial = xml.text(&format!(
-        "{certificate_properties}/xades:IssuerSerial/ds:X509SerialNumber"
-    ))?;
+    let serial = xml.text(
+        &certificate_properties
+            .children(XADES, "IssuerSerial")
+            .children(DS, "X509SerialNumber"),
+    )?;
     let serial = serial.trim_matches(|c| matches!(c, ' ' | '\t' | '\r' | '\n'));
     if serial.is_empty()
         || !serial.bytes().all(|b| b.is_ascii_digit())
@@ -429,8 +482,8 @@ pub(super) fn valid_previous_hash(value: &str) -> bool {
         bytes.len() == 32 || (bytes.len() == 64 && bytes.iter().all(u8::is_ascii_hexdigit))
     })
 }
-fn previous_hash(xml: &Xml, expected: Option<&str>) -> Checked<()> {
-    let actual = xml.text(PIH)?;
+fn previous_hash(xml: &Xml<'_>, expected: Option<&str>) -> Checked<()> {
+    let actual = xml.text(&xml.document_reference("PIH"))?;
     if !valid_previous_hash(&actual) {
         return Err(bad(
             "PIH_FORMAT",
@@ -471,20 +524,72 @@ fn qr_tags(bytes: &[u8]) -> Checked<BTreeMap<u8, Vec<u8>>> {
     }
     Ok(tags)
 }
-fn qr(xml: &Xml, verified: &Verified) -> Checked<()> {
-    let encoded = xml.text(QR)?;
+fn qr(xml: &Xml<'_>, verified: &Verified) -> Checked<()> {
+    qr_for_profile(xml, verified, QrProfile::Sdk)
+}
+enum QrProfile {
+    Sdk,
+    Signing,
+}
+
+fn qr_for_profile(xml: &Xml<'_>, verified: &Verified, profile: QrProfile) -> Checked<()> {
+    let amount = match profile {
+        QrProfile::Sdk => "PayableAmount",
+        QrProfile::Signing => "TaxInclusiveAmount",
+    };
+    // Signing uses XML scalar normalization from QR construction. Free-text
+    // seller names and the public SDK comparison retain their original bytes.
+    let scalar = |field: crate::invoice::qr::QrField, value: String| match profile {
+        QrProfile::Sdk => value,
+        QrProfile::Signing => field.normalize(&value).to_owned(),
+    };
+    let encoded = xml.text(&xml.document_reference("QR"))?;
     let tags = qr_tags(&decode(&encoded, 4096, "QR_BASE64")?)?;
-    let expected=[
-        (1,xml.text("/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cbc:RegistrationName")?.into_bytes()),
-        (2,xml.text("/ubl:Invoice/cac:AccountingSupplierParty/cac:Party/cac:PartyTaxScheme/cbc:CompanyID")?.into_bytes()),
+    let expected = [
+        (
+            1,
+            xml.text(
+                &xml.root()
+                    .children(CAC, "AccountingSupplierParty")
+                    .children(CAC, "Party")
+                    .children(CAC, "PartyLegalEntity")
+                    .children(CBC, "RegistrationName"),
+            )?
+            .into_bytes(),
+        ),
+        (
+            2,
+            scalar(
+                crate::invoice::qr::QrField::SellerVat,
+                xml.text(
+                    &xml.root()
+                        .children(CAC, "AccountingSupplierParty")
+                        .children(CAC, "Party")
+                        .children(CAC, "PartyTaxScheme")
+                        .children(CBC, "CompanyID"),
+                )?,
+            )
+            .into_bytes(),
+        ),
         // Pinned SDK compares tag4 to BT-115 (PayableAmount). The library's QR
         // generator follows the published TaxInclusiveAmount mapping instead;
         // SDK-QR-001 records that difference for payable rounding.
-        (4,xml.text("/ubl:Invoice/cac:LegalMonetaryTotal/cbc:PayableAmount")?.into_bytes()),
-        (6,verified.hash.as_bytes().to_vec()),
-        (7,Base64::encode_string(&verified.signature).into_bytes()),
-        (8,verified.public_key.clone()),
-        (9,verified.certificate_signature.clone()),
+        (
+            4,
+            scalar(
+                crate::invoice::qr::QrField::TotalWithVat,
+                xml.text(
+                    &xml.root()
+                        .children(CAC, "LegalMonetaryTotal")
+                        .children(CBC, amount),
+                )?,
+            )
+            .into_bytes(),
+        ),
+        (6, verified.hash.as_bytes().to_vec()),
+        (7, Base64::encode_string(&verified.signature).into_bytes()),
+        (8, verified.public_key.clone()),
+        (9, verified.certificate_signature.clone()),
     ];
     for (tag, value) in expected {
         if tags.get(&tag) != Some(&value) {
@@ -498,8 +603,14 @@ fn qr(xml: &Xml, verified: &Verified) -> Checked<()> {
         .map_err(|_| bad("QR_TIMESTAMP", "QR timestamp is not UTF-8"))?;
     let expected_time = format!(
         "{}T{}",
-        xml.text("/ubl:Invoice/cbc:IssueDate")?,
-        xml.text("/ubl:Invoice/cbc:IssueTime")?
+        scalar(
+            crate::invoice::qr::QrField::IssueDate,
+            xml.text(&xml.root().children(CBC, "IssueDate"))?
+        ),
+        scalar(
+            crate::invoice::qr::QrField::IssueTime,
+            xml.text(&xml.root().children(CBC, "IssueTime"))?
+        )
     );
     // SDK-QR-002: the SDK ignores malformed suffixes. Require a complete
     // timestamp and compare instants; absent offsets mean UTC in this profile.
@@ -522,7 +633,12 @@ fn qr(xml: &Xml, verified: &Verified) -> Checked<()> {
     }
     let vat =
         std::str::from_utf8(&tags[&5]).map_err(|_| bad("QR_VAT", "QR VAT amount is not UTF-8"))?;
-    let xml_vat = xml.text("(/ubl:Invoice/cac:TaxTotal/cbc:TaxAmount)[1]")?;
+    let xml_vat = xml.text(
+        &xml.root()
+            .children(CAC, "TaxTotal")
+            .children(CBC, "TaxAmount")
+            .at(0),
+    )?;
     // SDK-QR-003: require exact decimal equality, rejecting NaN, exponents,
     // and distinct values that collapse to the same binary float.
     let equal =
@@ -577,7 +693,7 @@ pub(super) fn apply(
     report: &mut ZatcaValidationReport,
 ) -> Result<(), (ZatcaStage, String)> {
     let xml = Xml::parse(input).map_err(|e| (ZatcaStage::Signature, e))?;
-    let transaction = xml.text("/ubl:Invoice/cbc:InvoiceTypeCode/@name");
+    let transaction = xml.attribute(&xml.root().children(CBC, "InvoiceTypeCode"), "name");
     match transaction {
         Ok(value) if value.starts_with("01") => {
             for stage in &mut report.stages {
@@ -634,3 +750,51 @@ pub(super) fn apply(
 #[cfg(test)]
 #[path = "integrity_tests.rs"]
 mod tests;
+
+pub(crate) fn signing_postcondition(
+    input: &str,
+    intended: &crate::invoice::sign::SignedProperties,
+    certificate: &[u8],
+    qr_payload: &str,
+) -> Result<(), String> {
+    let xml = Xml::parse(input)?;
+    let checked = || -> Checked<()> {
+        let verified = signature(&xml, input)?;
+        if verified.hash != intended.invoice_hash()
+            || verified.signature
+                != Base64::decode_vec(intended.signature())
+                    .map_err(|_| bad("SIGNING_POSTCONDITION", "invalid intended signature"))?
+        {
+            return Err(bad(
+                "SIGNING_POSTCONDITION",
+                "final invoice digest or signature differs",
+            ));
+        }
+        let embedded = xml.text(
+            &xml.signature()
+                .children(DS, "KeyInfo")
+                .children(DS, "X509Data")
+                .children(DS, "X509Certificate"),
+        )?;
+        if decode(&embedded, 16 * 1024, "SIGNING_POSTCONDITION")? != certificate {
+            return Err(bad("SIGNING_POSTCONDITION", "final certificate differs"));
+        }
+        let time = xml.text(
+            &xml.signature()
+                .children(DS, "Object")
+                .children(XADES, "QualifyingProperties")
+                .children(XADES, "SignedProperties")
+                .children(XADES, "SignedSignatureProperties")
+                .children(XADES, "SigningTime"),
+        )?;
+        if time != intended.signing_time() || xml.text(&xml.document_reference("QR"))? != qr_payload
+        {
+            return Err(bad(
+                "SIGNING_POSTCONDITION",
+                "final signing time or QR differs",
+            ));
+        }
+        qr_for_profile(&xml, &verified, QrProfile::Signing)
+    };
+    checked().map_err(|e| format!("signing postcondition: {e:?}"))
+}

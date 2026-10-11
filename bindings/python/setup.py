@@ -60,29 +60,6 @@ class build_py(_build_py):
                 rule_notices / name,
             )
 
-        # Retain the notices supplied with libraries that wheel repair bundles.
-        if os.name == "nt":
-            vcpkg_root = Path(os.environ.get("VCPKG_INSTALLATION_ROOT", "C:/vcpkg"))
-            license_files = (vcpkg_root / "installed/x64-windows/share").glob(
-                "*/copyright"
-            )
-        elif sys.platform.startswith("linux"):
-            license_files = [
-                source
-                for dependency in ("libxml2", "xz-libs")
-                for source in (Path("/usr/share/licenses") / dependency).glob("*")
-                if source.is_file()
-            ]
-            # AlmaLinux 8's xz-libs RPM keeps its license in the xz doc directory.
-            license_files.extend(Path("/usr/share/doc/xz").glob("COPYING"))
-        else:
-            license_files = ()
-        for source in license_files:
-            dependency = "xz-libs" if source.parent.name == "xz" else source.parent.name
-            destination = package_dir / "licenses" / dependency
-            destination.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination / source.name)
-
         super().run()
 
     @staticmethod

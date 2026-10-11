@@ -1,0 +1,5 @@
+<?before keep?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:b="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:c="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:e="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2">
+<?inside keep?>
+<b:ID>123</b:ID></Invoice>
+<?after keep?>

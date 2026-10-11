@@ -3,7 +3,7 @@
 //! XSD checks do not run builder field checks, business rules, or signature
 //! verification. Parsing a signed invoice does not verify its signature.
 mod decimal_lexical;
-mod integrity;
+pub(crate) mod integrity;
 mod integrity_xml;
 #[cfg(test)]
 mod integrity_xml_tests;

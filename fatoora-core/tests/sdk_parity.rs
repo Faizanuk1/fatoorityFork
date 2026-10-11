@@ -242,7 +242,7 @@ fn sdk_and_fresh_rust_signatures_and_qr_are_verified() {
             .unwrap_or_else(|e| panic!("SDK {id}: {e}"));
         let doc = checks::document(&sdk).unwrap();
         assert_eq!(
-            checks::qr(&checks::context(&doc)).unwrap(),
+            checks::qr(checks::context(&doc)).unwrap(),
             checks::tlv(&Base64::decode_vec(expected["qr"].as_str().unwrap()).unwrap()).unwrap(),
             "SDK QR {id}"
         );
@@ -266,8 +266,8 @@ fn sdk_and_fresh_rust_signatures_and_qr_are_verified() {
             "//xades:CertDigest/ds:DigestValue",
         ] {
             assert_eq!(
-                checks::text(&rust_ctx, field).unwrap(),
-                checks::text(&sdk_ctx, field).unwrap(),
+                checks::text(rust_ctx, field).unwrap(),
+                checks::text(sdk_ctx, field).unwrap(),
                 "{id}: {field}"
             );
         }
@@ -378,13 +378,12 @@ fn typed_serialization_and_signing_match_frozen_inputs() {
 
 fn mutate(xml: &str, xpath: &str, value: &str) -> String {
     let doc = checks::document(xml).unwrap();
-    let ctx = checks::context(&doc);
-    let nodes = ctx.evaluate(xpath).unwrap().get_nodes_as_vec();
-    assert_eq!(nodes.len(), 1, "mutation target {xpath}");
-    let mut node = nodes.into_iter().next().unwrap();
-    assert_ne!(node.get_content(), value, "ineffective mutation");
-    node.set_content(value).unwrap();
-    doc.to_string()
+    assert_ne!(
+        checks::text(&doc, xpath).unwrap(),
+        value,
+        "ineffective mutation"
+    );
+    checks::replace_text(xml, xpath, value)
 }
 
 #[test]
@@ -409,6 +408,12 @@ fn independent_verifier_rejects_signature_reference_and_qr_tampering() {
         ("//ds:SignatureValue", "AAAA"),
         ("//ds:Transform[1]/ds:XPath", "false()"),
         ("//ds:X509Certificate", "AAAA"),
+        ("//ds:Transform[1]/@Algorithm", "urn:unsupported:xpath"),
+        ("//ds:Transform[4]/@Algorithm", "urn:unsupported:c14n"),
+        (
+            "//ds:Reference[@URI='#xadesSignedProperties']/@URI",
+            "#wrong-properties",
+        ),
         ("//xades:SigningTime", "2024-01-01T00:00:00"),
         (
             "//ds:Reference[@URI='#xadesSignedProperties']/ds:DigestValue",
@@ -424,19 +429,57 @@ fn independent_verifier_rejects_signature_reference_and_qr_tampering() {
             "tamper accepted: {xpath}"
         );
     }
+    // A different certificate with the same key must still be bound by its
+    // certificate digest; trusting only the public key would miss this change.
+    use k256::pkcs8::DecodePrivateKey;
+    use x509_cert::builder::{Builder, CertificateBuilder, profile};
+    use x509_cert::der::{Decode, Encode};
+    let original = x509_cert::Certificate::from_der(&certificate).unwrap();
+    let key = k256::ecdsa::SigningKey::from_pkcs8_der(
+        &fs::read(root().join("credentials/private-key.der")).unwrap(),
+    )
+    .unwrap();
+    let profile =
+        profile::cabf::Root::new(false, "CN=Renewed,O=Fatoora,C=SA".parse().unwrap()).unwrap();
+    let validity =
+        x509_cert::time::Validity::from_now(std::time::Duration::from_secs(3600)).unwrap();
+    let changed = CertificateBuilder::new(
+        profile,
+        x509_cert::serial_number::SerialNumber::from(99u32),
+        validity,
+        original.tbs_certificate().subject_public_key_info().clone(),
+    )
+    .unwrap()
+    .build::<_, k256::ecdsa::DerSignature>(&key)
+    .unwrap();
+    assert_eq!(
+        changed.tbs_certificate().subject_public_key_info(),
+        original.tbs_certificate().subject_public_key_info()
+    );
+    let changed_der = changed.to_der().unwrap();
+    assert_ne!(changed_der, certificate);
+    let altered = mutate(
+        &xml,
+        "//ds:X509Certificate",
+        &Base64::encode_string(&changed_der),
+    );
+    checks::verify_references(&altered)
+        .expect("certificate change is excluded from invoice digest");
+    let error = checks::verify_signed(&altered, hash, &changed_der, false).unwrap_err();
+    assert_eq!(error, "certificate digest");
     let raw = Base64::decode_vec(expected["qr"].as_str().unwrap()).unwrap();
     let qr_path = "//cac:AdditionalDocumentReference[cbc:ID='QR']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject";
-    for target in [6, 7] {
+    for target in 1..=9 {
         let mut bad = raw.clone();
         let mut i = 0;
         while bad[i] != target {
             i += 2 + bad[i + 1] as usize;
         }
         bad[i + 2] ^= 1;
-        assert!(
-            verify(&mutate(&xml, qr_path, &Base64::encode_string(&bad))).is_err(),
-            "QR tag {target}"
-        );
+        let altered = mutate(&xml, qr_path, &Base64::encode_string(&bad));
+        checks::verify_references(&altered)
+            .expect("QR mutation leaves independent invoice/properties digests unchanged");
+        assert!(verify(&altered).is_err(), "QR tag {target}");
     }
     let mut duplicate = raw.clone();
     duplicate.extend_from_slice(&raw[..2 + raw[1] as usize]);

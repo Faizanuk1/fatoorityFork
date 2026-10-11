@@ -228,16 +228,30 @@ proptest! {
     }
 }
 
-fn set_amount(doc: &libxml::tree::Document, field: &str, cents: i128) {
-    let ctx = libxml::xpath::Context::new(doc).unwrap();
-    let path = format!(
-        "/*[local-name()='Invoice']/*[local-name()='LegalMonetaryTotal']/*[local-name()='{field}']"
-    );
-    let mut nodes = ctx.evaluate(&path).unwrap().get_nodes_as_vec();
-    assert_eq!(nodes.len(), 1);
-    nodes[0]
-        .set_content(&decimal(cents, 2).to_string())
+fn set_amount(xml: &mut String, field: &str, cents: i128) {
+    let doc = roxmltree::Document::parse(xml).unwrap();
+    let monetary = doc
+        .root_element()
+        .children()
+        .find(|node| {
+            node.tag_name().namespace()
+                == Some("urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2")
+                && node.tag_name().name() == "LegalMonetaryTotal"
+        })
         .unwrap();
+    let nodes: Vec<_> = monetary
+        .children()
+        .filter(|node| {
+            node.tag_name().namespace()
+                == Some("urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2")
+                && node.tag_name().name() == field
+        })
+        .collect();
+    assert_eq!(nodes.len(), 1);
+    let range = nodes[0].range();
+    let raw = &xml[range.clone()];
+    let content = range.start + raw.find('>').unwrap() + 1..range.start + raw.rfind("</").unwrap();
+    xml.replace_range(content, &decimal(cents, 2).to_string());
 }
 
 proptest! {
@@ -250,18 +264,18 @@ proptest! {
         let inclusive = net + (net * 15 + 50) / 100;
         let prepaid = inclusive * paid_percent / 100;
         let payable = inclusive - prepaid + rounding;
-        let doc = libxml::parser::Parser::default().parse_string(invoice.to_xml().unwrap()).unwrap();
+        let mut xml = invoice.to_xml().unwrap();
         for (field, cents) in [("PrepaidAmount", prepaid), ("PayableRoundingAmount", rounding), ("PayableAmount", payable)] {
-            set_amount(&doc, field, cents);
+            set_amount(&mut xml, field, cents);
         }
-        let parsed = parse_finalized_invoice_xml(&doc.to_string()).unwrap();
+        let parsed = parse_finalized_invoice_xml(&xml).unwrap();
         prop_assert_eq!(parsed.totals().prepaid_amount(), decimal(prepaid, 2));
         prop_assert_eq!(parsed.totals().payable_rounding_amount(), decimal(rounding, 2));
         prop_assert_eq!(parsed.totals().payable_amount(), decimal(payable, 2));
         let reparsed = parse_finalized_invoice_xml(&parsed.to_xml().unwrap()).unwrap();
         prop_assert_eq!(parsed.totals(), reparsed.totals());
-        set_amount(&doc, "PayableAmount", payable + 1);
-        let error = parse_finalized_invoice_xml(&doc.to_string()).unwrap_err();
+        set_amount(&mut xml, "PayableAmount", payable + 1);
+        let error = parse_finalized_invoice_xml(&xml).unwrap_err();
         prop_assert!(matches!(error, fatoora_core::invoice::xml::parse::ParseError::InvalidValue { field: "PayableAmount", .. }), "unexpected error: {error}");
     }
 }

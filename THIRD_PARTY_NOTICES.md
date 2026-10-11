@@ -192,12 +192,10 @@ source attribution and upstream terms above are retained for adapted material.
 
 ## Native dependencies
 
-Python wheels can bundle libxml2 and its dependencies. Their build-system
-license files are included under `fatoora/licenses/`: Linux wheels retain the
-`libxml2` and `xz-libs` notices; Windows wheels retain the installed vcpkg
-copyright files. Windows CLI/FFI archives include the installed vcpkg `share`
-directory under `licenses/`. Standalone Linux and macOS native assets use the
-host's libxml2.
+Native binaries and Python wheels use the Rust XML implementations and do not
+link or bundle libxml2. The isolated compatibility maintenance tools under
+`scripts/xml-reference` and `scripts/xsd-compat` retain libxml2 as a reference
+oracle; they are not distributed with the library.
 
 ## Historical files
 

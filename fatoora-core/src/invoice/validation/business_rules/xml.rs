@@ -1,11 +1,7 @@
 //! Immutable view of the original XML, without an invoice model round trip.
 use super::{FailureKind, Limits};
-use libxml::{
-    parser::{Parser, ParserOptions},
-    tree::{Node, NodeType},
-};
-use quick_xml::{events::Event, name::ResolveResult, reader::NsReader};
-use std::collections::{HashMap, HashSet};
+use roxmltree::Node;
+use std::collections::HashMap;
 
 pub(super) const UBL: &str = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
 pub(super) const CREDIT_NOTE: &str = "urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2";
@@ -41,24 +37,8 @@ pub(super) struct XmlView {
 
 impl XmlView {
     pub fn parse(input: &str, limits: &Limits) -> Result<Self, FailureKind> {
-        preflight(input, limits)?;
-        let document = Parser::default()
-            .parse_string_with_options(
-                input,
-                ParserOptions {
-                    recover: false,
-                    no_net: true,
-                    huge: false,
-                    // Preflight accepts only UTF-8 declarations. Keep encoding
-                    // unset: libxml 0.3.8 drops the CString backing an override
-                    // before passing its pointer to xmlReadMemory.
-                    ..ParserOptions::default()
-                },
-            )
-            .map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
-        let root = document
-            .get_root_element()
-            .ok_or_else(|| FailureKind::InvalidXml("missing root".into()))?;
+        let document = parse_document(input, limits)?;
+        let root = document.root_element();
         let mut view = Self { nodes: Vec::new() };
         view.copy_element(root, None, "", 1, &mut 0, limits)?;
         Ok(view)
@@ -66,33 +46,28 @@ impl XmlView {
 
     fn copy_element(
         &mut self,
-        node: Node,
+        node: Node<'_, '_>,
         parent: Option<NodeId>,
         prefix: &str,
         ordinal: usize,
         retained: &mut usize,
         limits: &Limits,
     ) -> Result<NodeId, FailureKind> {
-        let name = node.get_name();
-        let namespace = node
-            .get_namespace()
-            .map_or_else(String::new, |ns| ns.get_href());
+        let name = node.tag_name().name().to_owned();
+        let namespace = node.tag_name().namespace().unwrap_or_default().to_owned();
         let location = format!(
             "{prefix}/*[local-name()={} and namespace-uri()={}][{ordinal}]",
             xpath_literal(&name),
             xpath_literal(&namespace)
         );
-        let text = node.get_content();
+        let text = crate::invoice::xml::nav::content(node);
         // XML CDATA boundaries do not create XDM text-node boundaries. Other
         // child node kinds do, and zero-length text nodes are omitted.
         let mut direct_text = Vec::new();
         let mut text_run = String::new();
-        for child in node.get_child_nodes() {
-            if matches!(
-                child.get_type(),
-                Some(NodeType::TextNode | NodeType::CDataSectionNode)
-            ) {
-                text_run.push_str(&child.get_content());
+        for child in node.children() {
+            if child.is_text() {
+                text_run.push_str(child.text().unwrap_or_default());
             } else if !text_run.is_empty() {
                 direct_text.push(std::mem::take(&mut text_run));
             }
@@ -101,12 +76,14 @@ impl XmlView {
             direct_text.push(text_run);
         }
         let attributes: HashMap<_, _> = node
-            .get_properties_ns()
-            .into_iter()
-            .map(|((name, ns), value)| {
+            .attributes()
+            .map(|attr| {
                 (
-                    (ns.map_or_else(String::new, |ns| ns.get_href()), name),
-                    value,
+                    (
+                        attr.namespace().unwrap_or_default().to_owned(),
+                        attr.name().to_owned(),
+                    ),
+                    attr.value().to_owned(),
                 )
             })
             .collect();
@@ -137,13 +114,8 @@ impl XmlView {
             attributes,
         });
         let mut counts = HashMap::new();
-        for child in node.get_child_elements() {
-            let key = (
-                child
-                    .get_namespace()
-                    .map_or_else(String::new, |ns| ns.get_href()),
-                child.get_name(),
-            );
+        for child in node.children().filter(Node::is_element) {
+            let key = (child.tag_name().namespace(), child.tag_name().name());
             let ordinal = counts.entry(key).or_insert(0);
             *ordinal += 1;
             let child =
@@ -216,94 +188,25 @@ impl XmlView {
     }
 }
 
-/// No resource resolver is ever invoked: reject DTDs before calling libxml2.
-/// Preflight bounds depth/node count before building the DOM and checks names
-/// whose namespace errors libxml2 can otherwise report without rejecting a tree.
-fn preflight(input: &str, limits: &Limits) -> Result<(), FailureKind> {
-    if input.len() > limits.xml_bytes {
-        return Err(FailureKind::Limit("XML input bytes"));
-    }
-    let mut reader = NsReader::from_str(input);
-    reader.config_mut().check_comments = true;
-    let mut depth = 0usize;
-    let mut nodes = 0usize;
-    loop {
-        let (namespace, event) = reader
-            .read_resolved_event()
-            .map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
-        if matches!(namespace, ResolveResult::Unknown(_)) {
-            return Err(FailureKind::InvalidXml("undeclared element prefix".into()));
-        }
-        let empty = matches!(event, Event::Empty(_));
-        match event {
-            Event::DocType(_) => {
-                return Err(FailureKind::UnsupportedXml("DTD declarations".into()));
-            }
-            Event::Start(element) | Event::Empty(element) => {
-                nodes += 1;
-                if nodes > limits.nodes {
-                    return Err(FailureKind::Limit("XML nodes"));
-                }
-                if depth + 1 > limits.depth.min(128) {
-                    return Err(FailureKind::Limit("XML depth"));
-                }
-                let mut names = HashSet::new();
-                for attr in element.attributes() {
-                    let attr = attr.map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
-                    if attr.key.as_ref() == b"xmlns" || attr.key.as_ref().starts_with(b"xmlns:") {
-                        continue;
-                    }
-                    let (namespace, name) = reader.resolver().resolve_attribute(attr.key);
-                    let namespace = match namespace {
-                        ResolveResult::Bound(ns) => ns.as_ref().to_vec(),
-                        ResolveResult::Unbound => Vec::new(),
-                        ResolveResult::Unknown(_) => {
-                            return Err(FailureKind::InvalidXml(
-                                "undeclared attribute prefix".into(),
-                            ));
-                        }
-                    };
-                    if !names.insert((namespace, name.as_ref().to_vec())) {
-                        return Err(FailureKind::InvalidXml(
-                            "duplicate expanded attribute name".into(),
-                        ));
-                    }
-                }
-                if !empty {
-                    depth += 1;
-                }
-            }
-            Event::End(_) => {
-                depth = depth
-                    .checked_sub(1)
-                    .ok_or_else(|| FailureKind::InvalidXml("unexpected closing tag".into()))?;
-            }
-            Event::Decl(decl) => {
-                let version = decl
-                    .version()
-                    .map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
-                if version.as_ref() != b"1.0" {
-                    return Err(FailureKind::UnsupportedXml(
-                        "XML version other than 1.0".into(),
-                    ));
-                }
-                if let Some(encoding) = decl.encoding() {
-                    let encoding = encoding.map_err(|e| FailureKind::InvalidXml(e.to_string()))?;
-                    if !encoding.eq_ignore_ascii_case(b"UTF-8") {
-                        return Err(FailureKind::UnsupportedXml(
-                            "input must declare UTF-8".into(),
-                        ));
-                    }
-                }
-            }
-            Event::Eof => break,
-            _ => {}
-        }
-    }
-    if depth != 0 {
-        return Err(FailureKind::InvalidXml("unclosed element".into()));
-    }
-    Ok(())
+fn parse_document<'a>(
+    input: &'a str,
+    limits: &Limits,
+) -> Result<roxmltree::Document<'a>, FailureKind> {
+    use crate::invoice::xml::lexical::{self, XmlError, XmlLimits};
+    lexical::document_with_limits(
+        input,
+        &XmlLimits {
+            xml_bytes: limits.xml_bytes,
+            elements: limits.elements,
+            dom_nodes: limits.dom_nodes,
+            depth: limits.depth,
+        },
+    )
+    .map_err(|error| match error {
+        XmlError::InvalidXml(message) => FailureKind::InvalidXml(message),
+        XmlError::UnsupportedXml(message) => FailureKind::UnsupportedXml(message),
+        XmlError::Limit(limit) => FailureKind::Limit(limit),
+    })
 }
 
 pub(super) fn is_xml_space(c: char) -> bool {
