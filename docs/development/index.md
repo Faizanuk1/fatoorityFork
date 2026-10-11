@@ -14,7 +14,7 @@ We prioritize:
 - Docs and examples that reflect the actual behavior, not just happy paths.
 
 ## Quick Start
-There are two main ways to use `fatoora-rs`:
+There are two main ways to use `fatoority`:
 
 - **CLI**: Best for quick validation, local workflows, and CI scripts.
 

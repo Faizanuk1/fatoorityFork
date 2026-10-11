@@ -2,7 +2,7 @@
 
 The production adapter uses pinned `xsd-schema` 0.2.2 with an in-memory workaround
 for the four bundled CCTS decimal families. This follows the XSD adapter boundary
-agreed in [issue #4](https://github.com/mqqz/fatoora-rs/issues/4).
+agreed in [issue #4](https://github.com/mqqz/fatoority/issues/4).
 Bundled schema files and frozen SDK fixtures remain unchanged.
 
 From the repository root, with libxml2 and Clang development dependencies:

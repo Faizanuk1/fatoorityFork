@@ -1,16 +1,16 @@
-<h1 align="center">  
-  🇸🇦 fatoora-rs 🧾 
+<h1 align="center">
+  🇸🇦 fatoority 🧾
   </br>
-  <a href="https://github.com/mqqz/fatoora-rs">
-    <img src="https://github.com/mqqz/fatoora-rs/blob/main/docs/assets/images/crab-logo.webp" height=150px alt="fatoora-rs-logo">
+  <a href="https://github.com/mqqz/fatoority">
+    <img src="https://github.com/mqqz/fatoority/blob/main/docs/assets/images/crab-logo.webp" height=150px alt="fatoority-logo">
   </a>
 </h1>
 <p align="center">
 <a target="_blank" href="#license"><img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-green.svg"/></a>
-<a href="https://codecov.io/gh/mqqz/fatoora-rs"><img src="https://codecov.io/gh/mqqz/fatoora-rs/graph/badge.svg?token=JRI6609XU6"/></a>
+<a href="https://codecov.io/gh/mqqz/fatoority"><img src="https://codecov.io/gh/mqqz/fatoority/graph/badge.svg?token=JRI6609XU6"/></a>
 </p>
 <p align="center">
-<a href="https://rs.fatoority.com">🌐 Homepage</a> &nbsp;&bull;&nbsp;
+<a href="https://docs.fatoority.com">🌐 Homepage</a> &nbsp;&bull;&nbsp;
 <a href="#-features">⚡ Features</a> &nbsp;&bull;&nbsp;
 <a href="#-installation">📥 Installation</a> &nbsp;&bull;&nbsp;
 <a href="#-examples">💡 Examples</a> &nbsp;&bull;&nbsp;
@@ -24,32 +24,28 @@ An *unofficial* open-source toolkit for everything you'd need for ZATCA (Zakat, 
 With bindings and support for many programming languages:
 - 🦀 Rust <a href="https://crates.io/crates/fatoora-core"><img src="https://img.shields.io/crates/v/fatoora-core?logo=rust&label=fatoora-core" alt="fatoora-core Crates.io Version"/></a>
   
-- 🐍 Python <a href="https://pypi.org/project/fatoora-rs/"><img src="https://img.shields.io/pypi/v/fatoora-rs?logo=python" alt="PyPi Version"/></a>
+- 🐍 Python <a href="https://pypi.org/project/fatoority/"><img src="https://img.shields.io/pypi/v/fatoority?logo=python" alt="PyPi Version"/></a>
 
-- 🌀 C/C++ (through the C FFI see ![releases](https://github.com/mqqz/fatoora-rs/releases))
+- 🌀 C/C++ (through the C FFI see ![releases](https://github.com/mqqz/fatoority/releases))
 
-- 🔌 Also, a Command Line Interface (CLI) Tool  <a href="https://crates.io/crates/fatoora-rs-cli"><img src="https://img.shields.io/crates/v/fatoora-rs-cli?logo=rust&label=fatoora-rs-cli" alt="fatoora-rs-cli Crates.io Version"/></a>
-
-> `fatoora-rs` is in active early development. While the core functionality is usable, the public API is still evolving and may change as the project matures.
-> We strive to maintain good test coverage and stability, but users should be aware that some rough edges may remain. 
-> Feedback and contributions are especially welcome at this stage. 
+- 🔌 Also, a Command Line Interface (CLI) Tool  <a href="https://crates.io/crates/fatoora-cli"><img src="https://img.shields.io/crates/v/fatoora-cli?logo=rust&label=fatoora-cli" alt="fatoora-cli Crates.io Version"/></a>
 
 **Disclaimer**:
-`fatoora-rs` is not affiliated, associated, authorized, endorsed by, or in any way officially connected with ZATCA (Zakat, Tax and Customs Authority), or any of its subsidiaries or its affiliates. The official ZATCA website can be found at https://zatca.gov.sa.
+`fatoority` is not affiliated, associated, authorized, endorsed by, or in any way officially connected with ZATCA (Zakat, Tax and Customs Authority), or any of its subsidiaries or its affiliates. The official ZATCA website can be found at https://zatca.gov.sa.
 
 ## 🗂️ Documentation
-Checkout the [homepage](https://rs.fatoority.com), also the Rust API at [docs.rs](https://docs.rs/fatoora-core/latest/fatoora_core/) may prove useful.
+Checkout the [homepage](https://docs.fatoority.com), also the Rust API at [docs.rs](https://docs.rs/fatoora-core/latest/fatoora_core/) may prove useful.
 
 ## ⚡ Features
 
 Everything done by the official [ZATCA SDK](https://sandbox.zatca.gov.sa/downloadSDK) 
-- 📩 [CSR Generation](https://rs.fatoority.com/guides/csr/)
-- ✍️ [Invoice Signing](https://rs.fatoority.com/guides/invoice-signing/) (All invoice types)
-- ✅ [Validation](https://rs.fatoority.com/guides/validation/) (UBL and local ZATCA rules)
-- 🧾 [QR Generation](https://rs.fatoority.com/guides/qr/)
-- 📨 [API Requests](https://rs.fatoority.com/guides/api/)
+- 📩 [CSR Generation](https://docs.fatoority.com/guides/csr/)
+- ✍️ [Invoice Signing](https://docs.fatoority.com/guides/invoice-signing/) (All invoice types)
+- ✅ [Validation](https://docs.fatoority.com/guides/validation/) (UBL and local ZATCA rules)
+- 🧾 [QR Generation](https://docs.fatoority.com/guides/qr/)
+- 📨 [API Requests](https://docs.fatoority.com/guides/api/)
 
-🚀 *But we do it faster and better* e.g. ~190x faster invoice hashing than ZATCA's SDK (see [`bench/`](https://github.com/mqqz/fatoora-rs/blob/main/bench/cli/results/hash_bench.md))
+🚀 *But we do it faster and better* e.g. ~190x faster invoice hashing than ZATCA's SDK (see [`bench/`](https://github.com/mqqz/fatoority/blob/main/bench/cli/results/hash_bench.md))
 
 ## 🧩 Dependencies
 XML parsing, signing edits, canonicalization, and XSD validation use Rust crates.
@@ -68,7 +64,7 @@ cargo add fatoora-core
 <summary>Python</summary>
   
 ```
-pip install fatoora-rs
+pip install fatoority
 ```
 </details>
 
@@ -76,7 +72,7 @@ pip install fatoora-rs
 <summary>C/C++</summary>
   
 Download the `fatoora-ffi-*` archive for your platform from
-[releases](https://github.com/mqqz/fatoora-rs/releases) and extract it. The shared
+[releases](https://github.com/mqqz/fatoority/releases) and extract it. The shared
 library is at the archive root. C headers are in `include/diplomat-c`; C++ headers
 are in `include/diplomat-cpp` and expose types in namespace `fatoora`.
 
@@ -101,7 +97,7 @@ The library is written to `target/release/`. The generated headers are checked i
 under `bindings/c` and `bindings/cpp`; use those include paths and
 `-Ltarget/release` when compiling against a source build. Cargo does not regenerate
 headers. After changing bridge declarations, follow the
-[Diplomat generation workflow](https://github.com/mqqz/fatoora-rs/blob/main/docs/development/diplomat.md#generate-and-verify).
+[Diplomat generation workflow](https://github.com/mqqz/fatoority/blob/main/docs/development/diplomat.md#generate-and-verify).
 </details>
 
 <details>
@@ -110,9 +106,9 @@ headers. After changing bridge declarations, follow the
 The cli tool can also be installed with `cargo`: 
 
 ```
-cargo install fatoora-rs-cli
+cargo install fatoora-cli
 ```
-Alternatively, you can grab the precompiled binary for your platform on the repo's [releases](https://github.com/mqqz/fatoora-rs/releases) (`fatoora-rs-cli-*`).
+Alternatively, you can grab the precompiled binary for your platform on the repo's [releases](https://github.com/mqqz/fatoority/releases) (`fatoora-cli-*`). Extract the archive and run `fatoora`.
 </details>
 
 ## 💡 Examples
@@ -147,7 +143,7 @@ key_pem = key.to_pem()
 
 CLI
 ```bash
-fatoora-rs-cli csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
+fatoora csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
 ```
 </details>
 
@@ -167,7 +163,7 @@ let signed_xml = signer.sign_xml(&xml)?;
 
 CLI
 ```bash
-fatoora-rs-cli sign --invoice invoice.xml --cert cert.pem --key key.pem --signed-invoice signed.xml
+fatoora sign --invoice invoice.xml --cert cert.pem --key key.pem --signed-invoice signed.xml
 ```
 </details>
 
@@ -195,7 +191,7 @@ if !report.is_valid() {
 
 CLI
 ```bash
-fatoora-rs-cli validate --invoice invoice.xml --profile zatca --format json \
+fatoora validate --invoice invoice.xml --profile zatca --format json \
   --previous-invoice-hash "$PREVIOUS_INVOICE_HASH"
 ```
 
@@ -221,10 +217,10 @@ let qr = signed.qr_code();
 
 CLI
 ```bash
-fatoora-rs-cli qr --invoice invoice.xml
-fatoora-rs-cli qr --invoice signed.xml
-fatoora-rs-cli qr --invoice signed.xml --fail-on-signed
-fatoora-rs-cli qr-read --invoice signed.xml
+fatoora qr --invoice invoice.xml
+fatoora qr --invoice signed.xml
+fatoora qr --invoice signed.xml --fail-on-signed
+fatoora qr-read --invoice signed.xml
 ```
 </details>
 
@@ -242,7 +238,7 @@ let hash = invoice.hash_base64()?;
 
 CLI
 ```bash
-fatoora-rs-cli generate-hash --invoice invoice.xml
+fatoora generate-hash --invoice invoice.xml
 ```
 </details>
 
@@ -264,11 +260,11 @@ let payload = serde_json::json!({
 
 CLI
 ```bash
-fatoora-rs-cli invoice-request --invoice signed.xml --api-request request.json
+fatoora invoice-request --invoice signed.xml --api-request request.json
 ```
 </details>
 
-And much more... see the guides in the [homepage](https://rs.fatoority.com/) for more info.
+And much more... see the guides in the [homepage](https://docs.fatoority.com/) for more info.
 
 ## 🤝 Contributing
 

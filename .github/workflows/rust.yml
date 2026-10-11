@@ -96,7 +96,7 @@ jobs:
         run: cargo publish --workspace --locked --dry-run
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
-        if: github.repository == 'mqqz/fatoora-rs'
+        if: github.repository == 'mqqz/fatoority'
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # required for private repos or protected branches
           files: lcov.info
@@ -124,4 +124,4 @@ jobs:
           cargo publish -p fatoora-derive --locked
           cargo publish -p fatoora-core --locked
           cargo publish -p fatoora-ffi --locked
-          cargo publish -p fatoora-rs-cli --locked
+          cargo publish -p fatoora-cli --locked

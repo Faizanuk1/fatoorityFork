@@ -1,4 +1,4 @@
-# fatoora-rs
+# fatoority
 
 An unofficial open-source toolkit for ZATCA (Saudi Arabia) Phase 1 and 2 compliant e-invoicing. The core is written in Rust with a CLI and bindings for other languages.
 
@@ -9,7 +9,7 @@ An unofficial open-source toolkit for ZATCA (Saudi Arabia) Phase 1 and 2 complia
 
 This library was born out of the frustration involved in working with the ZATCA ecosystem; The official documentation is fragmented, too high-level at best or just totally vague. The official CLI is slow, restrictive, and difficult to integrate into real-world workflow, and existing third-party libraries tend to be incomplete, poorly documented, or built around narrow assumptions that do not generalise well.
 
-`fatoora-rs` aims to remove this overhead by handling ZATCA specific details in a predictable and reliable way. By abstracting away compliance quirks and low-level details, development effort can stay focused on business logic and product concerns, where it actually matters.
+`fatoority` aims to remove this overhead by handling ZATCA specific details in a predictable and reliable way. By abstracting away compliance quirks and low-level details, development effort can stay focused on business logic and product concerns, where it actually matters.
 
 ## Features
 
@@ -21,7 +21,7 @@ This library was born out of the frustration involved in working with the ZATCA 
 
 ## Quick Start
 
-There are two main ways to interact with `fatoora-rs`. Either through:
+There are two main ways to interact with `fatoority`. Either through:
 
 - **The Command Line Interaface (CLI)**:
 
@@ -46,18 +46,18 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
 
 === "Python"
     ```bash
-    pip install fatoora-rs
+    pip install fatoority
     ```
 
 === "C (FFI)"
-    Download the precompiled ffi library and headers for your platform from [github releases](https://github.com/mqqz/fatoora-rs/releases)
+    Download the precompiled ffi library and headers for your platform from [github releases](https://github.com/mqqz/fatoority/releases)
 
 === "CLI"
     You can either install the binary using `cargo install`:
     ```bash
-    cargo install fatoora-rs-cli
+    cargo install fatoora-cli
     ```
-    Or alternatively grab the precompiled binary for your platform from [github releases](https://github.com/mqqz/fatoora-rs/releases)
+    Or alternatively grab the precompiled binary for your platform from [github releases](https://github.com/mqqz/fatoority/releases)
 
 
 ## Basic Usage
@@ -89,7 +89,7 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
 
 === "CLI"
     ```bash
-    fatoora-rs-cli csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
+    fatoora csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
     ```
 
 ## Current Limitations

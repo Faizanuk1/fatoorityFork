@@ -13,7 +13,7 @@ dependency requirements, and `bindings/python/pyproject.toml`. Refresh the root
 The root Cargo lockfile governs workspace builds; the historical member
 lockfiles are not used by these commands.
 
-Add a curated entry to the root [changelog](https://github.com/mqqz/fatoora-rs/blob/main/CHANGELOG.md).
+Add a curated entry to the root [changelog](https://github.com/mqqz/fatoority/blob/main/CHANGELOG.md).
 Keep its date as `Unreleased` until publication. Include migration instructions
 for Rust, C/C++, Python, and serialized data when their contracts change. A
 breaking change before 1.0 requires a new minor version under Cargo's
@@ -65,6 +65,14 @@ package verification, all wheel builds, and all native builds. Recheck the final
 commit after any changes. Independent workflows can partially succeed, so a
 green workflow alone does not prove that the whole release is ready.
 
+For the project rename, confirm ownership of the new `fatoora-cli` crates.io
+name and `fatoority` PyPI name before publication. Configure PyPI trusted
+publishing for `mqqz/fatoority`, workflow `python.yml`, environment `pypi`.
+Existing `fatoora` Python imports and native interfaces are unchanged. Avoid
+installing the old and new Python distributions together: both own the same
+`fatoora` import package. Uninstall the previous distribution before switching.
+Frozen SDK evidence retains historical repository URLs to preserve its checksums.
+
 Confirm these repository settings without exposing secret values:
 
 - `CARGO_REGISTRY_TOKEN` can publish each of the four crates.
@@ -73,7 +81,7 @@ Confirm these repository settings without exposing secret values:
 - The tag and all package versions agree, and the version is unused on each
   destination registry.
 
-Include the [third-party notice](https://github.com/mqqz/fatoora-rs/blob/main/THIRD_PARTY_NOTICES.md)
+Include the [third-party notice](https://github.com/mqqz/fatoority/blob/main/THIRD_PARTY_NOTICES.md)
 in the packages and retain the applicable upstream license text and attribution.
 Keep remaining source questions recorded there for follow-up.
 

@@ -3,9 +3,9 @@ requires = ["setuptools>=77.0.3", "wheel", "nanobind==2.12.0", "cmake>=3.19"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fatoora-rs"
+name = "fatoority"
 version = "0.3.0"
-description = "Python bindings for the fatoora-rs library, providing ZATCA-compliant e-invoicing functionality."
+description = "Python bindings for the fatoority library, providing ZATCA-compliant e-invoicing functionality."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT OR Apache-2.0"
@@ -21,10 +21,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://rs.fatoority.com"
-Repository = "https://github.com/mqqz/fatoora-rs"
-Documentation = "https://rs.fatoority.com"
-Issues = "https://github.com/mqqz/fatoora-rs/issues"
+Homepage = "https://docs.fatoority.com"
+Repository = "https://github.com/mqqz/fatoority"
+Documentation = "https://docs.fatoority.com"
+Issues = "https://github.com/mqqz/fatoority/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

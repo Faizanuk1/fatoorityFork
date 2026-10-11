@@ -1,7 +1,7 @@
-## fatoora Python bindings
+## Fatoority Python bindings
 
 This package wraps Diplomat-generated native bindings with the public `fatoora`
-Python API. See [Diplomat bindings](../../docs/development/diplomat.md).
+Python API. Install with `pip install fatoority` and import as `fatoora`. See [Diplomat bindings](../../docs/development/diplomat.md).
 
 ### Development (uv)
 

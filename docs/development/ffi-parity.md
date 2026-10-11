@@ -1,8 +1,8 @@
 # FFI capability and contract coverage
 
-The [Rust core](https://github.com/mqqz/fatoora-rs/tree/main/fatoora-core/src) defines behavior. The Diplomat bridge in
-[fatoora-ffi](https://github.com/mqqz/fatoora-rs/tree/main/fatoora-ffi/src) exposes that behavior through generated C,
-C++, and Nanobind bindings. The public [Python facade](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/fatoora/api.py)
+The [Rust core](https://github.com/mqqz/fatoority/tree/main/fatoora-core/src) defines behavior. The Diplomat bridge in
+[fatoora-ffi](https://github.com/mqqz/fatoority/tree/main/fatoora-ffi/src) exposes that behavior through generated C,
+C++, and Nanobind bindings. The public [Python facade](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py)
 handles Python values, exceptions, and lifetimes. CFFI and the former handwritten
 C ABI have been removed.
 
@@ -38,8 +38,8 @@ Generated C names follow `fatoora_Type_method`; C++ uses `fatoora::Type::method`
 ## Changing a capability
 
 1. Define the core behavior and its regression case.
-2. Extend the relevant [bridge module](https://github.com/mqqz/fatoora-rs/tree/main/fatoora-ffi/src).
-3. Run [generate_bindings.py](https://github.com/mqqz/fatoora-rs/blob/main/scripts/generate_bindings.py), then its `--check` mode.
+2. Extend the relevant [bridge module](https://github.com/mqqz/fatoority/tree/main/fatoora-ffi/src).
+3. Run [generate_bindings.py](https://github.com/mqqz/fatoority/blob/main/scripts/generate_bindings.py), then its `--check` mode.
 4. Update the Python facade where the public operation needs conversions or locking.
 5. Exercise the generated ABI and installed Python wheel. Include failure paths,
    owned-output lifetimes, and consumption where they apply.
@@ -52,27 +52,27 @@ type. Structured errors cross as numeric classification, message, and JSON detai
 
 ## Regression entry points
 
-- [test_crypto_bytes.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_crypto_bytes.py): key and
+- [test_crypto_bytes.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_crypto_bytes.py): key and
   CSR DER roundtrips, owned extension bytes, and certificate fixture equality.
-- [test_public_api.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_public_api.py): preserved
+- [test_public_api.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_public_api.py): preserved
   public methods and argument names, with obsolete loader/dependency removal.
 
-- [diplomat_contract.c](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/tests/diplomat_contract.c) and
-  [diplomat_contract.cpp](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/tests/diplomat_contract.cpp): generated
+- [diplomat_contract.c](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/tests/diplomat_contract.c) and
+  [diplomat_contract.cpp](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/tests/diplomat_contract.cpp): generated
   ABI, invalid UTF-8/NUL, unknown enum values, decimal recovery, rounding,
   consumption, independent owners, signed XML, and DER roundtrips.
-- [test_numeric_contract.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_numeric_contract.py):
+- [test_numeric_contract.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_numeric_contract.py):
   decimal fidelity, half-up rounding, imported totals, and address fields.
-- [test_builder_ownership.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_builder_ownership.py)
-  and [test_ownership.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_ownership.py): recoverable
+- [test_builder_ownership.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_builder_ownership.py)
+  and [test_ownership.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_ownership.py): recoverable
   setters, consumed builders, copied and consumed signed XML.
-- [test_errors.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_errors.py): error classification,
+- [test_errors.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_errors.py): error classification,
   unknown codes, structured validation issues, and malformed input.
-- [test_api_responses.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_api_responses.py): local
+- [test_api_responses.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_api_responses.py): local
   HTTP responses, acceptance semantics, and cleared-invoice decoding.
-- [test_doc_examples.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/test_doc_examples.py): executable
+- [test_doc_examples.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/test_doc_examples.py): executable
   public workflows.
-- [wheel_smoke.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/wheel_smoke.py): installed package
+- [wheel_smoke.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/wheel_smoke.py): installed package
   loading and representative operations.
 
 Tests tied to handwritten CFFI declarations or opaque-handle layouts are replaced

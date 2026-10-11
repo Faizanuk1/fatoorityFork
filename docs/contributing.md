@@ -1,4 +1,4 @@
-# Contributing to fatoora-rs
+# Contributing to fatoority
 
 Thanks for your interest in contributing. This document is a starting point for how to work on the repo.
 
@@ -20,7 +20,7 @@ Thanks for your interest in contributing. This document is a starting point for 
 Please read and follow `CODE_OF_CONDUCT.md`.
 
 ## Project Scope
-fatoora-rs is an unofficial toolkit for ZATCA Phase 1 and 2 compliant e-invoicing, with a Rust core and bindings/CLI.
+fatoority is an unofficial toolkit for ZATCA Phase 1 and 2 compliant e-invoicing, with a Rust core and bindings/CLI.
 
 ## Getting Started
 - Rust toolchain (stable) and Cargo
@@ -41,7 +41,7 @@ reference oracle and require its development headers when run explicitly.
 
 - `fatoora-derive`: Proc-macro helpers used by the core crate
 
-- `fatoora-rs-cli`: CLI tool wrapping `fatoora-core`
+- `fatoora-cli`: CLI tool wrapping `fatoora-core`
 
 - `fatoora-ffi`: C FFI layer used by language bindings
 

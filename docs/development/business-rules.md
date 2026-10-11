@@ -80,7 +80,7 @@ fn validate(xml: &str, previous_hash: String) -> Result<bool, Box<dyn std::error
 CLI:
 
 ```sh
-fatoora-rs-cli validate --invoice invoice.xml --profile zatca --format json \
+fatoora validate --invoice invoice.xml --profile zatca --format json \
   --evaluated-at '2026-09-23T12:00:00+03:00' \
   --previous-invoice-hash "$PREVIOUS_INVOICE_HASH"
 ```
@@ -125,7 +125,7 @@ An absent options view selects defaults. Otherwise, pass an object with optional
 `evaluated_at` and `previous_invoice_hash` fields. A successful call can return a
 rejected or incomplete report; inspect `is_valid` before accepting the invoice.
 See the [C ownership example](../reference/bindings/c.md) and the
-[local validation contract](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/tests/zatca_contract.c).
+[local validation contract](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/tests/zatca_contract.c).
 
 ## Integrity scope and recorded policies
 

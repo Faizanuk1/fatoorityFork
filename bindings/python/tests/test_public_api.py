@@ -20,7 +20,7 @@ def test_public_methods_and_argument_names_are_preserved():
 
 def test_distribution_has_no_legacy_loader_or_runtime_dependency():
     from importlib.metadata import distribution
-    dist = distribution("fatoora-rs")
+    dist = distribution("fatoority")
     files = {str(p) for p in dist.files}
     assert "fatoora/_lib.py" not in files
     assert "fatoora/native.py" not in files

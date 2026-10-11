@@ -4,7 +4,7 @@ resolver = "3"
 members = [
     "fatoora-derive",
     "fatoora-core",
-    "fatoora-rs-cli",
+    "fatoora-cli",
     "fatoora-ffi",
 ]
 

@@ -78,7 +78,7 @@ class NativePackageChecks(unittest.TestCase):
     def test_rejects_empty_directory_or_loose_binary(self):
         with self.assertRaisesRegex(ValueError, "no native release archives"):
             native.check_packages(self.dist, self.root)
-        (self.dist / "fatoora-rs-cli").write_bytes(b"binary")
+        (self.dist / "fatoora").write_bytes(b"binary")
         with self.assertRaisesRegex(ValueError, "expected a .tar.gz or .zip archive"):
             native.check_packages(self.dist, self.root)
 

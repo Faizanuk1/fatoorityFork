@@ -21,10 +21,10 @@ Generating QR payloads from finalized/signed invoices and reading embedded QR pa
 
 === "CLI"
     ```bash
-    fatoora-rs-cli qr --invoice invoice.xml
-    fatoora-rs-cli qr --invoice signed.xml
-    fatoora-rs-cli qr --invoice signed.xml --fail-on-signed
-    fatoora-rs-cli qr-read --invoice signed.xml
+    fatoora qr --invoice invoice.xml
+    fatoora qr --invoice signed.xml
+    fatoora qr --invoice signed.xml --fail-on-signed
+    fatoora qr-read --invoice signed.xml
     ```
 
 ## Notes
