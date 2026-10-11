@@ -13,26 +13,20 @@ if ! command -v hyperfine >/dev/null 2>&1; then
 fi
 
 OFFICIAL_CLI="${FATOORA_CLI:-}"
-RS_CLI="${FATOORA_RS_CLI:-}"
+RS_CLI="${FATOORITY_CLI:-}"
 
 if [ -z "${OFFICIAL_CLI}" ]; then
-  if command -v fatoora >/dev/null 2>&1; then
-    OFFICIAL_CLI="fatoora"
-  else
-    echo "official SDK CLI not found. Set FATOORA_CLI to its full path."
-    exit 1
-  fi
+  echo "Set FATOORA_CLI to the official ZATCA SDK executable path. Both CLIs use the name fatoora."
+  exit 1
 fi
 
 if [ -z "${RS_CLI}" ]; then
-  if [ -x "${ROOT_DIR}/target/release/fatoora-rs-cli" ]; then
-    RS_CLI="${ROOT_DIR}/target/release/fatoora-rs-cli"
-  elif [ -x "${ROOT_DIR}/target/debug/fatoora-rs-cli" ]; then
-    RS_CLI="${ROOT_DIR}/target/debug/fatoora-rs-cli"
-  elif command -v fatoora-rs-cli >/dev/null 2>&1; then
-    RS_CLI="fatoora-rs-cli"
+  if [ -x "${ROOT_DIR}/target/release/fatoora" ]; then
+    RS_CLI="${ROOT_DIR}/target/release/fatoora"
+  elif [ -x "${ROOT_DIR}/target/debug/fatoora" ]; then
+    RS_CLI="${ROOT_DIR}/target/debug/fatoora"
   else
-    echo "fatoora-rs-cli not found. Build it or set FATOORA_RS_CLI to its full path."
+    echo "fatoora binary not found. Build it or set FATOORITY_CLI to its full path."
     exit 1
   fi
 fi
@@ -48,9 +42,9 @@ hyperfine \
   --warmup 3 \
   --export-markdown "${OUT_FILE}" \
   --shell=none \
-  -n "fatoora" \
+  -n "ZATCA SDK" \
   "\"${OFFICIAL_CLI}\" -generateHash -invoice \"${FIXTURE}\"" \
-  -n "fatoora-rs-cli" \
+  -n "fatoora-cli" \
   "\"${RS_CLI}\" generate-hash --invoice \"${FIXTURE}\""
 
 echo "Wrote ${OUT_FILE}"

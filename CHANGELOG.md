@@ -8,6 +8,13 @@ removes libxml2 from ordinary builds and distributed artifacts.
 
 ### Breaking changes
 
+- Rename the project and repository to `fatoority`, the Python distribution to
+  `fatoority`, and the CLI crate to `fatoora-cli` with executable `fatoora`.
+  Install Python with `pip install fatoority` and the CLI with
+  `cargo install fatoora-cli`. Python still imports as `fatoora`; Rust crate
+  names and C/C++ interfaces remain unchanged. Documentation now lives at
+  https://docs.fatoority.com.
+
 - Replace handwritten C exports with Diplomat-generated `fatoora_Type_method`
   symbols. Recompile C/C++ clients against the matching generated headers.
   Strings are length-delimited UTF-8 views, numeric getters write to
@@ -120,7 +127,7 @@ serialized invoice data. Upgrade bindings and their native library together.
 
 ### Distribution
 
-- Report the CLI package version with `fatoora-rs-cli --version`.
+- Report the CLI package version through the `--version` flag.
 - Synchronize Rust crates and the Python package at 0.2.0.
 - Validate versions and publication tags in CI and dry-run Cargo packaging.
 - Build wheels and native assets on release PRs before tagging. Native GitHub
@@ -135,6 +142,6 @@ serialized invoice data. Upgrade bindings and their native library together.
 - Require CFFI 1.17+ so Windows loads repaired wheel dependencies through the
   registered DLL search directories.
 
-[0.2.0]: https://github.com/mqqz/fatoora-rs/compare/v0.1.3...v0.2.0
+[0.2.0]: https://github.com/mqqz/fatoority/compare/v0.1.3...v0.2.0
 
-[0.3.0]: https://github.com/mqqz/fatoora-rs/compare/v0.2.0...v0.3.0
+[0.3.0]: https://github.com/mqqz/fatoority/compare/v0.2.0...v0.3.0

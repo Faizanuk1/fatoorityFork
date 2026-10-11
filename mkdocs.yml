@@ -1,8 +1,8 @@
-site_name: fatoora-rs
+site_name: fatoority
 site_description: Unofficial toolkit for ZATCA Phase 1/2 compliant e-invoicing
-site_url: https://rs.fatoority.com
-repo_name: mqqz/fatoora-rs
-repo_url: https://github.com/mqqz/fatoora-rs
+site_url: https://docs.fatoority.com
+repo_name: mqqz/fatoority
+repo_url: https://github.com/mqqz/fatoority
 
 theme:
   name: material

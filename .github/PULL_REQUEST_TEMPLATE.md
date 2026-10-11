@@ -1,5 +1,5 @@
 <!--
-Thanks for contributing to `fatoora-rs`! 🎉
+Thanks for contributing to `fatoority`! 🎉
 
 Please fill out the sections below to help maintainers review your PR quickly and effectively.
 -->

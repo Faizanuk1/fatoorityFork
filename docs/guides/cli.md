@@ -3,21 +3,21 @@
 The CLI wraps the Rust core for common workflows like CSR generation, invoice signing, validation, QR generation, QR reading, and hashing.
 
 Native release downloads use `.tar.gz` archives on Linux and macOS and `.zip`
-archives on Windows. Extract the archive before running `fatoora-rs-cli`. Each
+archives on Windows. Extract the archive before running `fatoora`. Each
 archive includes the SDK license texts and rule notices under `licenses/zatca/`.
 
 ## Examples
 
 ```bash
-fatoora-rs-cli csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
-fatoora-rs-cli sign --invoice invoice.xml --cert cert.pem --key key.pem --signed-invoice signed.xml
-fatoora-rs-cli validate --invoice invoice.xml
-fatoora-rs-cli validate --invoice invoice.xml --profile zatca --format json \
+fatoora csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
+fatoora sign --invoice invoice.xml --cert cert.pem --key key.pem --signed-invoice signed.xml
+fatoora validate --invoice invoice.xml
+fatoora validate --invoice invoice.xml --profile zatca --format json \
   --previous-invoice-hash "$PREVIOUS_INVOICE_HASH"
-fatoora-rs-cli qr --invoice invoice.xml
-fatoora-rs-cli qr --invoice signed.xml --fail-on-signed
-fatoora-rs-cli qr-read --invoice signed.xml
-fatoora-rs-cli generate-hash --invoice invoice.xml
+fatoora qr --invoice invoice.xml
+fatoora qr --invoice signed.xml --fail-on-signed
+fatoora qr-read --invoice signed.xml
+fatoora generate-hash --invoice invoice.xml
 ```
 
 ## Notes

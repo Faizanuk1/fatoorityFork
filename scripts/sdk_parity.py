@@ -718,7 +718,7 @@ def capture(root, output, inputs):
             "sdk": "1000.00",
             "rust": "1000.01",
             "reason": "SDK output differs from XML TaxInclusiveAmount; preserve guideline mapping in Rust",
-            "tracking": "https://github.com/mqqz/fatoora-rs/issues/2",
+            "tracking": "https://github.com/mqqz/fatoority/issues/2",
             "source": "https://www.zatca.gov.sa/en/E-Invoicing/Introduction/Guidelines/Documents/E-invoicing-Detailed-Technical-Guideline.pdf#page=61",
         }
     ]

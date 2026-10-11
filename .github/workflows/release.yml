@@ -61,14 +61,14 @@ jobs:
             .
 
       - name: Build CLI
-        run: cargo build -p fatoora-rs-cli --release --locked --target ${{ matrix.target }}
+        run: cargo build -p fatoora-cli --release --locked --target ${{ matrix.target }}
 
       - name: Package CLI (unix)
         if: runner.os != 'Windows'
         run: |
-          pkg=fatoora-rs-cli-${{ matrix.target }}
+          pkg=fatoora-cli-${{ matrix.target }}
           mkdir -p dist package/$pkg/licenses/zatca
-          cp target/${{ matrix.target }}/release/fatoora-rs-cli package/$pkg/
+          cp target/${{ matrix.target }}/release/fatoora package/$pkg/
           cp LICENSE-MIT LICENSE-APACHE THIRD_PARTY_NOTICES.md package/$pkg/
           cp fatoora-core/tests/fixtures/business-rules/{LICENSE-LGPL-3.0.txt,LICENSE-GPL-3.0.txt,NOTICE.md} package/$pkg/licenses/zatca/
           tar -czf dist/${pkg}.tar.gz -C package/$pkg .
@@ -78,13 +78,13 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          $pkg = "fatoora-rs-cli-${{ matrix.target }}"
+          $pkg = "fatoora-cli-${{ matrix.target }}"
           New-Item -ItemType Directory -Force -Path "package/$pkg" | Out-Null
-          Copy-Item target/${{ matrix.target }}/release/fatoora-rs-cli.exe "package/$pkg/"
+          Copy-Item target/${{ matrix.target }}/release/fatoora.exe "package/$pkg/"
           Copy-Item LICENSE-MIT, LICENSE-APACHE, THIRD_PARTY_NOTICES.md "package/$pkg/"
           New-Item -ItemType Directory -Force -Path "package/$pkg/licenses/zatca" | Out-Null
           Copy-Item fatoora-core/tests/fixtures/business-rules/LICENSE-LGPL-3.0.txt, fatoora-core/tests/fixtures/business-rules/LICENSE-GPL-3.0.txt, fatoora-core/tests/fixtures/business-rules/NOTICE.md "package/$pkg/licenses/zatca/"
-          & "./package/$pkg/fatoora-rs-cli.exe" --version
+          & "./package/$pkg/fatoora.exe" --version
           if ($LASTEXITCODE -ne 0) { throw "Packaged CLI failed to start" }
           Compress-Archive -Path "package/$pkg/*" -DestinationPath "dist/$pkg.zip"
 

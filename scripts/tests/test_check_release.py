@@ -30,8 +30,8 @@ version = "0.2.0"
 name = "fatoora-derive"
 version = "0.2.0"
 ''')
-        self.write("bindings/python/pyproject.toml", '[project]\nname = "fatoora-rs"\nversion = "0.2.0"\n')
-        self.write("bindings/python/uv.lock", '[[package]]\nname = "fatoora-rs"\nversion = "0.2.0"\n')
+        self.write("bindings/python/pyproject.toml", '[project]\nname = "fatoority"\nversion = "0.2.0"\n')
+        self.write("bindings/python/uv.lock", '[[package]]\nname = "fatoority"\nversion = "0.2.0"\n')
 
     def write(self, name, value):
         path = self.root / name

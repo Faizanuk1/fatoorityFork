@@ -2,7 +2,7 @@
 
 Diplomat generates the C, C++, and Python native interfaces from `fatoora-ffi`.
 The Rust core remains independent of the binding framework. The public Python
-API in [api.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/fatoora/api.py) wraps the generated private
+API in [api.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py) wraps the generated private
 `fatoora._native` extension and supplies decimal conversion, exceptions, and
 object lifetime management.
 
@@ -10,14 +10,14 @@ The bridge is divided by capability:
 
 | Source | Responsibilities |
 | --- | --- |
-| [common.rs](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/src/common.rs) | Structured errors, strict text conversion, panic boundaries, owned optional text |
-| [crypto.rs](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/src/crypto.rs) | Configuration, keys, CSRs, certificates, signing, owned bytes |
-| [invoice.rs](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/src/invoice.rs) | Invoice builders, parsing, snapshots, totals, XML, hashes, validation |
-| [api.rs](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/src/api.rs) | Credentials, ZATCA requests, response outcomes, validation messages |
+| [common.rs](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/src/common.rs) | Structured errors, strict text conversion, panic boundaries, owned optional text |
+| [crypto.rs](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/src/crypto.rs) | Configuration, keys, CSRs, certificates, signing, owned bytes |
+| [invoice.rs](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/src/invoice.rs) | Invoice builders, parsing, snapshots, totals, XML, hashes, validation |
+| [api.rs](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/src/api.rs) | Credentials, ZATCA requests, response outcomes, validation messages |
 
-C headers live in [bindings/c](https://github.com/mqqz/fatoora-rs/tree/main/bindings/c), C++ headers in
-[bindings/cpp](https://github.com/mqqz/fatoora-rs/tree/main/bindings/cpp), and Nanobind sources in
-[bindings/python/native/generated](https://github.com/mqqz/fatoora-rs/tree/main/bindings/python/native/generated).
+C headers live in [bindings/c](https://github.com/mqqz/fatoority/tree/main/bindings/c), C++ headers in
+[bindings/cpp](https://github.com/mqqz/fatoority/tree/main/bindings/cpp), and Nanobind sources in
+[bindings/python/native/generated](https://github.com/mqqz/fatoority/tree/main/bindings/python/native/generated).
 The old C ABI and CFFI implementation have been removed. `FfiLibrary` and
 `fatoora.native` are no longer public entry points; import from `fatoora` or its
 documented Python modules.
@@ -53,7 +53,7 @@ native byte views into `bytes` through a small Nanobind adapter, without NumPy; 
 ## Blocking requests and concurrency
 
 ZATCA methods are synchronous. The custom Nanobind bindings in
-[client_bindings.cpp](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/src/client_bindings.cpp) add private
+[client_bindings.cpp](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/src/client_bindings.cpp) add private
 `_blocking_*` methods that release the GIL during requests. The Python facade
 acquires an `RLock` for every argument owner in a consistent order and holds those
 locks through the call. This prevents concurrent close or consumption of a handle
@@ -69,8 +69,8 @@ is a read-only view valid for the lifetime of its immutable `Bytes` owner.
 
 Include `InvoiceBuilder.h` for C or `fatoora/InvoiceBuilder.hpp` for C++ and link
 `fatoora_ffi`. C++ types live in namespace `fatoora`; standalone clients require
-C++17. See the [C contract](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/tests/diplomat_contract.c) and
-[C++ contract](https://github.com/mqqz/fatoora-rs/blob/main/fatoora-ffi/tests/diplomat_contract.cpp) for complete clients.
+C++17. See the [C contract](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/tests/diplomat_contract.c) and
+[C++ contract](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/tests/diplomat_contract.cpp) for complete clients.
 
 Generated C symbols use `fatoora_Type_method`, such as
 `fatoora_InvoiceBuilder_build`. This is a breaking ABI replacement. Recompile
@@ -107,13 +107,13 @@ python -m pip wheel --no-deps ./bindings/python -w /tmp/fatoora-wheels
 ```
 
 Install the resulting wheel in a fresh virtual environment, then run
-[wheel_smoke.py](https://github.com/mqqz/fatoora-rs/blob/main/bindings/python/tests/wheel_smoke.py) and the
-[Python tests](https://github.com/mqqz/fatoora-rs/tree/main/bindings/python/tests). Do not add the source package to
+[wheel_smoke.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/tests/wheel_smoke.py) and the
+[Python tests](https://github.com/mqqz/fatoority/tree/main/bindings/python/tests). Do not add the source package to
 `PYTHONPATH`. Verify that the installed extension loads its bundled shared library,
 with the build-tree library unavailable. Linux dependency entries must use a
 library basename with `$ORIGIN`; macOS uses `@rpath` and `@loader_path`.
 
-[check_native_bindings.py](https://github.com/mqqz/fatoora-rs/blob/main/scripts/check_native_bindings.py) builds C11 and
+[check_native_bindings.py](https://github.com/mqqz/fatoority/blob/main/scripts/check_native_bindings.py) builds C11 and
 C++17 clients on Linux/macOS, passes a signed XML fixture to the C++ contract, and
 honors `CC`, `CXX`, and `CARGO_TARGET_DIR`. `DIPLOMAT_TOOL` selects an alternate
 path to the generator.

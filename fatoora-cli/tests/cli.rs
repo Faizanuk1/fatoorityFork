@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn cli_exe() -> &'static str {
-    env!("CARGO_BIN_EXE_fatoora-rs-cli")
+    env!("CARGO_BIN_EXE_fatoora")
 }
 
 fn csr_config_fixture() -> PathBuf {

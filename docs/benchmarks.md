@@ -8,8 +8,12 @@ CLI invoice hashing benchmark results:
 <!-- bench-table-start -->
 | Command | Mean [ms] | Min [ms] | Max [ms] | Relative |
 |:---|---:|---:|---:|---:|
-| `fatoora` | 537.8 ± 8.6 | 522.0 | 549.1 | 187.35 ± 12.59 |
-| `fatoora-rs-cli` | 2.9 ± 0.2 | 2.4 | 3.6 | 1.00 |
+| `ZATCA SDK` | 537.8 ± 8.6 | 522.0 | 549.1 | 187.35 ± 12.59 |
+| `fatoora-cli` | 2.9 ± 0.2 | 2.4 | 3.6 | 1.00 |
 <!-- bench-table-end -->
 
 The actual script for the benchmark is located at `bench/cli/hash_bench.sh`
+
+Set `FATOORA_CLI` to the official SDK executable path and optionally
+`FATOORITY_CLI` to this project's `fatoora` executable. The script otherwise
+uses the local release or debug build for this project.

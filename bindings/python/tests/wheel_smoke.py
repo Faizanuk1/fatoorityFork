@@ -12,7 +12,7 @@ assert not (package / "fatoora_ffi.h").exists(), "wheel must not retain legacy d
 from fatoora import _native
 assert _native.__file__
 
-bundled_libraries = package.parent / "fatoora_rs.libs"
+bundled_libraries = package.parent / "fatoority.libs"
 for directory in (package, bundled_libraries):
     assert not any("xml2" in path.name.lower() or "libxml" in path.name.lower() for path in directory.rglob("*")), "wheel must not bundle libxml2"
 

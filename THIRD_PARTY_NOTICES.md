@@ -1,6 +1,6 @@
 # Third-party notices
 
-Original fatoora-rs code is available under `MIT OR Apache-2.0`. The materials
+Original fatoority code is available under `MIT OR Apache-2.0`. The materials
 below retain their applicable upstream terms. Paths are relative to the repository
 root; a package may contain only a subset. Existing file notices must be retained.
 
