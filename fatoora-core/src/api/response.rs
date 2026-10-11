@@ -122,18 +122,28 @@ impl ValidationResponse {
     }
 }
 
+#[cfg(all(test, not(target_arch = "wasm32")))]
 pub(super) async fn read_validation_response(
     response: reqwest::Response,
     operation: InvoiceOperation,
 ) -> Result<ValidationResponse, ZatcaError> {
     let status = response.status().as_u16();
     let body = response
-        .text()
+        .bytes()
         .await
         .map_err(|e| ZatcaError::ResponseRead {
             http_status: status,
             message: e.to_string(),
         })?;
+    decode_validation_response(status, &body, operation)
+}
+
+pub(super) fn decode_validation_response(
+    status: u16,
+    bytes: &[u8],
+    operation: InvoiceOperation,
+) -> Result<ValidationResponse, ZatcaError> {
+    let body = String::from_utf8_lossy(bytes).into_owned();
     let parsed = serde_json::from_str::<ValidationResponse>(&body).map(|mut parsed| {
         parsed.http_status = Some(status);
         parsed.operation = Some(operation);

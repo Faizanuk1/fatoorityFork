@@ -30,9 +30,14 @@ pub fn validate_zatca_invoice_from_str(
     config: &Config,
     options: &ZatcaValidationOptions,
 ) -> Result<ZatcaValidationReport, ZatcaValidationError> {
+    #[cfg(not(target_arch = "wasm32"))]
     let instant = options
         .evaluated_at
         .unwrap_or_else(|| chrono::Utc::now().fixed_offset());
+    #[cfg(target_arch = "wasm32")]
+    let instant = options
+        .evaluated_at
+        .unwrap_or(chrono::DateTime::UNIX_EPOCH.fixed_offset());
     let mut report = ZatcaValidationReport {
         schema_version: 1,
         profile: "zatca-sdk-238-R3.4.8".into(),
@@ -55,6 +60,15 @@ pub fn validate_zatca_invoice_from_str(
         })
         .collect(),
     };
+    #[cfg(target_arch = "wasm32")]
+    if options.evaluated_at.is_none() {
+        return Err(failure(
+            report,
+            ZatcaFailureKind::InvalidContext,
+            None,
+            "evaluated_at is required on WASM".into(),
+        ));
+    }
     if options
         .previous_invoice_hash
         .as_deref()

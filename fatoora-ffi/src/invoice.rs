@@ -402,6 +402,7 @@ pub mod ffi {
                 ))))
             })
         }
+        #[diplomat::attr(js, disable)]
         pub fn from_file(value: &DiplomatStr) -> Result<Box<FinalizedInvoice>, Box<BindingError>> {
             boundary(|| {
                 Ok(Box::new(FinalizedInvoice(Some(
@@ -434,6 +435,7 @@ pub mod ffi {
                 ))))
             })
         }
+        #[diplomat::attr(js, disable)]
         pub fn from_file(value: &DiplomatStr) -> Result<Box<SignedInvoice>, Box<BindingError>> {
             boundary(|| {
                 Ok(Box::new(SignedInvoice(Some(

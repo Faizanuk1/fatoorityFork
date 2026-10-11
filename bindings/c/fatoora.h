@@ -45,6 +45,7 @@ const char *fatoora_error_details_json(const FatooraError *error);
 typedef struct Address FatooraAddress;
 typedef struct Bytes FatooraBytes;
 typedef struct BytesList FatooraBytesList;
+typedef struct ComplianceRequest FatooraComplianceRequest;
 typedef struct Config FatooraConfig;
 typedef struct CsidCompliance FatooraCsidCompliance;
 typedef struct CsidProduction FatooraCsidProduction;
@@ -55,10 +56,12 @@ typedef struct InvoiceBuilder FatooraInvoiceBuilder;
 typedef struct InvoiceData FatooraInvoiceData;
 typedef struct InvoiceLineItem FatooraInvoiceLineItem;
 typedef struct InvoiceNote FatooraInvoiceNote;
+typedef struct InvoiceRequest FatooraInvoiceRequest;
 typedef struct InvoiceTotals FatooraInvoiceTotals;
 typedef struct OriginalInvoiceRef FatooraOriginalInvoiceRef;
 typedef struct OtherId FatooraOtherId;
 typedef struct Party FatooraParty;
+typedef struct ProductionRequest FatooraProductionRequest;
 typedef struct SignedInvoice FatooraSignedInvoice;
 typedef struct Signer FatooraSigner;
 typedef struct SigningKey FatooraSigningKey;
@@ -159,6 +162,25 @@ FatooraStatus fatoora_bytes_list_get(const FatooraBytesList *self,
     FatooraBytes **out,
     FatooraError **error);
 void fatoora_bytes_list_free(FatooraBytesList *self);
+FatooraStatus fatoora_compliance_request_method(const FatooraComplianceRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_compliance_request_url(const FatooraComplianceRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_compliance_request_headers_json(const FatooraComplianceRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_compliance_request_body(const FatooraComplianceRequest *self,
+    FatooraBytes **out,
+    FatooraError **error);
+FatooraStatus fatoora_compliance_request_decode(const FatooraComplianceRequest *self,
+    uint16_t status,
+    const uint8_t *body,
+    size_t body_len,
+    FatooraCsidCompliance **out,
+    FatooraError **error);
+void fatoora_compliance_request_free(FatooraComplianceRequest *self);
 FatooraStatus fatoora_config_new(int32_t env,
     FatooraConfig **out,
     FatooraError **error);
@@ -418,6 +440,25 @@ FatooraStatus fatoora_invoice_note_text(const FatooraInvoiceNote *self,
     char **out,
     FatooraError **error);
 void fatoora_invoice_note_free(FatooraInvoiceNote *self);
+FatooraStatus fatoora_invoice_request_method(const FatooraInvoiceRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_invoice_request_url(const FatooraInvoiceRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_invoice_request_headers_json(const FatooraInvoiceRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_invoice_request_body(const FatooraInvoiceRequest *self,
+    FatooraBytes **out,
+    FatooraError **error);
+FatooraStatus fatoora_invoice_request_decode(const FatooraInvoiceRequest *self,
+    uint16_t status,
+    const uint8_t *body,
+    size_t body_len,
+    FatooraValidationResponse **out,
+    FatooraError **error);
+void fatoora_invoice_request_free(FatooraInvoiceRequest *self);
 FatooraStatus fatoora_invoice_totals_tax_inclusive(const FatooraInvoiceTotals *self,
     char **out,
     FatooraError **error);
@@ -476,6 +517,25 @@ FatooraStatus fatoora_party_name(const FatooraParty *self,
     char **out,
     FatooraError **error);
 void fatoora_party_free(FatooraParty *self);
+FatooraStatus fatoora_production_request_method(const FatooraProductionRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_production_request_url(const FatooraProductionRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_production_request_headers_json(const FatooraProductionRequest *self,
+    char **out,
+    FatooraError **error);
+FatooraStatus fatoora_production_request_body(const FatooraProductionRequest *self,
+    FatooraBytes **out,
+    FatooraError **error);
+FatooraStatus fatoora_production_request_decode(const FatooraProductionRequest *self,
+    uint16_t status,
+    const uint8_t *body,
+    size_t body_len,
+    FatooraCsidProduction **out,
+    FatooraError **error);
+void fatoora_production_request_free(FatooraProductionRequest *self);
 FatooraStatus fatoora_signed_invoice_from_xml(const char *value,
     FatooraSignedInvoice **out,
     FatooraError **error);
@@ -697,6 +757,41 @@ FatooraStatus fatoora_zatca_client_clear_standard_invoice(const FatooraZatcaClie
     bool clearance_status,
     const char *accept_language,
     FatooraValidationResponse **out,
+    FatooraError **error);
+FatooraStatus fatoora_zatca_client_prepare_post_csr_for_ccsid(const FatooraZatcaClient *self,
+    const FatooraCsr *csr,
+    const char *otp,
+    FatooraComplianceRequest **out,
+    FatooraError **error);
+FatooraStatus fatoora_zatca_client_prepare_post_ccsid_for_pcsid(const FatooraZatcaClient *self,
+    const FatooraCsidCompliance *credentials,
+    FatooraProductionRequest **out,
+    FatooraError **error);
+FatooraStatus fatoora_zatca_client_prepare_renew_csid(const FatooraZatcaClient *self,
+    const FatooraCsidProduction *credentials,
+    const FatooraCsr *csr,
+    const char *otp,
+    const char *accept_language,
+    FatooraProductionRequest **out,
+    FatooraError **error);
+FatooraStatus fatoora_zatca_client_prepare_check_invoice_compliance(const FatooraZatcaClient *self,
+    const FatooraSignedInvoice *invoice,
+    const FatooraCsidCompliance *credentials,
+    FatooraInvoiceRequest **out,
+    FatooraError **error);
+FatooraStatus fatoora_zatca_client_prepare_report_simplified_invoice(const FatooraZatcaClient *self,
+    const FatooraSignedInvoice *invoice,
+    const FatooraCsidProduction *credentials,
+    bool clearance_status,
+    const char *accept_language,
+    FatooraInvoiceRequest **out,
+    FatooraError **error);
+FatooraStatus fatoora_zatca_client_prepare_clear_standard_invoice(const FatooraZatcaClient *self,
+    const FatooraSignedInvoice *invoice,
+    const FatooraCsidProduction *credentials,
+    bool clearance_status,
+    const char *accept_language,
+    FatooraInvoiceRequest **out,
     FatooraError **error);
 void fatoora_zatca_client_free(FatooraZatcaClient *self);
 #ifdef __cplusplus

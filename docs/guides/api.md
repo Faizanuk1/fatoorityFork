@@ -14,6 +14,11 @@ Using the `fatoora-core` API client for compliance, reporting, and clearance API
     --8<-- "bindings/python/examples/api.py:example"
     ```
 
+=== "JavaScript / TypeScript"
+    ```js
+    --8<-- "bindings/js/examples/sdk.mjs:api"
+    ```
+
 === "C"
     ```c
     --8<-- "bindings/c/examples/api.c:example"
@@ -53,3 +58,5 @@ See also: [API Client Reference](../reference/api-client.md)
 
 C examples include `fatoora.h`; compile the adapter once with your application.
 See the [C build instructions](../development/c-api.md#build-and-run).
+
+See the [JavaScript / TypeScript reference](../reference/bindings/javascript.md) for installation and runtime contracts.

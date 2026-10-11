@@ -14,3 +14,12 @@ all = { level = "deny", priority = -1 }
 [profile.release]
 codegen-units = 1
 lto = true
+
+# Used only by scripts/build_js.py for the WASM package.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

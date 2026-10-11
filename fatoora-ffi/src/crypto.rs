@@ -137,6 +137,7 @@ pub mod ffi {
                 )))
             })
         }
+        #[diplomat::attr(js, disable)]
         pub fn parse_csr_config_file(
             path: &DiplomatStr,
         ) -> Result<Box<CsrProperties>, Box<BindingError>> {

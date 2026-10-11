@@ -4,10 +4,15 @@ use crate::{
     csr::Csr,
     invoice::SignedInvoice,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use reqwest::Client;
+mod prepared;
+pub use prepared::{ComplianceRequest, HttpRequest, InvoiceRequest, ProductionRequest};
 mod response;
+use response::InvoiceOperation;
+#[cfg(test)]
+use response::read_validation_response;
 pub use response::{HttpResponseError, InvoiceOutcome};
-use response::{InvoiceOperation, read_validation_response};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use thiserror::Error;
@@ -106,6 +111,7 @@ pub struct Production;
 #[derive(Debug)]
 pub struct ZatcaClient {
     config: Config,
+    #[cfg(not(target_arch = "wasm32"))]
     _client: Client,
     base_url: String,
 }
@@ -385,6 +391,7 @@ impl ZatcaClient {
     /// # Errors
     /// Returns [`ZatcaError::Http`] if the HTTP client cannot be built.
     pub fn new(config: Config) -> Result<Self, ZatcaError> {
+        #[cfg(not(target_arch = "wasm32"))]
         let client = Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()
@@ -402,6 +409,7 @@ impl ZatcaClient {
 
         Ok(Self {
             config,
+            #[cfg(not(target_arch = "wasm32"))]
             _client: client,
             base_url,
         })
@@ -410,17 +418,17 @@ impl ZatcaClient {
     /// Report a simplified invoice to ZATCA's gateway.
     /// See [ZATCA documentation](https://sandbox.zatca.gov.sa/IntegrationSandbox/reporting-api) for more details.
     ///
+    /// Prepare an owned request without sending it; decode through the returned request.
+    ///
     /// # Errors
-    /// Returns [`ZatcaError`] for network failures, invalid responses, or client state issues.
-    /// `Ok` means a 2xx response was decoded, not that the invoice was accepted.
-    /// Use [`ValidationResponse::outcome`] or [`ValidationResponse::ensure_accepted`].
-    pub async fn report_simplified_invoice(
+    /// Returns [`ZatcaError`] for invalid credentials, invoice scope, or request data.
+    pub fn prepare_report_simplified_invoice(
         &self,
         invoice: &SignedInvoice,
         credentials: &CsidCredentials<Production>,
         clearance_status: bool,
         accept_language: Option<&str>,
-    ) -> Result<ValidationResponse, ZatcaError> {
+    ) -> Result<InvoiceRequest, ZatcaError> {
         self.ensure_env(credentials)?;
         if !invoice.data().invoice_type().is_simplified() {
             return Err(ZatcaError::ClientState(
@@ -434,9 +442,7 @@ impl ZatcaClient {
             "invoice": invoice.to_xml_base64()
         });
         let url = self.build_endpoint("invoices/reporting/single");
-        let mut request = self
-            ._client
-            .post(url)
+        let mut request = HttpRequest::new("POST", url)
             .header("Accept", "application/json")
             .header("Accept-Version", "V2")
             .header("Content-Type", "application/json")
@@ -452,27 +458,26 @@ impl ZatcaClient {
             _ => request = request.header("accept-language", "en"),
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| ZatcaError::Http(e.to_string()))?;
-        read_validation_response(response, InvoiceOperation::Reporting).await
+        Ok(InvoiceRequest::new(
+            request.finish()?,
+            InvoiceOperation::Reporting,
+        ))
     }
 
     /// Clear a standard invoice through ZATCA's gateway.
     /// See [ZATCA documentation](https://sandbox.zatca.gov.sa/Integration/clearance-api) for more details.
     ///
+    /// Prepare an owned request without sending it; decode through the returned request.
+    ///
     /// # Errors
-    /// Returns [`ZatcaError`] for network failures, invalid responses, or client state issues.
-    /// `Ok` means a 2xx response was decoded, not that the invoice was accepted.
-    /// Use [`ValidationResponse::outcome`] or [`ValidationResponse::ensure_accepted`].
-    pub async fn clear_standard_invoice(
+    /// Returns [`ZatcaError`] for invalid credentials, invoice scope, or request data.
+    pub fn prepare_clear_standard_invoice(
         &self,
         invoice: &SignedInvoice,
         credentials: &CsidCredentials<Production>,
         clearance_status: bool,
         accept_language: Option<&str>,
-    ) -> Result<ValidationResponse, ZatcaError> {
+    ) -> Result<InvoiceRequest, ZatcaError> {
         self.ensure_env(credentials)?;
         if invoice.data().invoice_type().is_simplified() {
             return Err(ZatcaError::ClientState(
@@ -486,9 +491,7 @@ impl ZatcaClient {
             "invoice": invoice.to_xml_base64()
         });
         let url = self.build_endpoint("invoices/clearance/single");
-        let mut request = self
-            ._client
-            .post(url)
+        let mut request = HttpRequest::new("POST", url)
             .header("Accept", "application/json")
             .header("Accept-Version", "V2")
             .header("Content-Type", "application/json")
@@ -504,25 +507,24 @@ impl ZatcaClient {
             _ => request = request.header("accept-language", "en"),
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| ZatcaError::Http(e.to_string()))?;
-        read_validation_response(response, InvoiceOperation::Clearance).await
+        Ok(InvoiceRequest::new(
+            request.finish()?,
+            InvoiceOperation::Clearance,
+        ))
     }
 
     /// Check invoice compliance through ZATCA's gateway.
     /// See [ZATCA documentation](https://sandbox.zatca.gov.sa/IntegrationSandbox/preInvoice-api) for more details.
     ///
+    /// Prepare an owned request without sending it; decode through the returned request.
+    ///
     /// # Errors
-    /// Returns [`ZatcaError`] for network failures, invalid responses, or client state issues.
-    /// `Ok` means a 2xx response was decoded, not that the invoice was accepted.
-    /// Use [`ValidationResponse::outcome`] or [`ValidationResponse::ensure_accepted`].
-    pub async fn check_invoice_compliance(
+    /// Returns [`ZatcaError`] for invalid credentials, invoice scope, or request data.
+    pub fn prepare_check_invoice_compliance(
         &self,
         invoice: &SignedInvoice,
         credentials: &CsidCredentials<Compliance>,
-    ) -> Result<ValidationResponse, ZatcaError> {
+    ) -> Result<InvoiceRequest, ZatcaError> {
         self.ensure_env(credentials)?;
         let payload = serde_json::json!({
             "invoiceHash": invoice.invoice_hash(),
@@ -532,9 +534,7 @@ impl ZatcaClient {
 
         let url = self.build_endpoint("compliance/invoices");
 
-        let response = self
-            ._client
-            .post(url)
+        let request = HttpRequest::new("POST", url)
             .header("Accept", "application/json")
             .header("Accept-Language", "en")
             .header("Accept-Version", "V2")
@@ -544,69 +544,48 @@ impl ZatcaClient {
                 Some(credentials.secret().to_string()),
             )
             .json(&payload)
-            .send()
-            .await
-            .map_err(|e| ZatcaError::Http(e.to_string()))?;
-
-        read_validation_response(response, InvoiceOperation::Compliance).await
+            .finish()?;
+        Ok(InvoiceRequest::new(request, InvoiceOperation::Compliance))
     }
     /// Request a compliance CSID from ZATCA by submitting a CSR.
     /// See [ZATCA
     /// documentation](https://sandbox.zatca.gov.sa/IntegrationSandbox/complianceCert-api) for more details.
     ///
+    /// Prepare an owned request without sending it; decode through the returned request.
+    ///
     /// # Errors
-    /// Returns [`ZatcaError`] if the request fails or the response cannot be parsed.
-    pub async fn post_csr_for_ccsid(
+    /// Returns [`ZatcaError`] if request data cannot be prepared.
+    pub fn prepare_post_csr_for_ccsid(
         &self,
         csr: &Csr,
         otp: &str,
-    ) -> Result<CsidCredentials<Compliance>, ZatcaError> {
+    ) -> Result<ComplianceRequest, ZatcaError> {
         let encoded_csr = csr
             .to_pem_base64()
             .map_err(|e| ZatcaError::InvalidResponse(e.to_string()))?;
         let csr_payload = serde_json::json!({ "csr": encoded_csr });
         let url = self.build_endpoint("compliance");
-        let response = self
-            ._client
-            .post(url)
+        let request = HttpRequest::new("POST", url)
             .header("Accept", "application/json")
             .header("OTP", otp)
             .header("Accept-Version", "V2")
             .header("Content-Type", "application/json")
             .json(&csr_payload)
-            .send()
-            .await
-            .map_err(|e| ZatcaError::Http(e.to_string()))?;
-        let status = response.status();
-
-        if !status.is_success() {
-            let message = response.text().await.unwrap_or_default();
-            return Err(ZatcaError::InvalidResponse(format!(
-                "status {status}: {message}"
-            )));
-        }
-
-        let payload: CsidResponseBody = response
-            .json()
-            .await
-            .map_err(|e| ZatcaError::InvalidResponse(e.to_string()))?;
-        Ok(CsidCredentials::new(
-            self.config.env(),
-            payload.request_id,
-            payload.binary_security_token,
-            payload.secret,
-        ))
+            .finish()?;
+        Ok(ComplianceRequest::new(request, self.config.env()))
     }
 
     /// Requests a production CSID from ZATCA using a compliance CSID previously obtained e.g. from [post_csr_for_ccsid][ZatcaClient::post_csr_for_ccsid].
     /// See [ZATCA documentation](https://sandbox.zatca.gov.sa/Integration/request-api) for more details.
     ///
+    /// Prepare an owned request without sending it; decode through the returned request.
+    ///
     /// # Errors
     /// Returns [`ZatcaError`] if the request fails or the compliance CSID is missing data.
-    pub async fn post_ccsid_for_pcsid(
+    pub fn prepare_post_ccsid_for_pcsid(
         &self,
         ccsid: &CsidCredentials<Compliance>,
-    ) -> Result<CsidCredentials<Production>, ZatcaError> {
+    ) -> Result<ProductionRequest, ZatcaError> {
         self.ensure_env(ccsid)?;
         let request_id = ccsid
             .request_id()
@@ -616,9 +595,7 @@ impl ZatcaClient {
         });
 
         let url = self.build_endpoint("production/csids");
-        let response = self
-            ._client
-            .post(url)
+        let request = HttpRequest::new("POST", url)
             .header("Accept", "application/json")
             .header("Accept-Version", "V2")
             .header("Content-Type", "application/json")
@@ -627,52 +604,31 @@ impl ZatcaClient {
                 Some(ccsid.secret().to_string()),
             )
             .json(&payload)
-            .send()
-            .await
-            .map_err(|e| ZatcaError::Http(e.to_string()))?;
-        let status = response.status();
-
-        if !status.is_success() {
-            let message = response.text().await.unwrap_or_default();
-            return Err(ZatcaError::InvalidResponse(format!(
-                "status {status}: {message}"
-            )));
-        }
-
-        let payload: CsidResponseBody = response
-            .json()
-            .await
-            .map_err(|e| ZatcaError::InvalidResponse(e.to_string()))?;
-
-        Ok(CsidCredentials::new(
-            self.config.env(),
-            payload.request_id,
-            payload.binary_security_token,
-            payload.secret,
-        ))
+            .finish()?;
+        Ok(ProductionRequest::new(request, self.config.env(), false))
     }
 
     /// Renew a production CSID by submitting a new CSR.
     /// See [ZATCA documentation](https://sandbox.zatca.gov.sa/Integration/renewal-api) for more details.
     ///
+    /// Prepare an owned request without sending it; decode through the returned request.
+    ///
     /// # Errors
-    /// Returns [`ZatcaError`] if the request fails or the response cannot be parsed.
-    pub async fn renew_csid(
+    /// Returns [`ZatcaError`] if request data cannot be prepared.
+    pub fn prepare_renew_csid(
         &self,
         pcsid: &CsidCredentials<Production>,
         csr: &Csr,
         otp: &str,
         accept_language: Option<&str>,
-    ) -> Result<CsidCredentials<Production>, ZatcaError> {
+    ) -> Result<ProductionRequest, ZatcaError> {
         self.ensure_env(pcsid)?;
         let encoded_csr = csr
             .to_pem_base64()
             .map_err(|e| ZatcaError::InvalidResponse(e.to_string()))?;
         let csr_payload = serde_json::json!({ "csr": encoded_csr });
         let url = self.build_endpoint("production/csids");
-        let mut request = self
-            ._client
-            .patch(url)
+        let mut request = HttpRequest::new("PATCH", url)
             .header("Accept", "application/json")
             .header("OTP", otp)
             .header("Accept-Version", "V2")
@@ -688,54 +644,160 @@ impl ZatcaClient {
             _ => request = request.header("accept-language", "en"),
         }
 
-        let response = request
+        Ok(ProductionRequest::new(
+            request.finish()?,
+            self.config.env(),
+            true,
+        ))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone, Copy)]
+enum BodyReadPolicy {
+    Invoice,
+    Issuance,
+    Renewal,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl ZatcaClient {
+    async fn send(
+        &self,
+        request: &HttpRequest,
+        policy: BodyReadPolicy,
+    ) -> Result<(u16, Vec<u8>), ZatcaError> {
+        let method = reqwest::Method::from_bytes(request.method().as_bytes())
+            .map_err(|e| ZatcaError::Http(e.to_string()))?;
+        let mut builder = self._client.request(method, request.url());
+        for (name, value) in request.headers() {
+            builder = builder.header(name, value);
+        }
+        let response = builder
+            .body(request.body().to_vec())
             .send()
             .await
             .map_err(|e| ZatcaError::Http(e.to_string()))?;
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-
-        if status.is_success() || status.as_u16() == 428 {
-            let parsed: RenewalResponseBody = serde_json::from_str(&body)
-                .map_err(|e| ZatcaError::InvalidResponse(format!("Invalid response: {e:?}")))?;
-            let payload = match parsed {
-                RenewalResponseBody::Direct(value) => value,
-                RenewalResponseBody::Wrapped { value } => value,
-            };
-            return Ok(CsidCredentials::new(
-                self.config.env(),
-                payload.request_id,
-                payload.binary_security_token,
-                payload.secret,
-            ));
-        }
-
-        if status.as_u16() == 401 {
-            let parsed = serde_json::from_str::<UnauthorizedResponse>(&body).unwrap_or_else(|_| {
-                UnauthorizedResponse {
-                    timestamp: None,
-                    status: Some(401),
-                    error: Some("Unauthorized".into()),
-                    message: Some(body.clone()),
+        let status = response.status().as_u16();
+        let body = match response.bytes().await {
+            Ok(body) => body.to_vec(),
+            Err(error) => match policy {
+                // Preserve the existing native CSID endpoint error contracts.
+                BodyReadPolicy::Renewal => Vec::new(),
+                BodyReadPolicy::Issuance if !(200..300).contains(&status) => Vec::new(),
+                BodyReadPolicy::Issuance => {
+                    return Err(ZatcaError::InvalidResponse(error.to_string()));
                 }
-            });
-            return Err(ZatcaError::Unauthorized(parsed));
-        }
-
-        if status.is_server_error() {
-            let parsed = serde_json::from_str::<ServerErrorResponse>(&body).unwrap_or_else(|_| {
-                ServerErrorResponse {
-                    category: None,
-                    code: Some("ServerError".into()),
-                    message: Some(body.clone()),
+                BodyReadPolicy::Invoice => {
+                    return Err(ZatcaError::ResponseRead {
+                        http_status: status,
+                        message: error.to_string(),
+                    });
                 }
-            });
-            return Err(ZatcaError::ServerError(parsed));
-        }
+            },
+        };
+        Ok((status, body))
+    }
+}
 
-        Err(ZatcaError::InvalidResponse(format!(
-            "status {status}: {body}"
-        )))
+impl ZatcaClient {
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Prepare, send through the native HTTP client, and decode the response.
+    pub async fn report_simplified_invoice(
+        &self,
+        invoice: &SignedInvoice,
+        credentials: &CsidCredentials<Production>,
+        clearance_status: bool,
+        accept_language: Option<&str>,
+    ) -> Result<ValidationResponse, ZatcaError> {
+        let prepared = self.prepare_report_simplified_invoice(
+            invoice,
+            credentials,
+            clearance_status,
+            accept_language,
+        )?;
+        let (status, body) = self
+            .send(prepared.request(), BodyReadPolicy::Invoice)
+            .await?;
+        prepared.decode(status, &body)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Prepare, send through the native HTTP client, and decode the response.
+    pub async fn clear_standard_invoice(
+        &self,
+        invoice: &SignedInvoice,
+        credentials: &CsidCredentials<Production>,
+        clearance_status: bool,
+        accept_language: Option<&str>,
+    ) -> Result<ValidationResponse, ZatcaError> {
+        let prepared = self.prepare_clear_standard_invoice(
+            invoice,
+            credentials,
+            clearance_status,
+            accept_language,
+        )?;
+        let (status, body) = self
+            .send(prepared.request(), BodyReadPolicy::Invoice)
+            .await?;
+        prepared.decode(status, &body)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Prepare, send through the native HTTP client, and decode the response.
+    pub async fn check_invoice_compliance(
+        &self,
+        invoice: &SignedInvoice,
+        credentials: &CsidCredentials<Compliance>,
+    ) -> Result<ValidationResponse, ZatcaError> {
+        let prepared = self.prepare_check_invoice_compliance(invoice, credentials)?;
+        let (status, body) = self
+            .send(prepared.request(), BodyReadPolicy::Invoice)
+            .await?;
+        prepared.decode(status, &body)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Prepare, send through the native HTTP client, and decode the response.
+    pub async fn post_csr_for_ccsid(
+        &self,
+        csr: &Csr,
+        otp: &str,
+    ) -> Result<CsidCredentials<Compliance>, ZatcaError> {
+        let prepared = self.prepare_post_csr_for_ccsid(csr, otp)?;
+        let (status, body) = self
+            .send(prepared.request(), BodyReadPolicy::Issuance)
+            .await?;
+        prepared.decode(status, &body)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Prepare, send through the native HTTP client, and decode the response.
+    pub async fn post_ccsid_for_pcsid(
+        &self,
+        ccsid: &CsidCredentials<Compliance>,
+    ) -> Result<CsidCredentials<Production>, ZatcaError> {
+        let prepared = self.prepare_post_ccsid_for_pcsid(ccsid)?;
+        let (status, body) = self
+            .send(prepared.request(), BodyReadPolicy::Issuance)
+            .await?;
+        prepared.decode(status, &body)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    /// Prepare, send through the native HTTP client, and decode the response.
+    pub async fn renew_csid(
+        &self,
+        pcsid: &CsidCredentials<Production>,
+        csr: &Csr,
+        otp: &str,
+        accept_language: Option<&str>,
+    ) -> Result<CsidCredentials<Production>, ZatcaError> {
+        let prepared = self.prepare_renew_csid(pcsid, csr, otp, accept_language)?;
+        let (status, body) = self
+            .send(prepared.request(), BodyReadPolicy::Renewal)
+            .await?;
+        prepared.decode(status, &body)
     }
 }
 

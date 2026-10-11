@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -45,6 +46,16 @@ version = "0.2.0"
     def test_consistent_candidate_and_tag(self):
         self.assertEqual(release.check_release(self.root), "0.2.0")
         self.assertEqual(release.check_release(self.root, "v0.2.0"), "0.2.0")
+
+    def test_javascript_package_and_lock_versions(self):
+        self.write("bindings/js/package.json", json.dumps({"version": "0.2.0"}))
+        lock = {"version": "0.2.0", "packages": {"": {"version": "0.2.0"}}}
+        self.write("bindings/js/package-lock.json", json.dumps(lock))
+        self.assertEqual(release.check_release(self.root), "0.2.0")
+        lock["packages"][""]["version"] = "0.1.0"
+        self.write("bindings/js/package-lock.json", json.dumps(lock))
+        with self.assertRaisesRegex(ValueError, "JavaScript"):
+            release.check_release(self.root)
 
     def test_tool_workspaces_reject_stale_transitive_sdk_versions(self):
         for directory, core_path in (("fuzz", "../core"), ("scripts/xsd-compat", "../../core")):

@@ -1,0 +1,42 @@
+{
+  "name": "fatoority",
+  "version": "0.4.0",
+  "description": "ZATCA invoice SDK with Diplomat WebAssembly bindings",
+  "type": "module",
+  "license": "SEE LICENSE IN THIRD_PARTY_NOTICES.md",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    },
+    "./raw": {
+      "types": "./generated/index.d.mts",
+      "import": "./generated/index.mjs",
+      "default": "./generated/index.mjs"
+    }
+  },
+  "files": [
+    "index.mjs",
+    "index.d.mts",
+    "generated",
+    "licenses",
+    "fatoora_ffi.wasm",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "tsc --noEmit -p tests/tsconfig.json"
+  },
+  "devDependencies": {
+    "binaryen": "123.0.0",
+    "playwright": "1.56.1",
+    "typescript": "5.9.3"
+  }
+}

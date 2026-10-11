@@ -87,3 +87,11 @@ uv run --python .venv/bin/python pytest bindings/python/tests
 ## SDK compatibility
 
 See [SDK compatibility](sdk-parity.md) for the required offline corpus, explicit SDK verification, and fixture refresh instructions.
+
+## JavaScript / TypeScript
+
+The [WASM package](../reference/bindings/javascript.md) runs in Node and browsers.
+Use `npm ci --prefix bindings/js` and `python3 scripts/build_js.py`; the latter
+selects `wasm-release`, runs Binaryen `wasm-opt -Oz`, and checks artifact size.
+The native release profile is independent. Runtime, browser and installed-package
+checks are listed in the [contributing guide](../contributing.md#javascript-typescript-checks).

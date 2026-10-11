@@ -26,6 +26,8 @@ With bindings and support for many programming languages:
   
 - 🐍 Python <a href="https://pypi.org/project/fatoority/"><img src="https://img.shields.io/pypi/v/fatoority?logo=python" alt="PyPi Version"/></a>
 
+- JavaScript / TypeScript: [WASM package for Node and browsers](docs/reference/bindings/javascript.md)
+
 - 🌀 C/C++ (through the C FFI see ![releases](https://github.com/mqqz/fatoority/releases))
 
 - 🔌 Also, a Command Line Interface (CLI) Tool  <a href="https://crates.io/crates/fatoora-cli"><img src="https://img.shields.io/crates/v/fatoora-cli?logo=rust&label=fatoora-cli" alt="fatoora-cli Crates.io Version"/></a>
@@ -66,6 +68,34 @@ cargo add fatoora-core
 ```
 pip install fatoority
 ```
+</details>
+
+<details>
+<summary>JavaScript / TypeScript</summary>
+
+Build the package from a source checkout (Node 22+, npm, Rust and Python 3):
+
+```sh
+rustup target add wasm32-unknown-unknown
+npm ci --prefix bindings/js
+python3 scripts/build_js.py
+(cd bindings/js && npm pack)
+```
+
+Install the resulting `.tgz` in your application with `npm install /path/to/fatoority-0.4.0.tgz`.
+Generated bindings are checked in. Version tags publish the tested package to npm through GitHub Actions.
+
+```js
+import { SigningKey, Xml, Config } from 'fatoority';
+
+const key = SigningKey.generate();
+const report = JSON.parse(Xml.validateZatca(Config.new_(0), invoiceXml));
+console.log(report.is_valid);
+```
+
+The WASM package includes the Rust validator and bundled UBL schemas. See
+[JavaScript / TypeScript](docs/reference/bindings/javascript.md) for async fetch,
+errors, decimal strings, browser setup, and measured artifact sizes.
 </details>
 
 <details>
@@ -146,6 +176,15 @@ key = SigningKey.generate()
 csr = props.build(key, Environment.NON_PRODUCTION)
 csr_pem = csr.to_pem_base64()
 key_pem = key.to_pem()
+```
+
+JavaScript
+```js
+import { CsrProperties, SigningKey } from 'fatoority';
+
+const key = SigningKey.generate();
+const csr = CsrProperties.fromPropertiesStr(propertiesText).build(key, 0);
+const csrPem = csr.toPem();
 ```
 
 CLI

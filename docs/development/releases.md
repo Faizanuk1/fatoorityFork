@@ -1,14 +1,15 @@
 # Preparing a release
 
-Rust crates and the Python package share a release version. A `v*` tag starts
-three independent publication workflows: crates.io, PyPI, and GitHub native
+Rust crates, the Python package and the JS/TS package share a release version. A `v*` tag starts
+four independent publication workflows: crates.io, PyPI, npm, and GitHub native
 assets. Creating or merging a release PR does not publish packages.
 
 ## Prepare the candidate
 
 Use a branch named `release/<version>` so its PR runs the Linux, macOS, and
 Windows wheel and native builds. Update all four crate manifests, their internal
-dependency requirements, and `bindings/python/pyproject.toml`. Refresh the root
+dependency requirements, `bindings/python/pyproject.toml`, and the version in
+`bindings/js/package.json` and `bindings/js/package-lock.json`. Refresh the root
 `Cargo.lock` and `bindings/python/uv.lock` without upgrading unrelated packages.
 Refresh `fuzz/Cargo.lock` and `scripts/xsd-compat/Cargo.lock` as well; their
 independent workspaces resolve SDK path dependencies at the new version.
@@ -61,6 +62,27 @@ CLI/FFI archives and wheels. It inspects ELF imports and loader dependencies,
 Mach-O load commands, and PE imports including delay imports. Distributed
 artifacts must neither link nor bundle libxml2. Preserve the bundled FFI
 library layout inside Python wheels.
+
+## JavaScript artifact
+
+Run the [JS/TS checks](../contributing.md#javascript-typescript-checks), including
+the installed tarball test and size budget, on the release candidate. Build only
+with `python3 scripts/build_js.py` so the size profile, `wasm-opt -Oz`, lossless
+schema compression and host-import checks are applied. Inspect the tarball's
+WASM module, declarations and license notices. Recheck Node and browser behavior
+after optimization changes.
+
+The `javascript` workflow publishes on `v*` tag pushes after metadata/tag checks,
+optimized WASM builds, size checks, TypeScript, Node and browser tests, and an
+installed-tarball test pass. The publish job downloads that exact tested tarball
+and authenticates to npm with the `NPM_TOKEN` repository secret, exposed only to
+`npm publish` as `NODE_AUTH_TOKEN`. The token needs publish access to `fatoority`.
+
+For an npm-only retry, dispatch the `javascript` workflow on the existing release
+tag with `publish: true`. Branch dispatches requesting publication fail the tag
+check. Dispatch without publication builds and tests only. Do not recreate a tag
+or bump versions to recover a failed publication; first check which registries
+accepted the release. npm does not allow overwriting an existing version.
 
 ## Publication prerequisites
 

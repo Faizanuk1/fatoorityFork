@@ -2,13 +2,17 @@
 use crate::common::ffi::{BindingError, Text};
 use crate::common::{boundary, core_error, local_error, text, write};
 use diplomat_runtime::DiplomatStr;
+#[cfg(not(target_arch = "wasm32"))]
 use fatoora_core::api as core;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::OnceLock;
 
+#[cfg(not(target_arch = "wasm32"))]
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
 // Enter Tokio on a scoped worker so callers already inside a runtime remain supported.
 // The worker cannot outlive borrowed invoice, credentials, or client objects.
+#[cfg(not(target_arch = "wasm32"))]
 fn run<T: Send>(
     future: impl std::future::Future<Output = Result<T, core::ZatcaError>> + Send,
 ) -> Result<T, Box<BindingError>> {
@@ -62,9 +66,11 @@ fn optional_input(value: Option<&DiplomatStr>) -> Result<Option<&str>, Box<Bindi
 #[diplomat::abi_rename = "fatoora_{0}"]
 #[diplomat::attr(cpp, namespace = "fatoora")]
 pub mod ffi {
-    use super::{boundary, core_error, local_error, optional, optional_input, run, text, write};
+    #[cfg(not(target_arch = "wasm32"))]
+    use super::run;
+    use super::{boundary, core_error, local_error, optional, optional_input, text, write};
     use crate::common::ffi::{BindingError, Text};
-    use crate::crypto::ffi::{Config, Csr};
+    use crate::crypto::ffi::{Bytes, Config, Csr};
     use crate::invoice::ffi::SignedInvoice;
     use diplomat_runtime::{DiplomatStr, DiplomatWrite};
 
@@ -95,6 +101,83 @@ pub mod ffi {
         Rejected = 2,
     }
 
+    // Diplomat expands this macro for Rust and every generated language.
+    #[diplomat::macro_rules]
+    macro_rules! request_accessors {
+        () => {
+            pub fn method(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
+                boundary(|| write(self.0.request().method(), out))
+            }
+            pub fn url(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
+                boundary(|| write(self.0.request().url(), out))
+            }
+            pub fn headers_json(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
+                boundary(|| {
+                    let json = serde_json::to_string(self.0.request().headers())
+                        .map_err(|e| local_error(9, &e.to_string()))?;
+                    write(json, out)
+                })
+            }
+            pub fn body(&self) -> Result<Box<Bytes>, Box<BindingError>> {
+                boundary(|| Ok(Box::new(Bytes(self.0.request().body().to_vec()))))
+            }
+        };
+    }
+
+    /// Owned request and decoding context; contains credentials.
+    #[diplomat::opaque]
+    pub struct InvoiceRequest(pub(crate) fatoora_core::api::InvoiceRequest);
+    impl InvoiceRequest {
+        request_accessors!();
+        pub fn decode(
+            &self,
+            status: u16,
+            body: &[u8],
+        ) -> Result<Box<ValidationResponse>, Box<BindingError>> {
+            boundary(|| {
+                self.0
+                    .decode(status, body)
+                    .map(|v| Box::new(ValidationResponse(v)))
+                    .map_err(core_error)
+            })
+        }
+    }
+    /// Owned request and decoding context; contains credentials.
+    #[diplomat::opaque]
+    pub struct ComplianceRequest(pub(crate) fatoora_core::api::ComplianceRequest);
+    impl ComplianceRequest {
+        request_accessors!();
+        pub fn decode(
+            &self,
+            status: u16,
+            body: &[u8],
+        ) -> Result<Box<CsidCompliance>, Box<BindingError>> {
+            boundary(|| {
+                self.0
+                    .decode(status, body)
+                    .map(|v| Box::new(CsidCompliance(v)))
+                    .map_err(core_error)
+            })
+        }
+    }
+    /// Owned request and decoding context; contains credentials.
+    #[diplomat::opaque]
+    pub struct ProductionRequest(pub(crate) fatoora_core::api::ProductionRequest);
+    impl ProductionRequest {
+        request_accessors!();
+        pub fn decode(
+            &self,
+            status: u16,
+            body: &[u8],
+        ) -> Result<Box<CsidProduction>, Box<BindingError>> {
+            boundary(|| {
+                self.0
+                    .decode(status, body)
+                    .map(|v| Box::new(CsidProduction(v)))
+                    .map_err(core_error)
+            })
+        }
+    }
     impl CsidCompliance {
         pub fn create(
             environment: u8,
@@ -181,6 +264,8 @@ pub mod ffi {
                     .map_err(core_error)
             })
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        #[diplomat::attr(js, disable)]
         pub fn post_csr_for_ccsid(
             &self,
             csr: &Csr,
@@ -191,6 +276,8 @@ pub mod ffi {
                     .map(|value| Box::new(CsidCompliance(value)))
             })
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        #[diplomat::attr(js, disable)]
         pub fn post_ccsid_for_pcsid(
             &self,
             credentials: &CsidCompliance,
@@ -200,6 +287,8 @@ pub mod ffi {
                     .map(|value| Box::new(CsidProduction(value)))
             })
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        #[diplomat::attr(js, disable)]
         pub fn renew_csid(
             &self,
             credentials: &CsidProduction,
@@ -217,6 +306,8 @@ pub mod ffi {
                 .map(|value| Box::new(CsidProduction(value)))
             })
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        #[diplomat::attr(js, disable)]
         pub fn check_invoice_compliance(
             &self,
             invoice: &SignedInvoice,
@@ -231,6 +322,8 @@ pub mod ffi {
                     .map(|value| Box::new(ValidationResponse(value)))
             })
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        #[diplomat::attr(js, disable)]
         pub fn report_simplified_invoice(
             &self,
             invoice: &SignedInvoice,
@@ -252,6 +345,8 @@ pub mod ffi {
                 .map(|value| Box::new(ValidationResponse(value)))
             })
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        #[diplomat::attr(js, disable)]
         pub fn clear_standard_invoice(
             &self,
             invoice: &SignedInvoice,
@@ -271,6 +366,112 @@ pub mod ffi {
                     optional_input(accept_language)?,
                 ))
                 .map(|value| Box::new(ValidationResponse(value)))
+            })
+        }
+    }
+    impl ZatcaClient {
+        pub fn prepare_post_csr_for_ccsid(
+            &self,
+            csr: &Csr,
+            otp: &DiplomatStr,
+        ) -> Result<Box<ComplianceRequest>, Box<BindingError>> {
+            boundary(|| {
+                self.0
+                    .prepare_post_csr_for_ccsid(&csr.0, text(otp)?)
+                    .map(|value| Box::new(ComplianceRequest(value)))
+                    .map_err(core_error)
+            })
+        }
+        pub fn prepare_post_ccsid_for_pcsid(
+            &self,
+            credentials: &CsidCompliance,
+        ) -> Result<Box<ProductionRequest>, Box<BindingError>> {
+            boundary(|| {
+                self.0
+                    .prepare_post_ccsid_for_pcsid(&credentials.0)
+                    .map(|value| Box::new(ProductionRequest(value)))
+                    .map_err(core_error)
+            })
+        }
+        pub fn prepare_renew_csid(
+            &self,
+            credentials: &CsidProduction,
+            csr: &Csr,
+            otp: &DiplomatStr,
+            accept_language: Option<&DiplomatStr>,
+        ) -> Result<Box<ProductionRequest>, Box<BindingError>> {
+            boundary(|| {
+                self.0
+                    .prepare_renew_csid(
+                        &credentials.0,
+                        &csr.0,
+                        text(otp)?,
+                        optional_input(accept_language)?,
+                    )
+                    .map(|value| Box::new(ProductionRequest(value)))
+                    .map_err(core_error)
+            })
+        }
+        pub fn prepare_check_invoice_compliance(
+            &self,
+            invoice: &SignedInvoice,
+            credentials: &CsidCompliance,
+        ) -> Result<Box<InvoiceRequest>, Box<BindingError>> {
+            boundary(|| {
+                let invoice = invoice
+                    .0
+                    .as_ref()
+                    .ok_or_else(|| local_error(1, "signed invoice has been consumed"))?;
+                self.0
+                    .prepare_check_invoice_compliance(invoice, &credentials.0)
+                    .map(|value| Box::new(InvoiceRequest(value)))
+                    .map_err(core_error)
+            })
+        }
+        pub fn prepare_report_simplified_invoice(
+            &self,
+            invoice: &SignedInvoice,
+            credentials: &CsidProduction,
+            clearance_status: bool,
+            accept_language: Option<&DiplomatStr>,
+        ) -> Result<Box<InvoiceRequest>, Box<BindingError>> {
+            boundary(|| {
+                let invoice = invoice
+                    .0
+                    .as_ref()
+                    .ok_or_else(|| local_error(1, "signed invoice has been consumed"))?;
+                self.0
+                    .prepare_report_simplified_invoice(
+                        invoice,
+                        &credentials.0,
+                        clearance_status,
+                        optional_input(accept_language)?,
+                    )
+                    .map(|value| Box::new(InvoiceRequest(value)))
+                    .map_err(core_error)
+            })
+        }
+        pub fn prepare_clear_standard_invoice(
+            &self,
+            invoice: &SignedInvoice,
+            credentials: &CsidProduction,
+            clearance_status: bool,
+            accept_language: Option<&DiplomatStr>,
+        ) -> Result<Box<InvoiceRequest>, Box<BindingError>> {
+            boundary(|| {
+                let invoice = invoice
+                    .0
+                    .as_ref()
+                    .ok_or_else(|| local_error(1, "signed invoice has been consumed"))?;
+                self.0
+                    .prepare_clear_standard_invoice(
+                        invoice,
+                        &credentials.0,
+                        clearance_status,
+                        optional_input(accept_language)?,
+                    )
+                    .map(|value| Box::new(InvoiceRequest(value)))
+                    .map_err(core_error)
             })
         }
     }

@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -918,6 +924,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
+name = "fatoora-cli"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "base64ct",
+ "clap",
+ "fatoora-core",
+ "serde_json",
+]
+
+[[package]]
 name = "fatoora-core"
 version = "0.4.0"
 dependencies = [
@@ -929,11 +946,13 @@ dependencies = [
  "encoding_rs",
  "fancy-regex",
  "fatoora-derive",
+ "http 1.4.0",
  "httpmock",
  "iso_currency",
  "isocountry",
  "java-properties",
  "k256",
+ "miniz_oxide",
  "num-bigint",
  "num-traits",
  "proptest",
@@ -974,22 +993,12 @@ dependencies = [
  "diplomat",
  "diplomat-runtime",
  "fatoora-core",
+ "getrandom 0.3.4",
  "httpmock",
  "k256",
  "serde_json",
  "tokio",
  "x509-cert",
-]
-
-[[package]]
-name = "fatoora-cli"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "base64ct",
- "clap",
- "fatoora-core",
- "serde_json",
 ]
 
 [[package]]
@@ -1787,6 +1796,15 @@ name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+
+[[package]]
+name = "miniz_oxide"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
+dependencies = [
+ "adler2",
+]
 
 [[package]]
 name = "mio"

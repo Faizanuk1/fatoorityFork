@@ -8,6 +8,10 @@ The HTTP client is the main way to contact ZATCA's official fatoora platform API
 Please do read the [ZATCA Official API Gateway](https://sandbox.zatca.gov.sa/IntegrationSandbox)
 for more details.
 
+JavaScript uses the async `ZatcaClient` facade and Rust-owned prepared requests.
+See [JavaScript / TypeScript](bindings/javascript.md#api-requests) for all six
+operations, cancellation and response error handling.
+
 ## ZatcaClient
 
 ### `new`

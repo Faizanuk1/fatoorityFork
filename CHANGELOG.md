@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add Diplomat JavaScript/TypeScript bindings for Node and browsers, with async
+  fetch APIs backed by Rust request preparation and response decoding.
+- Build a size-optimized WASM artifact with losslessly compressed UBL schemas,
+  cryptographic host randomness and explicit validation time.
+- Add JS/TS documentation, runtime/browser/package tests and artifact size limits.
+
 ## [0.4.0] - Unreleased
 
 ### Breaking changes
