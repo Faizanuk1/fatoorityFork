@@ -73,17 +73,18 @@ pip install fatoority
   
 Download the `fatoora-ffi-*` archive for your platform from
 [releases](https://github.com/mqqz/fatoority/releases) and extract it. The shared
-library is at the archive root. C headers are in `include/diplomat-c`; C++ headers
+library is at the archive root. The C API header is `include/fatoora.h`,
+with its adapter in `src/fatoora.c` and generated headers in `include/generated`; C++ headers
 are in `include/diplomat-cpp` and expose types in namespace `fatoora`.
 
 For example, on Linux, compile your application from the extracted directory:
 
 ```sh
-cc -std=c11 -Iinclude/diplomat-c app.c -L. -lfatoora_ffi -Wl,-rpath,'$ORIGIN' -o app
+cc -std=c11 -Iinclude app.c src/fatoora.c -L. -lfatoora_ffi -Wl,-rpath,'$ORIGIN' -o app
 c++ -std=c++17 -Iinclude/diplomat-cpp app.cpp -L. -lfatoora_ffi -Wl,-rpath,'$ORIGIN' -o app-cpp
 ```
 
-Include `Config.h` in C or `fatoora/Config.hpp` in C++. Keep the shared library
+Include `fatoora.h` in C or `fatoora/Config.hpp` in C++. Keep the shared library
 beside these executables. On Windows, link the supplied import library and keep
 the DLLs from the archive beside your executable.
 
@@ -93,8 +94,14 @@ To build the library from a source checkout:
 cargo build -p fatoora-ffi --release --locked
 ```
 
+The [C API](https://github.com/mqqz/fatoority/blob/main/docs/development/c-api.md)
+provides one `fatoora.h`, plain strings, shared errors, and named-field options.
+Compile `bindings/c/fatoora.c` once with your application, add `bindings/c` to
+your include path, and link `fatoora_ffi`. Release archives also include the C
+examples under `examples/c`.
+
 The library is written to `target/release/`. The generated headers are checked in
-under `bindings/c` and `bindings/cpp`; use those include paths and
+under `bindings/c/generated` and `bindings/cpp`; raw ABI callers use those include paths and
 `-Ltarget/release` when compiling against a source build. Cargo does not regenerate
 headers. After changing bridge declarations, follow the
 [Diplomat generation workflow](https://github.com/mqqz/fatoority/blob/main/docs/development/diplomat.md#generate-and-verify).

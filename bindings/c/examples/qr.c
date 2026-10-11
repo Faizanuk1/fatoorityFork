@@ -1,22 +1,23 @@
 /* --8<-- [start:example] */
-#include "SignedInvoice.h"
-#include "BindingError.h"
-#include <assert.h>
+#include "fatoora.h"
 #include <stdio.h>
-#include <string.h>
-#ifndef FATOORA_DOC_SIGNED_XML
-#define FATOORA_DOC_SIGNED_XML "path/to/signed_invoice.xml"
-#endif
-static DiplomatStringView s(const char *v) { return (DiplomatStringView){v,strlen(v)}; }
-int main(void) {
-    fatoora_SignedInvoice_from_file_result invoice = fatoora_SignedInvoice_from_file(s(FATOORA_DOC_SIGNED_XML));
-    assert(invoice.is_ok);
-    DiplomatWrite *out = diplomat_buffer_write_create(0);
-    fatoora_SignedInvoice_qr_code_result qr = fatoora_SignedInvoice_qr_code(invoice.ok, out);
-    assert(qr.is_ok && diplomat_buffer_write_len(out) > 0);
-    fatoora_SignedInvoice_destroy(invoice.ok);
-    fwrite(diplomat_buffer_write_get_bytes(out), 1, diplomat_buffer_write_len(out), stdout);
-    diplomat_buffer_write_destroy(out);
-    return 0;
+
+int main(int argc, char **argv) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s signed-invoice.xml\n", argv[0]);
+        return 1;
+    }
+    FatooraSignedInvoice *invoice = NULL;
+    FatooraError *error = NULL;
+    char *qr = NULL;
+    FatooraStatus status = fatoora_signed_invoice_from_file(argv[1], &invoice, &error);
+    if (status == FATOORA_OK)
+        status = fatoora_signed_invoice_qr_code(invoice, &qr, &error);
+    if (status == FATOORA_OK) puts(qr);
+    else fprintf(stderr, "Error %d: %s\n", (int)status, fatoora_error_message(error));
+    fatoora_string_free(qr);
+    fatoora_signed_invoice_free(invoice);
+    fatoora_error_free(error);
+    return status == FATOORA_OK ? 0 : 1;
 }
 /* --8<-- [end:example] */

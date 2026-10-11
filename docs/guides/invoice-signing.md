@@ -14,13 +14,18 @@ How to sign UBL invoices with a CSID certificate and private key.
     --8<-- "bindings/python/examples/invoice_signing.py:example"
     ```
 
-=== "C/C++"
+=== "C"
     ```c
     --8<-- "bindings/c/examples/invoice_signing.c:example"
     ```
 
 ## Notes
 - Signed invoice metadata (signature/public key/signed props hashes) are exposed as getters.
-- Prefer string-based XML inputs; the library does not read files for you.
+- The C example reads certificate/key DER in the application and uses the
+  invoice file helper. Signing consumes the finalized invoice; all handles are
+  released during cleanup.
 
 See also: [Invoice Signing Reference](../reference/invoice-signing.md)
+
+C examples include `fatoora.h`; compile the adapter once with your application.
+See the [C build instructions](../development/c-api.md#build-and-run).

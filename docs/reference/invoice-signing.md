@@ -1,6 +1,6 @@
 # Invoice Signing
 
-See [C and C++ bindings](bindings/c.md) for ownership rules and text output.
+C signatures use the [C API](../development/c-api.md). See [C and C++ bindings](bindings/c.md) for ownership and build instructions.
 The declarations below come from the generated headers. C++ exposes the same types
 in namespace `fatoora` through `fatoora/Type.hpp` headers.
 
@@ -25,9 +25,12 @@ Signing helpers and signature metadata.
 
     === "{{ lang.c }}"
         ```c
-        #include "Signer.h"
+        #include "fatoora.h"
 
-        fatoora_Signer_from_pem_result fatoora_Signer_from_pem(DiplomatStringView cert_pem, DiplomatStringView key_pem);
+        FatooraStatus fatoora_signer_from_pem(const char *cert_pem,
+            const char *key_pem,
+            FatooraSigner **out,
+            FatooraError **error);
         ```
 
 ### `from_der`
@@ -47,9 +50,14 @@ Signing helpers and signature metadata.
 
     === "{{ lang.c }}"
         ```c
-        #include "Signer.h"
+        #include "fatoora.h"
 
-        fatoora_Signer_from_der_result fatoora_Signer_from_der(DiplomatU8View cert_der, DiplomatU8View key_der);
+        FatooraStatus fatoora_signer_from_der(const uint8_t *cert_der,
+            size_t cert_der_len,
+            const uint8_t *key_der,
+            size_t key_der_len,
+            FatooraSigner **out,
+            FatooraError **error);
         ```
 
 ### `certificate_pem`
@@ -68,9 +76,11 @@ Signing helpers and signature metadata.
 
     === "{{ lang.c }}"
         ```c
-        #include "Signer.h"
+        #include "fatoora.h"
 
-        fatoora_Signer_certificate_pem_result fatoora_Signer_certificate_pem(const Signer* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signer_certificate_pem(const FatooraSigner *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `certificate_der`
@@ -89,9 +99,11 @@ Signing helpers and signature metadata.
 
     === "{{ lang.c }}"
         ```c
-        #include "Signer.h"
+        #include "fatoora.h"
 
-        fatoora_Signer_certificate_der_result fatoora_Signer_certificate_der(const Signer* self);
+        FatooraStatus fatoora_signer_certificate_der(const FatooraSigner *self,
+            FatooraBytes **out,
+            FatooraError **error);
         ```
 
 ### `sign_xml`
@@ -127,9 +139,12 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "Signer.h"
+        #include "fatoora.h"
 
-        fatoora_Signer_sign_result fatoora_Signer_sign(const Signer* self, FinalizedInvoice* invoice);
+        FatooraStatus fatoora_signer_sign(const FatooraSigner *self,
+            FatooraFinalizedInvoice *invoice,
+            FatooraSignedInvoice **out,
+            FatooraError **error);
         ```
 
 ## SignedInvoice
@@ -150,9 +165,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_xml_result fatoora_SignedInvoice_xml(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_xml(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `to_xml_base64`
@@ -171,9 +188,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_to_xml_base64_result fatoora_SignedInvoice_to_xml_base64(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_to_xml_base64(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `qr_code`
@@ -192,9 +211,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_qr_code_result fatoora_SignedInvoice_qr_code(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_qr_code(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `invoice_hash`
@@ -213,9 +234,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_invoice_hash_result fatoora_SignedInvoice_invoice_hash(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_invoice_hash(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `hash_base64`
@@ -234,9 +257,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_hash_base64_result fatoora_SignedInvoice_hash_base64(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_hash_base64(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `signature`
@@ -255,9 +280,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_signature_result fatoora_SignedInvoice_signature(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_signature(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `public_key`
@@ -276,9 +303,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_public_key_result fatoora_SignedInvoice_public_key(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_public_key(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `zatca_key_signature`
@@ -297,9 +326,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_zatca_key_signature_result fatoora_SignedInvoice_zatca_key_signature(const SignedInvoice* self);
+        FatooraStatus fatoora_signed_invoice_zatca_key_signature(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `signed_props_hash`
@@ -318,9 +349,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_signed_props_hash_result fatoora_SignedInvoice_signed_props_hash(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_signed_props_hash(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `cert_hash`
@@ -334,9 +367,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_cert_hash_result fatoora_SignedInvoice_cert_hash(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_cert_hash(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `signing_time`
@@ -350,9 +385,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_signing_time_result fatoora_SignedInvoice_signing_time(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_signing_time(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `issuer`
@@ -371,9 +408,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_issuer_result fatoora_SignedInvoice_issuer(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_issuer(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `serial`
@@ -392,9 +431,11 @@ consuming access to `SignedInvoice` XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_serial_result fatoora_SignedInvoice_serial(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_serial(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ## `invoice_hash_base64_from_xml_str`

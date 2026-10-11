@@ -1,6 +1,6 @@
 # Invoice Model
 
-See [C and C++ bindings](bindings/c.md) for ownership rules and text output.
+C signatures use the [C API](../development/c-api.md). See [C and C++ bindings](bindings/c.md) for ownership and build instructions.
 The declarations below come from the generated headers. C++ exposes the same types
 in namespace `fatoora` through `fatoora/Type.hpp` headers.
 
@@ -42,9 +42,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_new_result fatoora_InvoiceBuilder_new(uint8_t kind, uint8_t subtype, OptionStringView original_id, OptionStringView original_uuid, OptionStringView original_date, OptionStringView reason);
+        FatooraStatus fatoora_invoice_builder_new(const FatooraInvoiceOptions *options,
+            FatooraInvoiceBuilder **out,
+            FatooraError **error);
         ```
 
 ### `id`
@@ -63,9 +65,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_id_result fatoora_InvoiceBuilder_set_id(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_set_id(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `uuid`
@@ -84,9 +88,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_uuid_result fatoora_InvoiceBuilder_set_uuid(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_set_uuid(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `issue_datetime`
@@ -105,9 +111,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_issue_datetime_result fatoora_InvoiceBuilder_set_issue_datetime(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_set_issue_datetime(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `currency`
@@ -126,9 +134,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_currency_result fatoora_InvoiceBuilder_set_currency(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_set_currency(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `previous_invoice_hash`
@@ -147,9 +157,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_previous_invoice_hash_result fatoora_InvoiceBuilder_set_previous_invoice_hash(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_set_previous_invoice_hash(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `invoice_counter`
@@ -168,9 +180,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_invoice_counter_result fatoora_InvoiceBuilder_set_invoice_counter(InvoiceBuilder* self, uint64_t value);
+        FatooraStatus fatoora_invoice_builder_set_invoice_counter(FatooraInvoiceBuilder *self,
+            uint64_t value,
+            FatooraError **error);
         ```
 
 ### `payment_means_code`
@@ -189,9 +203,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_payment_means_code_result fatoora_InvoiceBuilder_set_payment_means_code(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_set_payment_means_code(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `vat_category`
@@ -210,9 +226,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_vat_category_result fatoora_InvoiceBuilder_set_vat_category(InvoiceBuilder* self, uint8_t value);
+        FatooraStatus fatoora_invoice_builder_set_vat_category(FatooraInvoiceBuilder *self,
+            int32_t value,
+            FatooraError **error);
         ```
 
 ### `seller`
@@ -231,9 +249,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_seller_result fatoora_InvoiceBuilder_set_seller(InvoiceBuilder* self, DiplomatStringView name, const Address* address, DiplomatStringView vat_id, OptionStringView other_id, OptionStringView scheme);
+        FatooraStatus fatoora_invoice_builder_set_seller(FatooraInvoiceBuilder *self,
+            const FatooraPartyOptions *options,
+            FatooraError **error);
         ```
 
 ### `buyer`
@@ -252,9 +272,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_buyer_result fatoora_InvoiceBuilder_set_buyer(InvoiceBuilder* self, DiplomatStringView name, const Address* address, OptionStringView vat_id, OptionStringView other_id, OptionStringView scheme);
+        FatooraStatus fatoora_invoice_builder_set_buyer(FatooraInvoiceBuilder *self,
+            const FatooraPartyOptions *options,
+            FatooraError **error);
         ```
 
 ### `note`
@@ -273,9 +295,12 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_note_result fatoora_InvoiceBuilder_set_note(InvoiceBuilder* self, DiplomatStringView language, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_set_note(FatooraInvoiceBuilder *self,
+            const char *language,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `allowance`
@@ -294,9 +319,12 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_set_allowance_result fatoora_InvoiceBuilder_set_allowance(InvoiceBuilder* self, DiplomatStringView reason, DiplomatStringView amount);
+        FatooraStatus fatoora_invoice_builder_set_allowance(FatooraInvoiceBuilder *self,
+            const char *reason,
+            const char *amount,
+            FatooraError **error);
         ```
 
 ### `invoice_level_charge`
@@ -315,9 +343,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_invoice_level_charge_result fatoora_InvoiceBuilder_invoice_level_charge(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_invoice_level_charge(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `invoice_level_discount`
@@ -336,9 +366,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_invoice_level_discount_result fatoora_InvoiceBuilder_invoice_level_discount(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_invoice_level_discount(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `allowance_reason`
@@ -357,9 +389,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_allowance_reason_result fatoora_InvoiceBuilder_allowance_reason(InvoiceBuilder* self, DiplomatStringView value);
+        FatooraStatus fatoora_invoice_builder_allowance_reason(FatooraInvoiceBuilder *self,
+            const char *value,
+            FatooraError **error);
         ```
 
 ### `flags`
@@ -378,9 +412,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_flags_result fatoora_InvoiceBuilder_flags(InvoiceBuilder* self, uint8_t value);
+        FatooraStatus fatoora_invoice_builder_flags(FatooraInvoiceBuilder *self,
+            int32_t value,
+            FatooraError **error);
         ```
 
 ### `line_item`
@@ -399,9 +435,11 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_add_line_item_result fatoora_InvoiceBuilder_add_line_item(InvoiceBuilder* self, DiplomatStringView description, DiplomatStringView quantity, DiplomatStringView unit_code, DiplomatStringView unit_price, DiplomatStringView vat_rate, uint8_t category);
+        FatooraStatus fatoora_invoice_builder_add_line_item(FatooraInvoiceBuilder *self,
+            const FatooraLineItemOptions *options,
+            FatooraError **error);
         ```
 
 ### `build`
@@ -420,76 +458,78 @@ let invoice = InvoiceBuilder::new(invoice_type)
 
     === "{{ lang.c }}"
         ```c
-        #include "InvoiceBuilder.h"
+        #include "fatoora.h"
 
-        fatoora_InvoiceBuilder_build_result fatoora_InvoiceBuilder_build(InvoiceBuilder* self);
+        FatooraStatus fatoora_invoice_builder_build(FatooraInvoiceBuilder *self,
+            FatooraFinalizedInvoice **out,
+            FatooraError **error);
         ```
 
 ## Field Groups
 
 ### `id`
 
-- Setter: `InvoiceBuilder::id` / `InvoiceBuilder.set_id` / `fatoora_InvoiceBuilder_set_id`
-- Getters: `FinalizedInvoice.id`, `SignedInvoice.id`, `fatoora_InvoiceData_id`, `fatoora_InvoiceData_id`
+- Setter: `InvoiceBuilder::id` / `InvoiceBuilder.set_id` / `fatoora_invoice_builder_set_id`
+- Getters: `FinalizedInvoice.id`, `SignedInvoice.id`, `fatoora_invoice_data_id`, `fatoora_invoice_data_id`
 
 ### `uuid`
 
-- Setter: `InvoiceBuilder::uuid` / `InvoiceBuilder.set_uuid` / `fatoora_InvoiceBuilder_set_uuid`
-- Getters: `FinalizedInvoice.uuid`, `SignedInvoice.uuid`, `fatoora_InvoiceData_uuid`, `fatoora_InvoiceData_uuid`
+- Setter: `InvoiceBuilder::uuid` / `InvoiceBuilder.set_uuid` / `fatoora_invoice_builder_set_uuid`
+- Getters: `FinalizedInvoice.uuid`, `SignedInvoice.uuid`, `fatoora_invoice_data_uuid`, `fatoora_invoice_data_uuid`
 
 ### `issue_datetime`
 
-- Setter: `InvoiceBuilder::issue_datetime` / `InvoiceBuilder.set_issue_datetime` / `fatoora_InvoiceBuilder_set_issue_datetime`
-- Getters: `FinalizedInvoice.issue_datetime`, `SignedInvoice.issue_datetime`, `fatoora_InvoiceData_issue_datetime`, `fatoora_InvoiceData_issue_datetime`
+- Setter: `InvoiceBuilder::issue_datetime` / `InvoiceBuilder.set_issue_datetime` / `fatoora_invoice_builder_set_issue_datetime`
+- Getters: `FinalizedInvoice.issue_datetime`, `SignedInvoice.issue_datetime`, `fatoora_invoice_data_issue_datetime`, `fatoora_invoice_data_issue_datetime`
 
 ### `currency`
 
-- Setter: `InvoiceBuilder::currency` / `InvoiceBuilder.set_currency` / `fatoora_InvoiceBuilder_set_currency`
-- Getters: `FinalizedInvoice.currency`, `SignedInvoice.currency`, `fatoora_InvoiceData_currency`, `fatoora_InvoiceData_currency`
+- Setter: `InvoiceBuilder::currency` / `InvoiceBuilder.set_currency` / `fatoora_invoice_builder_set_currency`
+- Getters: `FinalizedInvoice.currency`, `SignedInvoice.currency`, `fatoora_invoice_data_currency`, `fatoora_invoice_data_currency`
 
 ### `previous_invoice_hash`
 
-- Setter: `InvoiceBuilder::previous_invoice_hash` / `InvoiceBuilder.set_previous_invoice_hash` / `fatoora_InvoiceBuilder_set_previous_invoice_hash`
-- Getters: `FinalizedInvoice.previous_invoice_hash`, `SignedInvoice.previous_invoice_hash`, `fatoora_InvoiceData_previous_invoice_hash`, `fatoora_InvoiceData_previous_invoice_hash`
+- Setter: `InvoiceBuilder::previous_invoice_hash` / `InvoiceBuilder.set_previous_invoice_hash` / `fatoora_invoice_builder_set_previous_invoice_hash`
+- Getters: `FinalizedInvoice.previous_invoice_hash`, `SignedInvoice.previous_invoice_hash`, `fatoora_invoice_data_previous_invoice_hash`, `fatoora_invoice_data_previous_invoice_hash`
 
 ### `invoice_counter`
 
-- Setter: `InvoiceBuilder::invoice_counter` / `InvoiceBuilder.set_invoice_counter` / `fatoora_InvoiceBuilder_set_invoice_counter`
-- Getters: `FinalizedInvoice.invoice_counter`, `SignedInvoice.invoice_counter`, `fatoora_InvoiceData_invoice_counter`, `fatoora_InvoiceData_invoice_counter`
+- Setter: `InvoiceBuilder::invoice_counter` / `InvoiceBuilder.set_invoice_counter` / `fatoora_invoice_builder_set_invoice_counter`
+- Getters: `FinalizedInvoice.invoice_counter`, `SignedInvoice.invoice_counter`, `fatoora_invoice_data_invoice_counter`, `fatoora_invoice_data_invoice_counter`
 
 ### `payment_means_code`
 
-- Setter: `InvoiceBuilder::payment_means_code` / `InvoiceBuilder.set_payment_means_code` / `fatoora_InvoiceBuilder_set_payment_means_code`
-- Getters: `FinalizedInvoice.payment_means_code`, `SignedInvoice.payment_means_code`, `fatoora_InvoiceData_payment_means_code`, `fatoora_InvoiceData_payment_means_code`
+- Setter: `InvoiceBuilder::payment_means_code` / `InvoiceBuilder.set_payment_means_code` / `fatoora_invoice_builder_set_payment_means_code`
+- Getters: `FinalizedInvoice.payment_means_code`, `SignedInvoice.payment_means_code`, `fatoora_invoice_data_payment_means_code`, `fatoora_invoice_data_payment_means_code`
 
 ### `vat_category`
 
-- Setter: `InvoiceBuilder::vat_category` / `InvoiceBuilder.set_vat_category` / `fatoora_InvoiceBuilder_set_vat_category`
-- Getters: `FinalizedInvoice.vat_category`, `SignedInvoice.vat_category`, `fatoora_InvoiceData_vat_category`, `fatoora_InvoiceData_vat_category`
+- Setter: `InvoiceBuilder::vat_category` / `InvoiceBuilder.set_vat_category` / `fatoora_invoice_builder_set_vat_category`
+- Getters: `FinalizedInvoice.vat_category`, `SignedInvoice.vat_category`, `fatoora_invoice_data_vat_category`, `fatoora_invoice_data_vat_category`
 
 ### Parties (`seller`, `buyer`)
 
 - Setters: `InvoiceBuilder::seller`, `InvoiceBuilder::buyer` and matching Python/C builder methods.
-- Getters: `FinalizedInvoice.seller`, `FinalizedInvoice.buyer`, `SignedInvoice.seller`, `SignedInvoice.buyer`, `fatoora_InvoiceData_seller`, `fatoora_InvoiceData_buyer`, `fatoora_InvoiceData_seller`, `fatoora_InvoiceData_buyer`
+- Getters: `FinalizedInvoice.seller`, `FinalizedInvoice.buyer`, `SignedInvoice.seller`, `SignedInvoice.buyer`, `fatoora_invoice_data_seller`, `fatoora_invoice_data_buyer`, `fatoora_invoice_data_seller`, `fatoora_invoice_data_buyer`
 
 ### Notes and Allowance (`note`, `allowance_reason`, charge/discount)
 
 - Setters: `set_note`, `set_allowance`, `invoice_level_charge`, `invoice_level_discount`, `allowance_reason` and matching Python/C builder methods.
-- Getters: `note`, `allowance_reason`, `invoice_level_charge`, `invoice_level_discount` on finalized/signed invoices and `fatoora_InvoiceData_*` getters on an owned snapshot.
+- Getters: `note`, `allowance_reason`, `invoice_level_charge`, `invoice_level_discount` on finalized/signed invoices and `fatoora_invoice_data_*` getters on an owned snapshot.
 
 ### Flags and Type
 
-- Setter: `InvoiceBuilder::flags` / `InvoiceBuilder.flags` / `fatoora_InvoiceBuilder_flags`
+- Setter: `InvoiceBuilder::flags` / `InvoiceBuilder.flags` / `fatoora_invoice_builder_flags`
 - Getters: `flags`, `is_third_party`, `is_nominal`, `is_export`, `is_summary`, `is_self_billed`, `is_simplified`, `invoice_type_kind`, `invoice_sub_type` on finalized/signed invoices and matching C getters.
 
 ### Line Items and Totals
 
-- Setter: `InvoiceBuilder::line_item` / `InvoiceBuilder.add_line_item` / `fatoora_InvoiceBuilder_add_line_item`
+- Setter: `InvoiceBuilder::line_item` / `InvoiceBuilder.add_line_item` / `fatoora_invoice_builder_add_line_item`
 - Getters: `line_items`, `totals` on finalized/signed invoices and C getters on owned `InvoiceData`, `InvoiceLineItem`, and `InvoiceTotals` snapshots.
 
 C field getters operate on an owned `InvoiceData` snapshot obtained with
-`fatoora_FinalizedInvoice_data` or `fatoora_SignedInvoice_data`. Check the result,
-read the fields, then call `fatoora_InvoiceData_destroy`. Totals follow the same
+`fatoora_finalized_invoice_data` or `fatoora_signed_invoice_data`. Check the result,
+read the fields, then call `fatoora_invoice_data_free`. Totals follow the same
 pattern with `InvoiceTotals`. Snapshots survive destruction of their invoice.
 
 ## FinalizedInvoice
@@ -510,9 +550,11 @@ pattern with `InvoiceTotals`. Snapshots survive destruction of their invoice.
 
     === "{{ lang.c }}"
         ```c
-        #include "FinalizedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_FinalizedInvoice_hash_base64_result fatoora_FinalizedInvoice_hash_base64(const FinalizedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_finalized_invoice_hash_base64(const FatooraFinalizedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `sign`
@@ -531,9 +573,12 @@ pattern with `InvoiceTotals`. Snapshots survive destruction of their invoice.
 
     === "{{ lang.c }}"
         ```c
-        #include "Signer.h"
+        #include "fatoora.h"
 
-        fatoora_Signer_sign_result fatoora_Signer_sign(const Signer* self, FinalizedInvoice* invoice);
+        FatooraStatus fatoora_signer_sign(const FatooraSigner *self,
+            FatooraFinalizedInvoice *invoice,
+            FatooraSignedInvoice **out,
+            FatooraError **error);
         ```
 
 ### field accessors
@@ -575,17 +620,35 @@ pattern with `InvoiceTotals`. Snapshots survive destruction of their invoice.
 
     === "{{ lang.c }}"
         ```c
-        #include "FinalizedInvoice.h"
-        #include "InvoiceData.h"
-        #include "InvoiceTotals.h"
+        #include "fatoora.h"
 
-        fatoora_FinalizedInvoice_data_result fatoora_FinalizedInvoice_data(const FinalizedInvoice* self);
-        fatoora_InvoiceData_id_result fatoora_InvoiceData_id(const InvoiceData* self, DiplomatWrite* write);
-        fatoora_InvoiceData_uuid_result fatoora_InvoiceData_uuid(const InvoiceData* self, DiplomatWrite* write);
-        fatoora_FinalizedInvoice_xml_result fatoora_FinalizedInvoice_xml(const FinalizedInvoice* self, DiplomatWrite* write);
-        size_t fatoora_InvoiceData_line_items_len(const InvoiceData* self);
-        fatoora_FinalizedInvoice_totals_result fatoora_FinalizedInvoice_totals(const FinalizedInvoice* self);
-        fatoora_InvoiceTotals_tax_inclusive_result fatoora_InvoiceTotals_tax_inclusive(const InvoiceTotals* self, DiplomatWrite* write);
+        FatooraStatus fatoora_finalized_invoice_data(const FatooraFinalizedInvoice *self,
+            FatooraInvoiceData **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_data_id(const FatooraInvoiceData *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_data_uuid(const FatooraInvoiceData *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_finalized_invoice_xml(const FatooraFinalizedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_data_line_items_len(const FatooraInvoiceData *self,
+            size_t *out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_finalized_invoice_totals(const FatooraFinalizedInvoice *self,
+            FatooraInvoiceTotals **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_totals_tax_inclusive(const FatooraInvoiceTotals *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ## SignedInvoice
@@ -608,9 +671,11 @@ For exact XML preservation and consuming `into_xml()` access, see [XML ownership
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_xml_result fatoora_SignedInvoice_xml(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_xml(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `to_xml_base64`
@@ -629,9 +694,11 @@ For exact XML preservation and consuming `into_xml()` access, see [XML ownership
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_to_xml_base64_result fatoora_SignedInvoice_to_xml_base64(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_to_xml_base64(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `hash_base64`
@@ -650,9 +717,11 @@ For exact XML preservation and consuming `into_xml()` access, see [XML ownership
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_hash_base64_result fatoora_SignedInvoice_hash_base64(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_hash_base64(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### signature metadata accessors
@@ -684,17 +753,43 @@ For exact XML preservation and consuming `into_xml()` access, see [XML ownership
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_invoice_hash_result fatoora_SignedInvoice_invoice_hash(const SignedInvoice* self, DiplomatWrite* write);
-        fatoora_SignedInvoice_signature_result fatoora_SignedInvoice_signature(const SignedInvoice* self, DiplomatWrite* write);
-        fatoora_SignedInvoice_public_key_result fatoora_SignedInvoice_public_key(const SignedInvoice* self, DiplomatWrite* write);
-        fatoora_SignedInvoice_zatca_key_signature_result fatoora_SignedInvoice_zatca_key_signature(const SignedInvoice* self);
-        fatoora_SignedInvoice_cert_hash_result fatoora_SignedInvoice_cert_hash(const SignedInvoice* self, DiplomatWrite* write);
-        fatoora_SignedInvoice_signed_props_hash_result fatoora_SignedInvoice_signed_props_hash(const SignedInvoice* self, DiplomatWrite* write);
-        fatoora_SignedInvoice_signing_time_result fatoora_SignedInvoice_signing_time(const SignedInvoice* self, DiplomatWrite* write);
-        fatoora_SignedInvoice_issuer_result fatoora_SignedInvoice_issuer(const SignedInvoice* self, DiplomatWrite* write);
-        fatoora_SignedInvoice_serial_result fatoora_SignedInvoice_serial(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_invoice_hash(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_signature(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_public_key(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_zatca_key_signature(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_cert_hash(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_signed_props_hash(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_signing_time(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_issuer(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_serial(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `Address.new`
@@ -722,9 +817,11 @@ C callers must rebuild against the matching header and library.
 
     === "{{ lang.c }}"
         ```c
-        #include "Address.h"
+        #include "fatoora.h"
 
-        fatoora_Address_new_result fatoora_Address_new(DiplomatStringView country_code, DiplomatStringView city, DiplomatStringView street, DiplomatStringView building_number, DiplomatStringView postal_code, OptionStringView additional_street, OptionStringView additional_number, OptionStringView district);
+        FatooraStatus fatoora_address_new(const FatooraAddressOptions *options,
+            FatooraAddress **out,
+            FatooraError **error);
         ```
 
 ### field accessors
@@ -765,16 +862,31 @@ C callers must rebuild against the matching header and library.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
-        #include "InvoiceData.h"
-        #include "InvoiceTotals.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_data_result fatoora_SignedInvoice_data(const SignedInvoice* self);
-        fatoora_InvoiceData_id_result fatoora_InvoiceData_id(const InvoiceData* self, DiplomatWrite* write);
-        fatoora_InvoiceData_uuid_result fatoora_InvoiceData_uuid(const InvoiceData* self, DiplomatWrite* write);
-        size_t fatoora_InvoiceData_line_items_len(const InvoiceData* self);
-        fatoora_SignedInvoice_totals_result fatoora_SignedInvoice_totals(const SignedInvoice* self);
-        fatoora_InvoiceTotals_tax_inclusive_result fatoora_InvoiceTotals_tax_inclusive(const InvoiceTotals* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_data(const FatooraSignedInvoice *self,
+            FatooraInvoiceData **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_data_id(const FatooraInvoiceData *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_data_uuid(const FatooraInvoiceData *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_data_line_items_len(const FatooraInvoiceData *self,
+            size_t *out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_signed_invoice_totals(const FatooraSignedInvoice *self,
+            FatooraInvoiceTotals **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_invoice_totals_tax_inclusive(const FatooraInvoiceTotals *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ## Supporting Types

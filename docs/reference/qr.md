@@ -1,6 +1,6 @@
 # QR
 
-See [C and C++ bindings](bindings/c.md) for ownership rules and text output.
+C signatures use the [C API](../development/c-api.md). See [C and C++ bindings](bindings/c.md) for ownership and build instructions.
 The declarations below come from the generated headers. C++ exposes the same types
 in namespace `fatoora` through `fatoora/Type.hpp` headers.
 
@@ -25,9 +25,11 @@ ZATCA QR payload generation and accessors.
 
     === "{{ lang.c }}"
         ```c
-        #include "SignedInvoice.h"
+        #include "fatoora.h"
 
-        fatoora_SignedInvoice_qr_code_result fatoora_SignedInvoice_qr_code(const SignedInvoice* self, DiplomatWrite* write);
+        FatooraStatus fatoora_signed_invoice_qr_code(const FatooraSignedInvoice *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ## Errors

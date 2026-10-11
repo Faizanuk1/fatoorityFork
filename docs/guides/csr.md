@@ -1,8 +1,8 @@
 # CSR Generation
 
-This guide covers creating CSRs and private keys using the Rust core and CLI.
+Create CSRs and private keys using Rust, Python, or C.
 
-## Rust
+## Example
 === "Rust"
     ```rust
     --8<-- "fatoora-core/examples/csr.rs:example"
@@ -13,7 +13,7 @@ This guide covers creating CSRs and private keys using the Rust core and CLI.
     --8<-- "bindings/python/examples/csr.py:example"
     ```
 
-=== "C/C++"
+=== "C"
     ```c
     --8<-- "bindings/c/examples/csr.c:example"
     ```
@@ -28,3 +28,6 @@ This guide covers creating CSRs and private keys using the Rust core and CLI.
   workflow.
 
 See also: [CSR Reference](../reference/csr.md)
+
+C examples include `fatoora.h`; compile the adapter once with your application.
+See the [C build instructions](../development/c-api.md#build-and-run).

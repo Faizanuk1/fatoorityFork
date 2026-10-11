@@ -6,6 +6,13 @@ C++, and Nanobind bindings. The public [Python facade](https://github.com/mqqz/f
 handles Python values, exceptions, and lifetimes. CFFI and the former handwritten
 C ABI have been removed.
 
+The [C API](c-api.md) covers all bridge operations with ordinary
+strings, shared statuses, and named-field options. Its owned strings, optional
+text, independent snapshots, consumption, and allocation failures are checked
+by `c_facade_contract.c` and `c_facade_allocation.c`. Guide examples are compiled
+and run by `scripts/check_c_examples.py`; the API submission example runs only
+its help path during that check.
+
 This table maps exposed capabilities to bridge methods and regression coverage.
 Exposure does not imply that every platform build has passed. See
 [Diplomat bindings](diplomat.md) for generation, ownership, and verification status.

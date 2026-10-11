@@ -1,16 +1,55 @@
 # C and C++ bindings
 
-The `fatoora-ffi` crate provides Diplomat-generated bindings. C headers are in
-[bindings/c](https://github.com/mqqz/fatoority/tree/main/bindings/c), and C++ headers are in
+For C applications, use the [C API](../../development/c-api.md): one
+`fatoora.h`, ordinary UTF-8 strings, named-field options, and shared status/error
+handling. Compile `bindings/c/fatoora.c` once and link `fatoora_ffi`.
+The complete [invoice example](https://github.com/mqqz/fatoority/blob/main/bindings/c/examples/build_invoice.c)
+shows the builder workflow and cleanup.
+
+The `fatoora-ffi` crate also provides Diplomat-generated bindings. Raw C headers are in
+[bindings/c/generated](https://github.com/mqqz/fatoority/tree/main/bindings/c/generated), and C++ headers are in
 [bindings/cpp](https://github.com/mqqz/fatoority/tree/main/bindings/cpp). Include the header for each type you use
 and link `fatoora_ffi`. C++ classes live in namespace `fatoora`.
 
 The generated ABI replaces the former handwritten ABI. Its symbols follow
 `fatoora_Type_method`, such as `fatoora_Config_new`. Distribute matching headers
-and libraries, and recompile callers when migrating. The old `fatoora_ffi.h`,
-`fatoora.h`, `FfiResult`, and `*_free` interfaces are removed.
+and libraries, and recompile callers when migrating. The former handwritten ABI,
+its `FfiResult`, and its headers were removed. The new `fatoora.h` is a
+source facade over Diplomat and is not compatible with the old handwritten API.
 
-## C results and ownership
+## C API example
+
+Include one header, check the shared status, and release returned owners. Passing
+`NULL` as the error argument is supported when only the status matters. The
+deliberately incomplete invoice below fails validation.
+
+```c
+#include "fatoora.h"
+#include <stdio.h>
+
+int main(void) {
+    FatooraConfig *config = NULL;
+    FatooraError *error = NULL;
+    bool valid = false;
+    FatooraStatus status = fatoora_config_new(FATOORA_NON_PRODUCTION, &config, &error);
+    if (status == FATOORA_OK)
+        status = fatoora_xml_validate(config, "<Invoice></Invoice>", &valid, &error);
+    if (status == FATOORA_OK) printf("valid: %s\n", valid ? "true" : "false");
+    else fprintf(stderr, "error %d: %s\n", (int)status, fatoora_error_message(error));
+    fatoora_error_free(error);
+    fatoora_config_free(config);
+    return status == FATOORA_OK && valid ? 0 : 1;
+}
+```
+
+String getters return owned `char *` values through output pointers; release
+them with `fatoora_string_free()`. Optional text returns `NULL` for absence and
+an allocated empty string for a present empty value. Decimal values are exact
+strings. Constructors and line items use named-field option structs. See the
+[complete builder example](https://github.com/mqqz/fatoority/blob/main/bindings/c/examples/build_invoice.c)
+and [ownership rules](../../development/c-api.md#ownership-and-consumption).
+
+## Raw C results and ownership
 
 A fallible function returns a generated result type. For example, `Config.h`
 defines:
@@ -37,7 +76,7 @@ identify valid readable storage for the call. The bridge validates UTF-8 and
 rejects embedded NUL with an InvalidInput result. Numeric enum-like inputs are
 validated too. Decimal quantities and amounts cross as exact decimal strings.
 
-## Text and byte output
+## Raw text and byte output
 
 Text accessors write into a `DiplomatWrite`. Use `diplomat_simple_write` with a
 caller-owned buffer, or allocate a growable writer with
@@ -51,7 +90,7 @@ writer. Check `grow_failed` when using an accessor whose signature returns void.
 party, address, and response getters also return owned snapshots that survive
 destruction of their source object.
 
-## C example
+## Raw C example
 
 This example validates XML and prints a structured binding error's code and
 message on failure. The deliberately incomplete invoice should fail validation.
@@ -158,8 +197,15 @@ on Linux:
 
 ```sh
 cargo build -p fatoora-ffi --release --locked
-cc -std=c11 validate.c -I bindings/c -L target/release -lfatoora_ffi -o validate
+cc -std=c11 validate.c -I bindings/c/generated -L target/release -lfatoora_ffi -o validate
 c++ -std=c++17 validate.cpp -I bindings/cpp -L target/release -lfatoora_ffi -o validate_cpp
+```
+
+The C command above builds the raw example. For the C API example:
+
+```sh
+cc -std=c11 validate.c bindings/c/fatoora.c \
+  -Ibindings/c -Ltarget/release -lfatoora_ffi -o validate
 ```
 
 Configure the runtime loader to find the matching shared library. macOS uses the

@@ -1,6 +1,6 @@
 # Configuration
 
-See [C and C++ bindings](bindings/c.md) for ownership rules and text output.
+C signatures use the [C API](../development/c-api.md). See [C and C++ bindings](bindings/c.md) for ownership and build instructions.
 The declarations below come from the generated headers. C++ exposes the same types
 in namespace `fatoora` through `fatoora/Type.hpp` headers.
 
@@ -110,9 +110,11 @@ C constructors accept `uint8_t` environment values: `0` for non-production,
 
     === "{{ lang.c }}"
         ```c
-        #include "Config.h"
+        #include "fatoora.h"
 
-        fatoora_Config_new_result fatoora_Config_new(uint8_t env);
+        FatooraStatus fatoora_config_new(int32_t env,
+            FatooraConfig **out,
+            FatooraError **error);
         ```
 
 ### `env`
@@ -132,9 +134,11 @@ C constructors accept `uint8_t` environment values: `0` for non-production,
 
     === "{{ lang.c }}"
         ```c
-        #include "Config.h"
+        #include "fatoora.h"
 
-        uint8_t fatoora_Config_env(const Config* self);
+        FatooraStatus fatoora_config_env(const FatooraConfig *self,
+            uint8_t *out,
+            FatooraError **error);
         ```
 
 ### `default`
@@ -154,7 +158,9 @@ C constructors accept `uint8_t` environment values: `0` for non-production,
 
     === "{{ lang.c }}"
         ```c
-        #include "Config.h"
+        #include "fatoora.h"
 
-        fatoora_Config_new_result fatoora_Config_new(uint8_t env);
+        FatooraStatus fatoora_config_new(int32_t env,
+            FatooraConfig **out,
+            FatooraError **error);
         ```

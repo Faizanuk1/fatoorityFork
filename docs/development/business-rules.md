@@ -116,12 +116,13 @@ Python returns a dictionary for rejected or incomplete validation. Execution
 failures raise a binding exception. Raw XML and string options reject embedded
 NULs before C conversion.
 
-C callers use `fatoora_Xml_validate_zatca` with a live `Config`, a length-delimited
-XML view, an optional options JSON view, and a `DiplomatWrite` output. Check
-`result.is_ok` before reading the report. On failure, inspect the owned
-`BindingError` and destroy it with `fatoora_BindingError_destroy`.
+C callers use `fatoora_xml_validate_zatca()` with a live `FatooraConfig`, the
+original XML string, nullable options JSON, and `char **out` for the report.
+Check the returned `FatooraStatus` before reading the owned report. Free it with
+`fatoora_string_free()`; inspect execution errors through `FatooraError` and
+release them with `fatoora_error_free()`.
 
-An absent options view selects defaults. Otherwise, pass an object with optional
+`NULL` options selects defaults. Otherwise, pass JSON with optional
 `evaluated_at` and `previous_invoice_hash` fields. A successful call can return a
 rejected or incomplete report; inspect `is_valid` before accepting the invoice.
 See the [C ownership example](../reference/bindings/c.md) and the

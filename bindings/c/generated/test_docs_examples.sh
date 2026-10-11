@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-include_dir="${root_dir}/bindings/c"
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+include_dir="${root_dir}/bindings/c/generated"
 lib_dir="${root_dir}/target/debug"
-examples_dir="${root_dir}/bindings/c/examples"
+examples_dir="${root_dir}/bindings/c/generated/examples"
 csr_props="${root_dir}/fatoora-core/tests/fixtures/csr-configs/csr-config-example-EN.properties"
 signed_xml="${root_dir}/fatoora-core/tests/fixtures/invoices/sample-simplified-invoice.xml"
 invoice_xml="${root_dir}/fatoora-core/tests/fixtures/invoices/sample-simplified-invoice.xml"

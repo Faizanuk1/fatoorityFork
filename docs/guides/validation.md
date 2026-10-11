@@ -35,7 +35,7 @@ is nonempty.
     --8<-- "bindings/python/examples/validation.py:example"
     ```
 
-=== "C/C++"
+=== "C"
     ```c
     --8<-- "bindings/c/examples/validation.c:example"
     ```
@@ -68,3 +68,6 @@ All 15 UBL schemas are embedded in the library and compiled in memory. Installed
 validation uses the same profile in every configured API environment.
 
 See also: [Invoice Validation Reference](../reference/invoice-validation.md)
+
+C examples include `fatoora.h`; compile the adapter once with your application.
+See the [C build instructions](../development/c-api.md#build-and-run).

@@ -15,7 +15,7 @@ The bridge is divided by capability:
 | [invoice.rs](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/src/invoice.rs) | Invoice builders, parsing, snapshots, totals, XML, hashes, validation |
 | [api.rs](https://github.com/mqqz/fatoority/blob/main/fatoora-ffi/src/api.rs) | Credentials, ZATCA requests, response outcomes, validation messages |
 
-C headers live in [bindings/c](https://github.com/mqqz/fatoority/tree/main/bindings/c), C++ headers in
+Generated C headers live in [bindings/c/generated](https://github.com/mqqz/fatoority/tree/main/bindings/c/generated), C++ headers in
 [bindings/cpp](https://github.com/mqqz/fatoority/tree/main/bindings/cpp), and Nanobind sources in
 [bindings/python/native/generated](https://github.com/mqqz/fatoority/tree/main/bindings/python/native/generated).
 The old C ABI and CFFI implementation have been removed. `FfiLibrary` and
@@ -66,6 +66,10 @@ consumption. Mutable objects expose no borrowed child fields. `Bytes.as_slice()`
 is a read-only view valid for the lifetime of its immutable `Bytes` owner.
 
 ## C and C++ ownership
+
+For ordinary C clients, the [C API](c-api.md) exposes the full bridge
+through one header, plain strings, shared status codes, and named-field options.
+The generated interface below remains the native ABI used by language bindings.
 
 Include `InvoiceBuilder.h` for C or `fatoora/InvoiceBuilder.hpp` for C++ and link
 `fatoora_ffi`. C++ types live in namespace `fatoora`; standalone clients require

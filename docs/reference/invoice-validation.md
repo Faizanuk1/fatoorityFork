@@ -1,6 +1,6 @@
 # Invoice Validation
 
-See [C and C++ bindings](bindings/c.md) for ownership rules and text output.
+C signatures use the [C API](../development/c-api.md). See [C and C++ bindings](bindings/c.md) for ownership and build instructions.
 The declarations below come from the generated headers. C++ exposes the same types
 in namespace `fatoora` through `fatoora/Type.hpp` headers.
 
@@ -25,9 +25,12 @@ Explicit schema and local ZATCA validation for original invoice XML.
 
     === "{{ lang.c }}"
         ```c
-        #include "Xml.h"
+        #include "fatoora.h"
 
-        fatoora_Xml_validate_result fatoora_Xml_validate(const Config* config, DiplomatStringView xml);
+        FatooraStatus fatoora_xml_validate(const FatooraConfig *config,
+            const char *xml,
+            bool *out,
+            FatooraError **error);
         ```
 
 ## Behavior
@@ -105,17 +108,20 @@ validate_zatca_invoice_from_str(
 ```
 
 ```c
-#include "Xml.h"
+#include "fatoora.h"
 
-fatoora_Xml_validate_zatca_result fatoora_Xml_validate_zatca(const Config* config, DiplomatStringView xml, OptionStringView options_json, DiplomatWrite* write);
+FatooraStatus fatoora_xml_validate_zatca(const FatooraConfig *config,
+    const char *xml,
+    const char *options_json,
+    char **out,
+    FatooraError **error);
 ```
 
-C accepts an absent `OptionStringView` for defaults, or a JSON object containing
-`previous_invoice_hash` and `evaluated_at`. Inputs are length-delimited UTF-8
-views; embedded NULs are rejected. Options JSON is limited to 4 KiB. The report
-is written to the supplied `DiplomatWrite`. Release buffer writers with
-`diplomat_buffer_write_destroy`, and errors with `fatoora_BindingError_destroy`.
-An `is_ok` result means a report was produced; inspect its `is_valid` field before
+C accepts `NULL` options for defaults, or a JSON string containing
+`previous_invoice_hash` and `evaluated_at`. Inputs are NUL-terminated UTF-8
+strings. Options JSON is limited to 4 KiB. The report is returned as owned JSON
+text through `char **out`. Release it with `fatoora_string_free()` and errors with
+`fatoora_error_free()`. `FATOORA_OK` means a report was produced; inspect its `is_valid` field before
 accepting the document. Python returns the same report dictionary and rejects
 interior NULs before entering native code.
 

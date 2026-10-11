@@ -1,6 +1,6 @@
 # ZATCA API Client
 
-See [C and C++ bindings](bindings/c.md) for ownership rules and text output.
+C signatures use the [C API](../development/c-api.md). See [C and C++ bindings](bindings/c.md) for ownership and build instructions.
 The declarations below come from the generated headers. C++ exposes the same types
 in namespace `fatoora` through `fatoora/Type.hpp` headers.
 
@@ -26,9 +26,11 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "ZatcaClient.h"
+        #include "fatoora.h"
 
-        fatoora_ZatcaClient_create_result fatoora_ZatcaClient_create(const Config* config);
+        FatooraStatus fatoora_zatca_client_create(const FatooraConfig *config,
+            FatooraZatcaClient **out,
+            FatooraError **error);
         ```
 
 ### `post_csr_for_ccsid`
@@ -47,9 +49,13 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "ZatcaClient.h"
+        #include "fatoora.h"
 
-        fatoora_ZatcaClient_post_csr_for_ccsid_result fatoora_ZatcaClient_post_csr_for_ccsid(const ZatcaClient* self, const Csr* csr, DiplomatStringView otp);
+        FatooraStatus fatoora_zatca_client_post_csr_for_ccsid(const FatooraZatcaClient *self,
+            const FatooraCsr *csr,
+            const char *otp,
+            FatooraCsidCompliance **out,
+            FatooraError **error);
         ```
 
 ### `post_ccsid_for_pcsid`
@@ -68,9 +74,12 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "ZatcaClient.h"
+        #include "fatoora.h"
 
-        fatoora_ZatcaClient_post_ccsid_for_pcsid_result fatoora_ZatcaClient_post_ccsid_for_pcsid(const ZatcaClient* self, const CsidCompliance* credentials);
+        FatooraStatus fatoora_zatca_client_post_ccsid_for_pcsid(const FatooraZatcaClient *self,
+            const FatooraCsidCompliance *credentials,
+            FatooraCsidProduction **out,
+            FatooraError **error);
         ```
 
 ### `renew_csid`
@@ -89,9 +98,15 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "ZatcaClient.h"
+        #include "fatoora.h"
 
-        fatoora_ZatcaClient_renew_csid_result fatoora_ZatcaClient_renew_csid(const ZatcaClient* self, const CsidProduction* credentials, const Csr* csr, DiplomatStringView otp, OptionStringView accept_language);
+        FatooraStatus fatoora_zatca_client_renew_csid(const FatooraZatcaClient *self,
+            const FatooraCsidProduction *credentials,
+            const FatooraCsr *csr,
+            const char *otp,
+            const char *accept_language,
+            FatooraCsidProduction **out,
+            FatooraError **error);
         ```
 
 ### `check_invoice_compliance`
@@ -110,9 +125,13 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "ZatcaClient.h"
+        #include "fatoora.h"
 
-        fatoora_ZatcaClient_check_invoice_compliance_result fatoora_ZatcaClient_check_invoice_compliance(const ZatcaClient* self, const SignedInvoice* invoice, const CsidCompliance* credentials);
+        FatooraStatus fatoora_zatca_client_check_invoice_compliance(const FatooraZatcaClient *self,
+            const FatooraSignedInvoice *invoice,
+            const FatooraCsidCompliance *credentials,
+            FatooraValidationResponse **out,
+            FatooraError **error);
         ```
 
 ### `report_simplified_invoice`
@@ -131,9 +150,15 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "ZatcaClient.h"
+        #include "fatoora.h"
 
-        fatoora_ZatcaClient_report_simplified_invoice_result fatoora_ZatcaClient_report_simplified_invoice(const ZatcaClient* self, const SignedInvoice* invoice, const CsidProduction* credentials, bool clearance_status, OptionStringView accept_language);
+        FatooraStatus fatoora_zatca_client_report_simplified_invoice(const FatooraZatcaClient *self,
+            const FatooraSignedInvoice *invoice,
+            const FatooraCsidProduction *credentials,
+            bool clearance_status,
+            const char *accept_language,
+            FatooraValidationResponse **out,
+            FatooraError **error);
         ```
 
 ### `clear_standard_invoice`
@@ -152,9 +177,15 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "ZatcaClient.h"
+        #include "fatoora.h"
 
-        fatoora_ZatcaClient_clear_standard_invoice_result fatoora_ZatcaClient_clear_standard_invoice(const ZatcaClient* self, const SignedInvoice* invoice, const CsidProduction* credentials, bool clearance_status, OptionStringView accept_language);
+        FatooraStatus fatoora_zatca_client_clear_standard_invoice(const FatooraZatcaClient *self,
+            const FatooraSignedInvoice *invoice,
+            const FatooraCsidProduction *credentials,
+            bool clearance_status,
+            const char *accept_language,
+            FatooraValidationResponse **out,
+            FatooraError **error);
         ```
 
 ## CsidCredentials / CsidCompliance / CsidProduction
@@ -176,11 +207,21 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsidCompliance.h"
-        #include "CsidProduction.h"
+        #include "fatoora.h"
 
-        fatoora_CsidCompliance_create_result fatoora_CsidCompliance_create(uint8_t environment, OptionStringView request_id, DiplomatStringView token, DiplomatStringView secret);
-        fatoora_CsidProduction_create_result fatoora_CsidProduction_create(uint8_t environment, OptionStringView request_id, DiplomatStringView token, DiplomatStringView secret);
+        FatooraStatus fatoora_csid_compliance_create(int32_t environment,
+            const char *request_id,
+            const char *token,
+            const char *secret,
+            FatooraCsidCompliance **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_csid_production_create(int32_t environment,
+            const char *request_id,
+            const char *token,
+            const char *secret,
+            FatooraCsidProduction **out,
+            FatooraError **error);
         ```
 
 ### `env`
@@ -200,11 +241,15 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsidCompliance.h"
-        #include "CsidProduction.h"
+        #include "fatoora.h"
 
-        uint8_t fatoora_CsidCompliance_env(const CsidCompliance* self);
-        uint8_t fatoora_CsidProduction_env(const CsidProduction* self);
+        FatooraStatus fatoora_csid_compliance_env(const FatooraCsidCompliance *self,
+            uint8_t *out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_csid_production_env(const FatooraCsidProduction *self,
+            uint8_t *out,
+            FatooraError **error);
         ```
 
 ### `request_id`
@@ -224,11 +269,15 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsidCompliance.h"
-        #include "CsidProduction.h"
+        #include "fatoora.h"
 
-        fatoora_CsidCompliance_request_id_result fatoora_CsidCompliance_request_id(const CsidCompliance* self);
-        fatoora_CsidProduction_request_id_result fatoora_CsidProduction_request_id(const CsidProduction* self);
+        FatooraStatus fatoora_csid_compliance_request_id(const FatooraCsidCompliance *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_csid_production_request_id(const FatooraCsidProduction *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `binary_security_token`
@@ -248,11 +297,15 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsidCompliance.h"
-        #include "CsidProduction.h"
+        #include "fatoora.h"
 
-        fatoora_CsidCompliance_binary_security_token_result fatoora_CsidCompliance_binary_security_token(const CsidCompliance* self, DiplomatWrite* write);
-        fatoora_CsidProduction_binary_security_token_result fatoora_CsidProduction_binary_security_token(const CsidProduction* self, DiplomatWrite* write);
+        FatooraStatus fatoora_csid_compliance_binary_security_token(const FatooraCsidCompliance *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_csid_production_binary_security_token(const FatooraCsidProduction *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ### `secret`
@@ -272,11 +325,15 @@ for more details.
 
     === "{{ lang.c }}"
         ```c
-        #include "CsidCompliance.h"
-        #include "CsidProduction.h"
+        #include "fatoora.h"
 
-        fatoora_CsidCompliance_secret_result fatoora_CsidCompliance_secret(const CsidCompliance* self, DiplomatWrite* write);
-        fatoora_CsidProduction_secret_result fatoora_CsidProduction_secret(const CsidProduction* self, DiplomatWrite* write);
+        FatooraStatus fatoora_csid_compliance_secret(const FatooraCsidCompliance *self,
+            char **out,
+            FatooraError **error);
+
+        FatooraStatus fatoora_csid_production_secret(const FatooraCsidProduction *self,
+            char **out,
+            FatooraError **error);
         ```
 
 ## Invoice response contract
@@ -288,15 +345,15 @@ alone does not establish invoice acceptance.
 
 | Accessor | Rust | Python | C result value |
 | --- | --- | --- | --- |
-| `http_status()` | `Option<u16>` | `Optional[int]` | `uint16_t`, zero if unavailable |
-| `outcome()` | `InvoiceOutcome` | `InvoiceOutcome` | `uint8_t`: 0 unknown, 1 accepted, 2 rejected |
-| `ensure_accepted()` | `Result<(), ZatcaError>` | returns `None` or raises `ApiError` | true or an error |
+| `http_status()` | `Option<u16>` | `Optional[int]` | `uint16_t` output plus `bool has_value` |
+| `outcome()` | `InvoiceOutcome` | `InvoiceOutcome` | `FatooraInvoiceOutcome`: unknown, accepted, rejected |
+| `ensure_accepted()` | `Result<(), ZatcaError>` | returns `None` or raises `ApiError` | `FATOORA_OK` or an error status |
 | `cleared_invoice_base64()` | `Option<&str>` | `Optional[str]` | copied string; null if absent |
 | `cleared_invoice_xml()` | `Result<Option<String>, ZatcaError>` | `Optional[str]` or `ParseError` | copied decoded string or error; null if absent |
 
-C accessor names start with `fatoora_ValidationResponse_`. Text getters write to
-`DiplomatWrite`, or return optional owned `Text` objects. Destroy owned text with
-`fatoora_Text_destroy`; buffer writers use `diplomat_buffer_write_destroy`.
+C accessor names start with `fatoora_validation_response_`. Text getters return
+owned strings through `char **out`; optional text returns `NULL` for absence,
+distinct from a present empty string. Release text with `fatoora_string_free()`.
 Response children are owned copies and survive destruction of the response.
 A present but empty base64 field stays an empty string and fails decoding.
 

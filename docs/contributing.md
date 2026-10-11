@@ -98,8 +98,13 @@ cargo test
 
 C bindings tests:
 ```bash
-./bindings/c/test_docs_examples.sh
+python scripts/check_native_bindings.py
+python scripts/check_c_reference.py
+python scripts/check_c_examples.py
 ```
+
+These checks compile real C/C++ callers and the C guide examples.
+Example requests to the ZATCA API are not submitted during documentation checks.
 
 Python bindings tests:
 ```bash
