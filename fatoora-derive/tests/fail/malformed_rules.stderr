@@ -1,0 +1,5 @@
+error: expected `,`
+ --> tests/fail/malformed_rules.rs:5:26
+  |
+5 |     #[validate(non_empty = true)]
+  |                          ^

@@ -17,33 +17,27 @@ use syn::{Attribute, Data, DeriveInput, Fields, Type, parse_macro_input};
 
 mod rules;
 
-fn extract_error_type(attrs: &[Attribute]) -> TokenStream2 {
-    for attr in attrs.iter().filter(|a| a.path().is_ident("validate_error")) {
-        let mut ty = None;
-        attr.parse_nested_meta(|meta| {
-            ty = Some(meta.path.to_token_stream());
-            Ok(())
-        })
-        .unwrap();
-        if let Some(t) = ty {
-            return t;
-        }
+fn extract_error_type(attrs: &[Attribute]) -> syn::Result<TokenStream2> {
+    if let Some(attr) = attrs.iter().find(|a| a.path().is_ident("validate_error")) {
+        let ty: Type = attr.parse_args()?;
+        return Ok(ty.to_token_stream());
     }
-    quote! { String }
+    Ok(quote! { String })
 }
 
-fn extract_rules(attrs: &[Attribute]) -> Vec<String> {
+fn extract_rules(attrs: &[Attribute]) -> syn::Result<Vec<String>> {
     let mut out = vec![];
     for attr in attrs.iter().filter(|a| a.path().is_ident("validate")) {
         attr.parse_nested_meta(|meta| {
             if let Some(id) = meta.path.get_ident() {
                 out.push(id.to_string());
+            } else {
+                return Err(meta.error("validation rule must be a single identifier"));
             }
             Ok(())
-        })
-        .unwrap();
+        })?;
     }
-    out
+    Ok(out)
 }
 
 /// Only allow rules on String for now.
@@ -77,9 +71,16 @@ fn is_string_type(ty: &Type) -> bool {
 #[proc_macro_derive(Validate, attributes(validate, validate_error))]
 pub fn derive_validate(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
+    expand_validate(ast)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+fn expand_validate(ast: DeriveInput) -> syn::Result<TokenStream2> {
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let struct_name = ast.ident;
-    let error_type = extract_error_type(&ast.attrs);
-    let struct_rules = extract_rules(&ast.attrs);
+    let error_type = extract_error_type(&ast.attrs)?;
+    let struct_rules = extract_rules(&ast.attrs)?;
 
     let mut ctor_params = vec![];
     let mut ctor_assigns = vec![];
@@ -88,9 +89,9 @@ pub fn derive_validate(input: TokenStream) -> TokenStream {
     let fields = match ast.data {
         Data::Struct(s) => match s.fields {
             Fields::Named(n) => n.named,
-            _ => return quote! { compile_error!("Validate supports named structs only"); }.into(),
+            _ => return Ok(quote! { compile_error!("Validate supports named structs only"); }),
         },
-        _ => return quote! { compile_error!("Validate can only be used on structs"); }.into(),
+        _ => return Ok(quote! { compile_error!("Validate can only be used on structs"); }),
     };
 
     for field in fields {
@@ -100,7 +101,7 @@ pub fn derive_validate(input: TokenStream) -> TokenStream {
         ctor_params.push(quote! { #ident: #ty });
         ctor_assigns.push(quote! { #ident });
 
-        let mut field_rules = extract_rules(&field.attrs);
+        let mut field_rules = extract_rules(&field.attrs)?;
         if field_rules.iter().any(|r| r == "skip") {
             continue;
         }
@@ -116,7 +117,7 @@ pub fn derive_validate(input: TokenStream) -> TokenStream {
                 "Validation rules can only be applied to String fields: {}",
                 ident
             );
-            return quote! { compile_error!(#msg); }.into();
+            return Ok(quote! { compile_error!(#msg); });
         }
 
         for rule in field_rules {
@@ -124,7 +125,7 @@ pub fn derive_validate(input: TokenStream) -> TokenStream {
                 Some(ts) => ts,
                 None => {
                     let msg = format!("Unknown rule `{}`", rule);
-                    return quote! { compile_error!(#msg); }.into();
+                    return Ok(quote! { compile_error!(#msg); });
                 }
             };
             validations.push(ts);
@@ -132,13 +133,11 @@ pub fn derive_validate(input: TokenStream) -> TokenStream {
     }
 
     let out = quote! {
-        impl #struct_name {
+        impl #impl_generics #struct_name #ty_generics #where_clause {
             #[allow(clippy::too_many_arguments)]
             pub fn new(
                 #(#ctor_params),*
             ) -> Result<Self, #error_type> {
-
-                type E = #error_type;
 
                 #(
                     #validations
@@ -151,5 +150,5 @@ pub fn derive_validate(input: TokenStream) -> TokenStream {
         }
     };
 
-    out.into()
+    Ok(out)
 }

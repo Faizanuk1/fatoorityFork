@@ -46,6 +46,18 @@ fn xml_character_classes_use_xml_whitespace_words_names_and_subtraction() {
         ("S", r"\P{Cs}", true),
         ("S", r"\p{IsHighSurrogates}", false),
         ("ع", r"[\p{L}-[A-Z]]", true),
+        ("A", r"^[^0-9]$", true),
+        ("١", r"^\D$", false),
+        ("A", r"^\D$", true),
+        ("^", r"^[a^]$", true),
+        ("\n", r"^\n$", true),
+        ("[", r"^\[$", true),
+        (
+            "abcdefghijklmn",
+            r"^(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)(l)(m)(n)\14$",
+            false,
+        ),
+        ("abcdefghijklmn", r"^\I", false),
     ] {
         assert_eq!(
             matches(input, pattern),
@@ -70,6 +82,13 @@ fn invalid_patterns_are_errors_and_resource_limits_are_distinct() {
         "S++",
         "S?+",
         "S{2}+",
+        "[]",
+        "[[a]]",
+        "[-[a]]",
+        "[z-a]",
+        r"\pL",
+        r"\p{L",
+        "\\",
     ] {
         assert_eq!(
             matches("SAR", pattern),
@@ -88,6 +107,29 @@ fn invalid_patterns_are_errors_and_resource_limits_are_distinct() {
     assert_eq!(
         matches("S", &format!("{}S{}", "(".repeat(129), ")".repeat(129))),
         Err(FailureKind::Limit("regex depth"))
+    );
+}
+
+#[test]
+fn regex_limits_apply_to_cached_literals_and_nested_subtraction() {
+    let cache = super::patterns::MatchCache::default();
+    assert_eq!(cache.matches(&"x".repeat(4096), "x"), Ok(true));
+    assert_eq!(
+        cache.matches(&"x".repeat(4097), "x"),
+        Err(FailureKind::Limit("regex bytes"))
+    );
+    assert_eq!(
+        cache.matches("x", &"x".repeat(4097)),
+        Err(FailureKind::Limit("regex bytes"))
+    );
+    let pattern = format!("{}a{}", "[a-".repeat(129), "]".repeat(129));
+    assert_eq!(
+        matches("a", &pattern),
+        Err(FailureKind::Limit("regex depth"))
+    );
+    assert_eq!(
+        matches("x", "x{1000000}"),
+        Err(FailureKind::Limit("regex compiled bytes"))
     );
 }
 

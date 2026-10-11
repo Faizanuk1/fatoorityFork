@@ -1,0 +1,5 @@
+error: validation rule must be a single identifier
+ --> tests/fail/qualified_rule.rs:5:16
+  |
+5 |     #[validate(rules::non_empty)]
+  |                ^^^^^^^^^^^^^^^^

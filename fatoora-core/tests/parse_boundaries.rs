@@ -356,3 +356,89 @@ fn complete_document_limit_is_shared_by_import_hashing_and_validation() {
         assert!(error.contains("XML input bytes"), "{error}");
     }
 }
+
+#[test]
+fn blank_required_scalars_report_their_own_field_and_leave_next_parse_usable() {
+    use fatoora_core::invoice::xml::parse::ParseError;
+    let seller = "cac:AccountingSupplierParty/cac:Party";
+    let paths = [
+        ("cbc:ID".to_owned(), "ID"),
+        ("cbc:UUID".to_owned(), "UUID"),
+        ("cbc:IssueDate".to_owned(), "IssueDate"),
+        ("cbc:IssueTime".to_owned(), "IssueTime"),
+        ("cbc:InvoiceTypeCode".to_owned(), "InvoiceTypeCode"),
+        ("cbc:InvoiceTypeCode/@name".to_owned(), "InvoiceTypeCode@name"),
+        ("cbc:DocumentCurrencyCode".to_owned(), "DocumentCurrencyCode"),
+        ("cac:PaymentMeans/cbc:PaymentMeansCode".to_owned(), "PaymentMeansCode"),
+        (format!("{seller}/cac:PartyLegalEntity/cbc:RegistrationName"), "SellerName"),
+        (format!("{seller}/cac:PartyTaxScheme/cbc:CompanyID"), "SellerVAT"),
+        (format!("{seller}/cac:PostalAddress/cbc:StreetName"), "SellerStreet"),
+        (format!("{seller}/cac:PostalAddress/cbc:BuildingNumber"), "SellerBuildingNumber"),
+        (format!("{seller}/cac:PostalAddress/cbc:CityName"), "SellerCity"),
+        (format!("{seller}/cac:PostalAddress/cbc:PostalZone"), "SellerPostalCode"),
+        (format!("{seller}/cac:PostalAddress/cac:Country/cbc:IdentificationCode"), "SellerCountry"),
+        ("cac:AdditionalDocumentReference[cbc:ID='PIH']/cac:Attachment/cbc:EmbeddedDocumentBinaryObject".to_owned(), "PIH"),
+        ("cac:AdditionalDocumentReference[cbc:ID='ICV']/cbc:UUID".to_owned(), "ICV"),
+        ("cac:InvoiceLine[1]/cbc:ID".to_owned(), "LineID"),
+        ("cac:InvoiceLine[1]/cac:Item/cbc:Name".to_owned(), "LineName"),
+        ("cac:InvoiceLine[1]/cbc:InvoicedQuantity".to_owned(), "InvoicedQuantity"),
+        ("cac:InvoiceLine[1]/cbc:InvoicedQuantity/@unitCode".to_owned(), "InvoicedQuantity@unitCode"),
+        ("cac:InvoiceLine[1]/cbc:LineExtensionAmount".to_owned(), "LineExtensionAmount"),
+        ("cac:InvoiceLine[1]/cac:Price/cbc:PriceAmount".to_owned(), "PriceAmount"),
+    ];
+    let expected = parse_finalized_invoice_xml(XML)
+        .unwrap()
+        .hash_base64()
+        .unwrap();
+    for (path, field) in paths {
+        let xml = change(XML, &format!("{ROOT}/{path}"), " \t\n");
+        let error = parse_finalized_invoice_xml(&xml).unwrap_err();
+        assert!(
+            matches!(error, ParseError::MissingField(actual) if actual == field),
+            "{field}: {error}"
+        );
+        let error: Error = error.into();
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+        let details: Value = serde_json::from_str(&error.details_json()).unwrap();
+        assert_eq!(
+            details,
+            serde_json::json!({"type":"missing_field", "field":field})
+        );
+    }
+    assert_eq!(
+        parse_finalized_invoice_xml(XML)
+            .unwrap()
+            .hash_base64()
+            .unwrap(),
+        expected
+    );
+}
+
+#[test]
+fn invalid_country_vat_category_and_monetary_totals_keep_specific_diagnostics() {
+    for (path, field) in [
+        (
+            "cac:AccountingSupplierParty/cac:Party/cac:PostalAddress/cac:Country/cbc:IdentificationCode",
+            "SellerCountry",
+        ),
+        (
+            "cac:InvoiceLine[1]/cac:Item/cac:ClassifiedTaxCategory/cbc:ID",
+            "VatCategory",
+        ),
+        (
+            "cac:LegalMonetaryTotal/cbc:LineExtensionAmount",
+            "LineExtensionAmount",
+        ),
+        (
+            "cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount",
+            "TaxExclusiveAmount",
+        ),
+        (
+            "cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount",
+            "TaxInclusiveAmount",
+        ),
+        ("cac:LegalMonetaryTotal/cbc:PayableAmount", "PayableAmount"),
+    ] {
+        invalid(&change(XML, &format!("{ROOT}/{path}"), "INVALID"), field);
+    }
+}

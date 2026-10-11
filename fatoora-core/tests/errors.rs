@@ -253,3 +253,223 @@ fn invalid_imported_line_reports_zero_based_locations_and_numeric_ranges() {
     }
     assert!(issues.iter().all(|issue| issue["line_item_index"] != 0));
 }
+
+#[test]
+fn binding_error_schema_preserves_nested_failures_and_stable_classifications() {
+    use fatoora_core::DecimalError;
+    use fatoora_core::invoice::QrCodeError;
+    use fatoora_core::invoice::xml::{InvoiceXmlError, parse::ParseError};
+
+    // These are public error values: downstream adapters may receive any variant.
+    // Pin complete wire objects so changes cannot silently drop useful fields.
+    let message = "خطأ\u{0}\n\"quoted\"";
+    let diagnostic =
+        json!({"message":message,"file":null,"line":null,"column":null,"severity":null});
+    let cases: Vec<(Error, ErrorKind, Value)> = vec![
+        (
+            QrCodeError::ValueTooLong { tag: 1, len: 256 }.into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"qr_value_too_long","tag":1,"length":256,"limit":255}),
+        ),
+        (
+            QrCodeError::EncodedTooLong { len: 704 }.into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"qr_encoded_too_long","length":704,"limit":700}),
+        ),
+        (
+            QrCodeError::MissingSellerName.into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"missing_seller_name"}),
+        ),
+        (
+            QrCodeError::MissingSellerVat.into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"missing_seller_vat"}),
+        ),
+        (
+            QrCodeError::Xml(message.into()).into(),
+            ErrorKind::Xml,
+            json!({"type":"qr_xml","diagnostics":[{"message":message}]}),
+        ),
+        (
+            InvoiceXmlError::Serialize {
+                source: Diagnostic::new(message),
+            }
+            .into(),
+            ErrorKind::Xml,
+            json!({"type":"xml_serialize","diagnostics":[diagnostic.clone()]}),
+        ),
+        (
+            SigningError::Serialize(InvoiceXmlError::Serialize {
+                source: Diagnostic::new(message),
+            })
+            .into(),
+            ErrorKind::Xml,
+            json!({"type":"xml_serialize","diagnostics":[diagnostic.clone()]}),
+        ),
+        (
+            SigningError::SigningError(message.into()).into(),
+            ErrorKind::Crypto,
+            json!({"type":"signing","diagnostics":[{"message":message}]}),
+        ),
+        (
+            SigningError::Qr(QrCodeError::MissingSellerName).into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"missing_seller_name"}),
+        ),
+        (
+            ParseError::Qr(QrCodeError::MissingSellerVat).into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"missing_seller_vat"}),
+        ),
+        (
+            ParseError::Invoice(InvoiceError::MissingBuyerId).into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"missing_buyer_id"}),
+        ),
+        (
+            ParseError::Decimal(DecimalError::OutOfRange).into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"decimal_out_of_range"}),
+        ),
+        (
+            ParseError::XPath(message.into()).into(),
+            ErrorKind::Parse,
+            json!({"type":"xpath","diagnostics":[{"message":message}]}),
+        ),
+        (
+            ParseError::XmlParse(message.into()).into(),
+            ErrorKind::Xml,
+            json!({"type":"xml_parse","diagnostics":[{"message":message}]}),
+        ),
+        (
+            InvoiceError::Decimal(DecimalError::InvalidSyntax).into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"invalid_decimal"}),
+        ),
+        (
+            InvoiceError::InvalidCountryCode("ZZ".into()).into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"invalid_country_code","value":"ZZ"}),
+        ),
+        (
+            InvoiceError::MissingVatForSeller.into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"missing_seller_vat"}),
+        ),
+        (
+            InvoiceError::MissingBuyerId.into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"missing_buyer_id"}),
+        ),
+        (
+            InvoiceError::InvalidVatFormat.into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"invalid_vat_format"}),
+        ),
+        (
+            XmlValidationError::SchemaParse {
+                errors: vec![Diagnostic::new(message)],
+            }
+            .into(),
+            ErrorKind::Parse,
+            json!({"type":"schema_parse","diagnostics":[diagnostic]}),
+        ),
+        (
+            XmlValidationError::InvalidXsdPath {
+                path: "missing.xsd".into(),
+            }
+            .into(),
+            ErrorKind::InvalidInput,
+            json!({"type":"invalid_xsd_path","path":"missing.xsd"}),
+        ),
+        (
+            XmlValidationError::XmlParse {
+                message: message.into(),
+            }
+            .into(),
+            ErrorKind::Xml,
+            json!({"type":"xml_parse","diagnostics":[{"message":message}]}),
+        ),
+        (
+            ZatcaError::ResponseRead {
+                http_status: 502,
+                message: message.into(),
+            }
+            .into(),
+            ErrorKind::Network,
+            json!({"type":"api_response_read","http_status":502,"message":message}),
+        ),
+        (
+            ZatcaError::NetworkError(message.into()).into(),
+            ErrorKind::Network,
+            json!({"type":"network","diagnostics":[{"message":message}]}),
+        ),
+        (
+            ZatcaError::Http(message.into()).into(),
+            ErrorKind::Network,
+            json!({"type":"http","diagnostics":[{"message":message}]}),
+        ),
+    ];
+    for (error, kind, expected) in cases {
+        assert_eq!(error.kind(), kind, "{error}");
+        let details: Value = serde_json::from_str(&error.details_json()).unwrap();
+        assert_eq!(details, expected, "{error}");
+    }
+}
+
+#[test]
+fn csr_error_schema_preserves_failure_phase_and_extension_name() {
+    let message = "invalid encoding";
+    let cases = [
+        (
+            CsrError::InvalidSubject {
+                message: message.into(),
+            },
+            ErrorKind::InvalidInput,
+            json!({"type":"invalid_subject","diagnostics":[{"message":message}]}),
+        ),
+        (
+            CsrError::InvalidSan {
+                message: message.into(),
+            },
+            ErrorKind::InvalidInput,
+            json!({"type":"invalid_san","diagnostics":[{"message":message}]}),
+        ),
+        (
+            CsrError::RequestBuild {
+                message: message.into(),
+            },
+            ErrorKind::Crypto,
+            json!({"type":"csr_request","diagnostics":[{"message":message}]}),
+        ),
+        (
+            CsrError::AddExtension {
+                which: "subjectAltName",
+                message: message.into(),
+            },
+            ErrorKind::Crypto,
+            json!({"type":"csr_extension","extension":"subjectAltName","diagnostics":[{"message":message}]}),
+        ),
+        (
+            CsrError::CsrBuild {
+                message: message.into(),
+            },
+            ErrorKind::Crypto,
+            json!({"type":"csr_build","diagnostics":[{"message":message}]}),
+        ),
+        (
+            CsrError::KeyEncode {
+                message: message.into(),
+            },
+            ErrorKind::Crypto,
+            json!({"type":"key_encode","diagnostics":[{"message":message}]}),
+        ),
+    ];
+    for (error, kind, expected) in cases {
+        let error: Error = error.into();
+        assert_eq!(error.kind(), kind);
+        let details: Value = serde_json::from_str(&error.details_json()).unwrap();
+        assert_eq!(details, expected);
+    }
+}

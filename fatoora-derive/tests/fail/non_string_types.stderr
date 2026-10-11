@@ -1,0 +1,15 @@
+error: Validation rules can only be applied to String fields: value
+ --> tests/fail/non_string_types.rs:3:10
+  |
+3 | #[derive(Validate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Validate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: Validation rules can only be applied to String fields: value
+ --> tests/fail/non_string_types.rs:9:10
+  |
+9 | #[derive(Validate)]
+  |          ^^^^^^^^
+  |
+  = note: this error originates in the derive macro `Validate` (in Nightly builds, run with -Z macro-backtrace for more info)

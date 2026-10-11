@@ -398,3 +398,58 @@ fn frozen_official_sdk_integrity_mutations_match_declared_native_policy() {
         }
     }
 }
+
+#[test]
+fn signature_transform_shape_and_property_ids_are_enforced_before_crypto() {
+    for (old, new, code) in [
+        (
+            "<ds:XPath>not(//ancestor-or-self::ext:UBLExtensions)</ds:XPath>",
+            "<ds:XPath>true()</ds:XPath>",
+            "SIGNATURE_ALGORITHM",
+        ),
+        (
+            "<ds:XPath>not(//ancestor-or-self::ext:UBLExtensions)</ds:XPath>",
+            "<ds:XPath>not(//ancestor-or-self::ext:UBLExtensions)</ds:XPath><ds:Extra/>",
+            "SIGNATURE_TRANSFORMS",
+        ),
+        (
+            "<ds:Transform Algorithm=\"http://www.w3.org/2006/12/xml-c14n11\"/>",
+            "",
+            "SIGNATURE_TRANSFORMS",
+        ),
+        (
+            "<ds:Transform Algorithm=\"http://www.w3.org/2006/12/xml-c14n11\"/>",
+            "<ds:Transform Algorithm=\"urn:unsupported\"/>",
+            "SIGNATURE_ALGORITHM",
+        ),
+        (
+            "<xades:SignedProperties Id=\"xadesSignedProperties\">",
+            "<xades:SignedProperties>",
+            "SIGNATURE_REFERENCES",
+        ),
+        ("Target=\"signature\"", "", "INTEGRITY_STRUCTURE"),
+    ] {
+        violation(check_signature(&replace(SIMPLIFIED, old, new)), code);
+    }
+    assert!(check_signature(SIMPLIFIED).is_ok());
+}
+
+#[test]
+fn signature_reference_and_value_require_scalar_content() {
+    for path in [
+        "//ds:SignatureValue",
+        "//ds:Reference[@Id='invoiceSignedData']/ds:DigestValue",
+    ] {
+        let value = text(SIMPLIFIED, path);
+        let xml = replace(SIMPLIFIED, &value, &format!("<ds:Part>{value}</ds:Part>"));
+        violation(check_signature(&xml), "INTEGRITY_STRUCTURE");
+    }
+}
+
+#[test]
+fn oversized_qr_timestamp_is_rejected_without_truncation() {
+    let input = qr_with_tag(SIMPLIFIED, 3, &[b'0'; 129]);
+    let xml = Xml::parse(&input).unwrap();
+    let verified = signature(&xml, &input).unwrap();
+    violation(qr(&xml, &verified), "QR_TIMESTAMP");
+}

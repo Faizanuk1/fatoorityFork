@@ -228,3 +228,38 @@ fn csr_names_preserve_literal_delimiters_in_subject_and_san() {
         assert_eq!(address.value.value(), value.as_bytes());
     }
 }
+
+#[test]
+fn properties_alias_preserves_validation_failures_when_loaded_from_a_file() {
+    let source = include_str!("fixtures/csr-configs/csr-config-example-EN.properties");
+    assert_eq!(
+        CsrProperties::parse_csr_config(source).unwrap(),
+        CsrProperties::from_properties_str(source).unwrap()
+    );
+    let source = source
+        .lines()
+        .map(|line| {
+            if line.starts_with("csr.invoice.type=") {
+                "csr.invoice.type=1020"
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("invalid.properties");
+    std::fs::write(&path, &source).unwrap();
+    for result in [
+        CsrProperties::parse_csr_config(&source),
+        CsrProperties::parse_csr_config_file(&path),
+    ] {
+        let error: fatoora_core::Error = result.unwrap_err().into();
+        assert_eq!(error.kind(), fatoora_core::ErrorKind::Validation);
+        let details: serde_json::Value = serde_json::from_str(&error.details_json()).unwrap();
+        assert_eq!(
+            details,
+            serde_json::json!({"type":"csr_validation", "diagnostics":[{"message":"invoice_type must contain exactly four binary digits"}]})
+        );
+    }
+}

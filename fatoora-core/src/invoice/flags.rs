@@ -218,3 +218,87 @@ impl std::fmt::UpperHex for InvoiceFlags {
         std::fmt::UpperHex::fmt(&self.0, formatter)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::InvoiceFlags as F;
+
+    #[test]
+    fn unknown_bits_survive_iteration_but_have_no_names() {
+        assert!(F::from_bits(0x80).is_none());
+        assert!(F::from_bits_truncate(0x80).is_empty());
+        let flags = F::from_bits_retain(0x85);
+        assert_eq!(flags.bits(), 0x85);
+        let mut values = flags.into_iter();
+        assert_eq!(values.next(), Some(F::THIRD_PARTY));
+        assert_eq!(values.next(), Some(F::EXPORT));
+        assert_eq!(values.next(), Some(F::from_bits_retain(0x80)));
+        assert_eq!(values.next(), None);
+        assert_eq!(values.next(), None);
+        assert_eq!(flags.iter().collect::<F>(), flags);
+        let mut names = flags.iter_names();
+        assert_eq!(names.next(), Some(("THIRD_PARTY", F::THIRD_PARTY)));
+        assert_eq!(names.next(), Some(("EXPORT", F::EXPORT)));
+        assert_eq!(names.next(), None);
+        assert_eq!(names.next(), None);
+        assert_eq!(F::from_name("EXPORT"), Some(F::EXPORT));
+        assert_eq!(F::from_name("export"), None);
+        assert_eq!(
+            format!("{flags:b} {flags:o} {flags:x} {flags:X}"),
+            "10000101 205 85 85"
+        );
+    }
+
+    #[test]
+    fn flag_updates_preserve_unrelated_capabilities() {
+        let mut flags = F::empty();
+        flags.extend([F::EXPORT, F::SELF_BILLED, F::EXPORT]);
+        assert_eq!(flags.bits(), 20);
+        flags.set(F::SUMMARY, true);
+        flags.set(F::EXPORT, false);
+        flags.toggle(F::NOMINAL);
+        flags.remove(F::SELF_BILLED);
+        assert_eq!(flags.bits(), 10);
+        flags |= F::THIRD_PARTY;
+        flags &= F::THIRD_PARTY | F::SUMMARY;
+        flags ^= F::SELF_BILLED;
+        flags -= F::SUMMARY;
+        assert_eq!(flags.bits(), 17);
+        assert!(flags.intersects(F::SELF_BILLED | F::NOMINAL));
+        assert!(!flags.contains(F::SELF_BILLED | F::NOMINAL));
+        assert!(F::all().is_all());
+        assert_eq!(F::all().bits(), 31);
+    }
+
+    #[test]
+    fn set_operations_match_independent_membership_model() {
+        for left in 0..32 {
+            for right in 0..32 {
+                let a = F::from_bits(left).unwrap();
+                let b = F::from_bits(right).unwrap();
+                let expected = |predicate: fn(bool, bool) -> bool| {
+                    (0..5)
+                        .filter(|bit| {
+                            predicate(left / (1 << bit) % 2 == 1, right / (1 << bit) % 2 == 1)
+                        })
+                        .map(|bit| 1 << bit)
+                        .sum::<u8>()
+                };
+                let union = expected(|a, b| a || b);
+                let intersection = expected(|a, b| a && b);
+                let difference = expected(|a, b| a && !b);
+                let symmetric = expected(|a, b| a != b);
+                assert_eq!((a | b).bits(), union);
+                assert_eq!(a.union(b).bits(), union);
+                assert_eq!((a & b).bits(), intersection);
+                assert_eq!(a.intersection(b).bits(), intersection);
+                assert_eq!((a - b).bits(), difference);
+                assert_eq!(a.difference(b).bits(), difference);
+                assert_eq!((a ^ b).bits(), symmetric);
+                assert_eq!(a.symmetric_difference(b).bits(), symmetric);
+                assert_eq!((!a).bits(), 31 - left);
+                assert_eq!(a.complement().bits(), 31 - left);
+            }
+        }
+    }
+}

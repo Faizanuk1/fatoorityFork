@@ -6,7 +6,7 @@ use syn::Ident;
 pub fn non_empty(field: &Ident) -> TokenStream {
     quote! {
         if #field.trim().is_empty() {
-            return Err(E::from(format!(
+            return Err(::core::convert::From::from(format!(
                 "{} must be non-empty",
                 stringify!(#field)
             )));
@@ -22,7 +22,7 @@ pub fn no_special_chars(field: &Ident) -> TokenStream {
             const FORBIDDEN: &[char] = &['!', '@', '#', '$', '%', '&', '*', '_', '<'];
 
             if val.chars().any(|c| FORBIDDEN.contains(&c)) {
-                return Err(E::from(format!(
+                return Err(::core::convert::From::from(format!(
                     "Invalid {}, The {} should only contain alphanumeric characters, whitespace, dashes, Arabic letters, and special characters except these: !@#$%&*_<",
                     stringify!(#field),
                     stringify!(#field)
@@ -36,7 +36,7 @@ pub fn is_country_code(field: &Ident) -> TokenStream {
     quote! {
         let code = #field.as_str();
         if code.len() != 2 || !code.chars().all(|c| c.is_ascii_alphabetic()) {
-            return Err(E::from(format!(
+            return Err(::core::convert::From::from(format!(
                 // TODO : actually validate against a list of country codes
                 "{} must be a valid 2-letter ISO-3166-1 alpha-2 country code",
                 stringify!(#field)
@@ -49,7 +49,7 @@ pub fn is_country_code(field: &Ident) -> TokenStream {
 pub fn four_binary_digits(field: &Ident) -> TokenStream {
     quote! {
         if #field.len() != 4 || !#field.bytes().all(|byte| matches!(byte, b'0' | b'1')) {
-            return Err(E::from(format!("{} must contain exactly four binary digits", stringify!(#field))));
+            return Err(::core::convert::From::from(format!("{} must contain exactly four binary digits", stringify!(#field))));
         }
     }
 }

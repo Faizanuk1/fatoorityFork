@@ -946,3 +946,54 @@ fn qr_rejects_aggregate_overflow_even_when_each_field_fits() {
         String::from_utf8_lossy(&output.stderr).contains("QR code payload exceeds 700 characters")
     );
 }
+
+#[test]
+fn hash_of_unsigned_xml_matches_the_same_document_with_excluded_signature_fields() {
+    let path = finalized_invoice_without_qr_fixture();
+    let unsigned = Command::new(cli_exe())
+        .args(["generate-hash", "--invoice"])
+        .arg(&path)
+        .output()
+        .unwrap();
+    let signed = Command::new(cli_exe())
+        .args(["generate-hash", "--invoice"])
+        .arg(signed_invoice_fixture())
+        .output()
+        .unwrap();
+    assert!(
+        unsigned.status.success(),
+        "{}",
+        String::from_utf8_lossy(&unsigned.stderr)
+    );
+    assert!(signed.status.success());
+    assert_eq!(unsigned.stdout, signed.stdout);
+    assert_eq!(
+        Base64::decode_vec(std::str::from_utf8(&unsigned.stdout).unwrap().trim())
+            .unwrap()
+            .len(),
+        32
+    );
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn malformed_xml_has_command_context_and_no_success_output() {
+    let path = unique_temp_path("malformed-command-input");
+    std::fs::write(&path, "<Invoice>").unwrap();
+    for command in ["qr", "generate-hash"] {
+        let output = Command::new(cli_exe())
+            .args([command, "--invoice"])
+            .arg(&path)
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.contains("failed to parse invoice XML"), "{stderr}");
+        assert!(stderr.contains(path.to_str().unwrap()), "{stderr}");
+        if command == "qr" {
+            assert!(stderr.contains("signed parse error"), "{stderr}");
+        }
+    }
+    std::fs::remove_file(path).unwrap();
+}
