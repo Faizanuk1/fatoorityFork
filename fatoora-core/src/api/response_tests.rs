@@ -309,3 +309,39 @@ async fn response_contract_all_invoice_endpoints_reject_http_400() {
     );
     mock.assert_hits_async(3).await;
 }
+
+#[tokio::test]
+async fn native_csid_body_read_failures_keep_legacy_classification() {
+    use std::io::{Read, Write};
+    for (policy, status, empty) in [
+        (BodyReadPolicy::Invoice, 200, false),
+        (BodyReadPolicy::Issuance, 200, false),
+        (BodyReadPolicy::Issuance, 401, true),
+        (BodyReadPolicy::Renewal, 200, true),
+        (BodyReadPolicy::Renewal, 428, true),
+    ] {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 4096];
+            let _ = stream.read(&mut request).unwrap();
+            write!(
+                stream,
+                "HTTP/1.1 {status} Test\r\nContent-Length: 100\r\nConnection: close\r\n\r\nx"
+            )
+            .unwrap();
+        });
+        let client = ZatcaClient::new(Config::default()).unwrap();
+        let request = HttpRequest::new("GET", format!("http://{address}/"));
+        let result = client.send(&request, policy).await;
+        server.join().unwrap();
+        if empty {
+            assert_eq!(result.unwrap(), (status, vec![]));
+        } else if matches!(policy, BodyReadPolicy::Invoice) {
+            assert!(matches!(result, Err(ZatcaError::ResponseRead { .. })));
+        } else {
+            assert!(matches!(result, Err(ZatcaError::InvalidResponse(_))));
+        }
+    }
+}

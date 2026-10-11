@@ -49,9 +49,9 @@ xsd-schema = { version = "=0.2.2", default-features = false }
 # Original byte ranges are part of the XML editing contract.
 roxmltree = { version = "0.21.1", features = ["positions"] }
 isocountry = "0.3.2"
-chrono = { version = "0.4.42", features = ["serde"] }
+chrono = { version = "0.4.42", default-features = false, features = ["std", "serde"] }
 iso_currency = { version = "0.5.3", features = ["with-serde"] }
-reqwest = { version = "0.13.0", features = ["json"] }
+http = "1"
 bitflags = { version = "2.10.0", features = ["serde"] }
 rust_decimal = { version = "1.40", default-features = false, features = ["std"] }
 num-bigint = "0.4.6"
@@ -59,6 +59,10 @@ num-traits = "0.2.19"
 regex = "1.12.2"
 fancy-regex = "0.16.2"
 unicode-blocks = "0.1.9"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { version = "0.13.0", features = ["json"] }
+chrono = { version = "0.4.42", default-features = false, features = ["clock"] }
 
 [dev-dependencies]
 tempfile = "3.23.0"

@@ -14,6 +14,8 @@
 namespace fatoora {
 namespace capi { struct BindingError; }
 class BindingError;
+namespace capi { struct ComplianceRequest; }
+class ComplianceRequest;
 namespace capi { struct Config; }
 class Config;
 namespace capi { struct CsidCompliance; }
@@ -22,6 +24,10 @@ namespace capi { struct CsidProduction; }
 class CsidProduction;
 namespace capi { struct Csr; }
 class Csr;
+namespace capi { struct InvoiceRequest; }
+class InvoiceRequest;
+namespace capi { struct ProductionRequest; }
+class ProductionRequest;
 namespace capi { struct SignedInvoice; }
 class SignedInvoice;
 namespace capi { struct ValidationResponse; }
@@ -56,6 +62,18 @@ public:
   inline diplomat::result<std::unique_ptr<fatoora::ValidationResponse>, std::unique_ptr<fatoora::BindingError>> report_simplified_invoice(const fatoora::SignedInvoice& invoice, const fatoora::CsidProduction& credentials, bool clearance_status, std::optional<std::string_view> accept_language) const;
 
   inline diplomat::result<std::unique_ptr<fatoora::ValidationResponse>, std::unique_ptr<fatoora::BindingError>> clear_standard_invoice(const fatoora::SignedInvoice& invoice, const fatoora::CsidProduction& credentials, bool clearance_status, std::optional<std::string_view> accept_language) const;
+
+  inline diplomat::result<std::unique_ptr<fatoora::ComplianceRequest>, std::unique_ptr<fatoora::BindingError>> prepare_post_csr_for_ccsid(const fatoora::Csr& csr, std::string_view otp) const;
+
+  inline diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>> prepare_post_ccsid_for_pcsid(const fatoora::CsidCompliance& credentials) const;
+
+  inline diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>> prepare_renew_csid(const fatoora::CsidProduction& credentials, const fatoora::Csr& csr, std::string_view otp, std::optional<std::string_view> accept_language) const;
+
+  inline diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>> prepare_check_invoice_compliance(const fatoora::SignedInvoice& invoice, const fatoora::CsidCompliance& credentials) const;
+
+  inline diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>> prepare_report_simplified_invoice(const fatoora::SignedInvoice& invoice, const fatoora::CsidProduction& credentials, bool clearance_status, std::optional<std::string_view> accept_language) const;
+
+  inline diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>> prepare_clear_standard_invoice(const fatoora::SignedInvoice& invoice, const fatoora::CsidProduction& credentials, bool clearance_status, std::optional<std::string_view> accept_language) const;
 
     inline const fatoora::capi::ZatcaClient* AsFFI() const;
     inline fatoora::capi::ZatcaClient* AsFFI();

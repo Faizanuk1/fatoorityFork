@@ -22,6 +22,12 @@ void add_ZatcaClient_binding(nb::module_ mod) {
         .def_static("create", std::move(maybe_op_unwrap(&_native::ZatcaClient::create)), "config"_a)
         .def("post_ccsid_for_pcsid", std::move(maybe_op_unwrap(&_native::ZatcaClient::post_ccsid_for_pcsid)), "credentials"_a)
         .def("post_csr_for_ccsid", std::move(maybe_op_unwrap(&_native::ZatcaClient::post_csr_for_ccsid)), "csr"_a, "otp"_a)
+        .def("prepare_check_invoice_compliance", std::move(maybe_op_unwrap(&_native::ZatcaClient::prepare_check_invoice_compliance)), "invoice"_a, "credentials"_a)
+        .def("prepare_clear_standard_invoice", std::move(maybe_op_unwrap(&_native::ZatcaClient::prepare_clear_standard_invoice)), "invoice"_a, "credentials"_a, "clearance_status"_a, "accept_language"_a= nb::none())
+        .def("prepare_post_ccsid_for_pcsid", std::move(maybe_op_unwrap(&_native::ZatcaClient::prepare_post_ccsid_for_pcsid)), "credentials"_a)
+        .def("prepare_post_csr_for_ccsid", std::move(maybe_op_unwrap(&_native::ZatcaClient::prepare_post_csr_for_ccsid)), "csr"_a, "otp"_a)
+        .def("prepare_renew_csid", std::move(maybe_op_unwrap(&_native::ZatcaClient::prepare_renew_csid)), "credentials"_a, "csr"_a, "otp"_a, "accept_language"_a= nb::none())
+        .def("prepare_report_simplified_invoice", std::move(maybe_op_unwrap(&_native::ZatcaClient::prepare_report_simplified_invoice)), "invoice"_a, "credentials"_a, "clearance_status"_a, "accept_language"_a= nb::none())
         .def("renew_csid", std::move(maybe_op_unwrap(&_native::ZatcaClient::renew_csid)), "credentials"_a, "csr"_a, "otp"_a, "accept_language"_a= nb::none())
         .def("report_simplified_invoice", std::move(maybe_op_unwrap(&_native::ZatcaClient::report_simplified_invoice)), "invoice"_a, "credentials"_a, "clearance_status"_a, "accept_language"_a= nb::none());
     

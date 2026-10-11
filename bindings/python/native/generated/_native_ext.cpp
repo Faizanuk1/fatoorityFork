@@ -4,8 +4,11 @@
 // Forward declarations for binding add functions
 namespace _native{
   
+void add_ComplianceRequest_binding(nb::module_);
 void add_CsidCompliance_binding(nb::module_);
 void add_CsidProduction_binding(nb::module_);
+void add_InvoiceRequest_binding(nb::module_);
+void add_ProductionRequest_binding(nb::module_);
 void add_ValidationMessage_binding(nb::module_);
 void add_ValidationResponse_binding(nb::module_);
 void add_ValidationResults_binding(nb::module_);
@@ -88,8 +91,11 @@ NB_MODULE(_native, mod)
         .def("__str__", [](const std::monostate &)
              { return ""; });// Module declarations
     // Add bindings
+    add_ComplianceRequest_binding(mod);
     add_CsidCompliance_binding(mod);
     add_CsidProduction_binding(mod);
+    add_InvoiceRequest_binding(mod);
+    add_ProductionRequest_binding(mod);
     add_ValidationMessage_binding(mod);
     add_ValidationResponse_binding(mod);
     add_ValidationResults_binding(mod);

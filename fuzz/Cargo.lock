@@ -456,6 +456,7 @@ dependencies = [
  "encoding_rs",
  "fancy-regex",
  "fatoora-derive",
+ "http",
  "iso_currency",
  "isocountry",
  "java-properties",

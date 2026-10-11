@@ -13,10 +13,13 @@
 #include <cstdlib>
 #include "../diplomat_runtime.hpp"
 #include "BindingError.hpp"
+#include "ComplianceRequest.hpp"
 #include "Config.hpp"
 #include "CsidCompliance.hpp"
 #include "CsidProduction.hpp"
 #include "Csr.hpp"
+#include "InvoiceRequest.hpp"
+#include "ProductionRequest.hpp"
 #include "SignedInvoice.hpp"
 #include "ValidationResponse.hpp"
 
@@ -45,6 +48,24 @@ namespace capi {
 
     typedef struct fatoora_ZatcaClient_clear_standard_invoice_result {union {fatoora::capi::ValidationResponse* ok; fatoora::capi::BindingError* err;}; bool is_ok;} fatoora_ZatcaClient_clear_standard_invoice_result;
     fatoora_ZatcaClient_clear_standard_invoice_result fatoora_ZatcaClient_clear_standard_invoice(const fatoora::capi::ZatcaClient* self, const fatoora::capi::SignedInvoice* invoice, const fatoora::capi::CsidProduction* credentials, bool clearance_status, diplomat::capi::OptionStringView accept_language);
+
+    typedef struct fatoora_ZatcaClient_prepare_post_csr_for_ccsid_result {union {fatoora::capi::ComplianceRequest* ok; fatoora::capi::BindingError* err;}; bool is_ok;} fatoora_ZatcaClient_prepare_post_csr_for_ccsid_result;
+    fatoora_ZatcaClient_prepare_post_csr_for_ccsid_result fatoora_ZatcaClient_prepare_post_csr_for_ccsid(const fatoora::capi::ZatcaClient* self, const fatoora::capi::Csr* csr, diplomat::capi::DiplomatStringView otp);
+
+    typedef struct fatoora_ZatcaClient_prepare_post_ccsid_for_pcsid_result {union {fatoora::capi::ProductionRequest* ok; fatoora::capi::BindingError* err;}; bool is_ok;} fatoora_ZatcaClient_prepare_post_ccsid_for_pcsid_result;
+    fatoora_ZatcaClient_prepare_post_ccsid_for_pcsid_result fatoora_ZatcaClient_prepare_post_ccsid_for_pcsid(const fatoora::capi::ZatcaClient* self, const fatoora::capi::CsidCompliance* credentials);
+
+    typedef struct fatoora_ZatcaClient_prepare_renew_csid_result {union {fatoora::capi::ProductionRequest* ok; fatoora::capi::BindingError* err;}; bool is_ok;} fatoora_ZatcaClient_prepare_renew_csid_result;
+    fatoora_ZatcaClient_prepare_renew_csid_result fatoora_ZatcaClient_prepare_renew_csid(const fatoora::capi::ZatcaClient* self, const fatoora::capi::CsidProduction* credentials, const fatoora::capi::Csr* csr, diplomat::capi::DiplomatStringView otp, diplomat::capi::OptionStringView accept_language);
+
+    typedef struct fatoora_ZatcaClient_prepare_check_invoice_compliance_result {union {fatoora::capi::InvoiceRequest* ok; fatoora::capi::BindingError* err;}; bool is_ok;} fatoora_ZatcaClient_prepare_check_invoice_compliance_result;
+    fatoora_ZatcaClient_prepare_check_invoice_compliance_result fatoora_ZatcaClient_prepare_check_invoice_compliance(const fatoora::capi::ZatcaClient* self, const fatoora::capi::SignedInvoice* invoice, const fatoora::capi::CsidCompliance* credentials);
+
+    typedef struct fatoora_ZatcaClient_prepare_report_simplified_invoice_result {union {fatoora::capi::InvoiceRequest* ok; fatoora::capi::BindingError* err;}; bool is_ok;} fatoora_ZatcaClient_prepare_report_simplified_invoice_result;
+    fatoora_ZatcaClient_prepare_report_simplified_invoice_result fatoora_ZatcaClient_prepare_report_simplified_invoice(const fatoora::capi::ZatcaClient* self, const fatoora::capi::SignedInvoice* invoice, const fatoora::capi::CsidProduction* credentials, bool clearance_status, diplomat::capi::OptionStringView accept_language);
+
+    typedef struct fatoora_ZatcaClient_prepare_clear_standard_invoice_result {union {fatoora::capi::InvoiceRequest* ok; fatoora::capi::BindingError* err;}; bool is_ok;} fatoora_ZatcaClient_prepare_clear_standard_invoice_result;
+    fatoora_ZatcaClient_prepare_clear_standard_invoice_result fatoora_ZatcaClient_prepare_clear_standard_invoice(const fatoora::capi::ZatcaClient* self, const fatoora::capi::SignedInvoice* invoice, const fatoora::capi::CsidProduction* credentials, bool clearance_status, diplomat::capi::OptionStringView accept_language);
 
     void fatoora_ZatcaClient_destroy(ZatcaClient* self);
 
@@ -102,6 +123,53 @@ inline diplomat::result<std::unique_ptr<fatoora::ValidationResponse>, std::uniqu
         clearance_status,
         accept_language.has_value() ? (diplomat::capi::OptionStringView{ { {accept_language.value().data(), accept_language.value().size()} }, true }) : (diplomat::capi::OptionStringView{ {}, false }));
     return result.is_ok ? diplomat::result<std::unique_ptr<fatoora::ValidationResponse>, std::unique_ptr<fatoora::BindingError>>(diplomat::Ok<std::unique_ptr<fatoora::ValidationResponse>>(std::unique_ptr<fatoora::ValidationResponse>(fatoora::ValidationResponse::FromFFI(result.ok)))) : diplomat::result<std::unique_ptr<fatoora::ValidationResponse>, std::unique_ptr<fatoora::BindingError>>(diplomat::Err<std::unique_ptr<fatoora::BindingError>>(std::unique_ptr<fatoora::BindingError>(fatoora::BindingError::FromFFI(result.err))));
+}
+
+inline diplomat::result<std::unique_ptr<fatoora::ComplianceRequest>, std::unique_ptr<fatoora::BindingError>> fatoora::ZatcaClient::prepare_post_csr_for_ccsid(const fatoora::Csr& csr, std::string_view otp) const {
+    auto result = fatoora::capi::fatoora_ZatcaClient_prepare_post_csr_for_ccsid(this->AsFFI(),
+        csr.AsFFI(),
+        {otp.data(), otp.size()});
+    return result.is_ok ? diplomat::result<std::unique_ptr<fatoora::ComplianceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Ok<std::unique_ptr<fatoora::ComplianceRequest>>(std::unique_ptr<fatoora::ComplianceRequest>(fatoora::ComplianceRequest::FromFFI(result.ok)))) : diplomat::result<std::unique_ptr<fatoora::ComplianceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Err<std::unique_ptr<fatoora::BindingError>>(std::unique_ptr<fatoora::BindingError>(fatoora::BindingError::FromFFI(result.err))));
+}
+
+inline diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>> fatoora::ZatcaClient::prepare_post_ccsid_for_pcsid(const fatoora::CsidCompliance& credentials) const {
+    auto result = fatoora::capi::fatoora_ZatcaClient_prepare_post_ccsid_for_pcsid(this->AsFFI(),
+        credentials.AsFFI());
+    return result.is_ok ? diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Ok<std::unique_ptr<fatoora::ProductionRequest>>(std::unique_ptr<fatoora::ProductionRequest>(fatoora::ProductionRequest::FromFFI(result.ok)))) : diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Err<std::unique_ptr<fatoora::BindingError>>(std::unique_ptr<fatoora::BindingError>(fatoora::BindingError::FromFFI(result.err))));
+}
+
+inline diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>> fatoora::ZatcaClient::prepare_renew_csid(const fatoora::CsidProduction& credentials, const fatoora::Csr& csr, std::string_view otp, std::optional<std::string_view> accept_language) const {
+    auto result = fatoora::capi::fatoora_ZatcaClient_prepare_renew_csid(this->AsFFI(),
+        credentials.AsFFI(),
+        csr.AsFFI(),
+        {otp.data(), otp.size()},
+        accept_language.has_value() ? (diplomat::capi::OptionStringView{ { {accept_language.value().data(), accept_language.value().size()} }, true }) : (diplomat::capi::OptionStringView{ {}, false }));
+    return result.is_ok ? diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Ok<std::unique_ptr<fatoora::ProductionRequest>>(std::unique_ptr<fatoora::ProductionRequest>(fatoora::ProductionRequest::FromFFI(result.ok)))) : diplomat::result<std::unique_ptr<fatoora::ProductionRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Err<std::unique_ptr<fatoora::BindingError>>(std::unique_ptr<fatoora::BindingError>(fatoora::BindingError::FromFFI(result.err))));
+}
+
+inline diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>> fatoora::ZatcaClient::prepare_check_invoice_compliance(const fatoora::SignedInvoice& invoice, const fatoora::CsidCompliance& credentials) const {
+    auto result = fatoora::capi::fatoora_ZatcaClient_prepare_check_invoice_compliance(this->AsFFI(),
+        invoice.AsFFI(),
+        credentials.AsFFI());
+    return result.is_ok ? diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Ok<std::unique_ptr<fatoora::InvoiceRequest>>(std::unique_ptr<fatoora::InvoiceRequest>(fatoora::InvoiceRequest::FromFFI(result.ok)))) : diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Err<std::unique_ptr<fatoora::BindingError>>(std::unique_ptr<fatoora::BindingError>(fatoora::BindingError::FromFFI(result.err))));
+}
+
+inline diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>> fatoora::ZatcaClient::prepare_report_simplified_invoice(const fatoora::SignedInvoice& invoice, const fatoora::CsidProduction& credentials, bool clearance_status, std::optional<std::string_view> accept_language) const {
+    auto result = fatoora::capi::fatoora_ZatcaClient_prepare_report_simplified_invoice(this->AsFFI(),
+        invoice.AsFFI(),
+        credentials.AsFFI(),
+        clearance_status,
+        accept_language.has_value() ? (diplomat::capi::OptionStringView{ { {accept_language.value().data(), accept_language.value().size()} }, true }) : (diplomat::capi::OptionStringView{ {}, false }));
+    return result.is_ok ? diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Ok<std::unique_ptr<fatoora::InvoiceRequest>>(std::unique_ptr<fatoora::InvoiceRequest>(fatoora::InvoiceRequest::FromFFI(result.ok)))) : diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Err<std::unique_ptr<fatoora::BindingError>>(std::unique_ptr<fatoora::BindingError>(fatoora::BindingError::FromFFI(result.err))));
+}
+
+inline diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>> fatoora::ZatcaClient::prepare_clear_standard_invoice(const fatoora::SignedInvoice& invoice, const fatoora::CsidProduction& credentials, bool clearance_status, std::optional<std::string_view> accept_language) const {
+    auto result = fatoora::capi::fatoora_ZatcaClient_prepare_clear_standard_invoice(this->AsFFI(),
+        invoice.AsFFI(),
+        credentials.AsFFI(),
+        clearance_status,
+        accept_language.has_value() ? (diplomat::capi::OptionStringView{ { {accept_language.value().data(), accept_language.value().size()} }, true }) : (diplomat::capi::OptionStringView{ {}, false }));
+    return result.is_ok ? diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Ok<std::unique_ptr<fatoora::InvoiceRequest>>(std::unique_ptr<fatoora::InvoiceRequest>(fatoora::InvoiceRequest::FromFFI(result.ok)))) : diplomat::result<std::unique_ptr<fatoora::InvoiceRequest>, std::unique_ptr<fatoora::BindingError>>(diplomat::Err<std::unique_ptr<fatoora::BindingError>>(std::unique_ptr<fatoora::BindingError>(fatoora::BindingError::FromFFI(result.err))));
 }
 
 inline const fatoora::capi::ZatcaClient* fatoora::ZatcaClient::AsFFI() const {
