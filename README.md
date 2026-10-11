@@ -73,6 +73,7 @@ pip install fatoority
 ```sh
 npm install fatoority
 ```
+</details>
 
 <details>
 <summary>C/C++</summary>
