@@ -46,6 +46,32 @@ def check_release(root, tag=None):
             if len(entries) != 1 or entries[0]["version"] != version:
                 raise ValueError(f"{path}: {name} must be locked at {version}")
 
+    # Independent tooling workspaces keep their own resolutions of path crates.
+    tool_manifests = [root / "fuzz/Cargo.toml", *root.glob("scripts/*/Cargo.toml")]
+    for manifest_path in tool_manifests:
+        if not manifest_path.exists():
+            continue
+        manifest = read_toml(manifest_path)
+        if "workspace" not in manifest:
+            continue
+        direct = set()
+        for dependency in manifest.get("dependencies", {}).values():
+            if isinstance(dependency, dict) and "path" in dependency:
+                dependency_manifest = read_toml(manifest_path.parent / dependency["path"] / "Cargo.toml")
+                name = dependency_manifest["package"]["name"]
+                if name in names:
+                    direct.add(name)
+        if not direct:
+            continue
+        lock_path = manifest_path.with_name("Cargo.lock")
+        packages = read_toml(lock_path)["package"]
+        local = [p for p in packages if p["name"] in names and "source" not in p]
+        expected = direct | {p["name"] for p in local}
+        for name in expected:
+            entries = [p for p in local if p["name"] == name]
+            if len(entries) != 1 or entries[0]["version"] != version:
+                raise ValueError(f"{lock_path.relative_to(root)}: {name} must be locked at {version}")
+
     if tag is not None and tag != f"v{version}":
         raise ValueError(f"Release tag must be v{version}, found {tag!r}")
     return version
