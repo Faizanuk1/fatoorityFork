@@ -22,6 +22,7 @@ jobs:
       - run: cargo install diplomat-tool --version 0.16.1 --locked
       - run: python3 scripts/generate_bindings.py --check
       - run: python3 scripts/build_js.py
+      - run: python3 scripts/check_wasm_size.py --json
       - run: npm run check --prefix bindings/js
       - run: node bindings/js/tests/runtime.test.mjs
       - run: npx --prefix bindings/js playwright install --with-deps chromium

@@ -13,12 +13,23 @@ use xsd_schema::{SchemaError, SchemaLoader, SchemaResult, SchemaSet, SchemaSetBu
 const CCT: &str = "urn:un:unece:uncefact:data:specification:CoreComponentTypeSchemaModule:2";
 const DECIMAL_TYPES: [&str; 4] = ["AmountType", "MeasureType", "NumericType", "QuantityType"];
 
+#[cfg(not(target_arch = "wasm32"))]
 macro_rules! resource {
     ($path:literal) => {
         (
             $path,
             include_bytes!(concat!("../../../assets/schemas/UBL2.1/xsd/", $path))
                 as &'static [u8],
+        )
+    };
+}
+
+#[cfg(target_arch = "wasm32")]
+macro_rules! resource {
+    ($path:literal) => {
+        (
+            $path,
+            include_bytes!(concat!(env!("OUT_DIR"), "/schemas/", $path)) as &'static [u8],
         )
     };
 }
@@ -56,6 +67,15 @@ impl SchemaLoader for BundledLoader {
                 "schema is not a bundled resource",
             ))
         })?;
+        #[cfg(target_arch = "wasm32")]
+        let decoded = miniz_oxide::inflate::decompress_to_vec_zlib(bytes).map_err(|error| {
+            SchemaError::IoError(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("invalid embedded schema {name}: {error:?}"),
+            ))
+        })?;
+        #[cfg(target_arch = "wasm32")]
+        let bytes = decoded.as_slice();
         let text = std::str::from_utf8(bytes).expect("embedded schemas are UTF-8");
         if name == "common/CCTS_CCT_SchemaModule-2.1.xsd" {
             // Only these four unbounded families are adapted. Original resource

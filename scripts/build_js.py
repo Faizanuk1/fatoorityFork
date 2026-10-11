@@ -4,13 +4,18 @@ from pathlib import Path
 import os
 import shutil
 import subprocess
+import sys
+from check_wasm_size import strip_binding_metadata
 ROOT = Path(__file__).resolve().parents[1]
-subprocess.run(['cargo', 'build', '--locked', '--release', '-p', 'fatoora-ffi', '--target', 'wasm32-unknown-unknown'], cwd=ROOT, check=True)
+subprocess.run(['cargo', 'build', '--locked', '--profile', 'wasm-release', '-p', 'fatoora-ffi', '--target', 'wasm32-unknown-unknown'], cwd=ROOT, check=True)
 target = Path(os.environ.get('CARGO_TARGET_DIR', ROOT / 'target'))
 if not target.is_absolute():
     target = ROOT / target
-shutil.copyfile(target / 'wasm32-unknown-unknown/release/fatoora_ffi.wasm', ROOT / 'bindings/js/fatoora_ffi.wasm')
+shutil.copyfile(target / 'wasm32-unknown-unknown/wasm-release/fatoora_ffi.wasm', ROOT / 'bindings/js/fatoora_ffi.wasm')
 subprocess.run(['node', str(ROOT / 'bindings/js/optimize-wasm.mjs'), str(ROOT / 'bindings/js/fatoora_ffi.wasm')], check=True)
+subprocess.run(['node', str(ROOT / 'bindings/js/node_modules/binaryen/bin/wasm-opt'), '-Oz', '--enable-bulk-memory', '--enable-nontrapping-float-to-int', str(ROOT / 'bindings/js/fatoora_ffi.wasm'), '-o', str(ROOT / 'bindings/js/fatoora_ffi.wasm')], check=True)
+strip_binding_metadata(ROOT / 'bindings/js/fatoora_ffi.wasm')
+subprocess.run([sys.executable, str(ROOT / 'scripts/check_wasm_size.py'), str(ROOT / 'bindings/js/fatoora_ffi.wasm')], check=True)
 for name in ('LICENSE-MIT', 'LICENSE-APACHE', 'THIRD_PARTY_NOTICES.md'):
     shutil.copyfile(ROOT / name, ROOT / 'bindings/js' / name)
 
