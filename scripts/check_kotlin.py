@@ -44,7 +44,10 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
-test { systemProperty 'jna.nosys', 'true' }
+test {
+    systemProperty 'jna.nosys', 'true'
+    systemProperty 'fatoora.fixtures', file('fixtures').absolutePath
+}
 """
             % (json.dumps(repository.as_uri()), version)
         )
@@ -53,6 +56,15 @@ test { systemProperty 'jna.nosys', 'true' }
         shutil.copyfile(
             PROJECT / "src/test/java/com/fatoora/JavaContractsTest.java", source
         )
+        fixtures = ROOT / "fatoora-core/tests/fixtures/sdk-parity"
+        for name in (
+            "cases/simplified-invoice/input.xml",
+            "credentials/certificate.der",
+            "credentials/private-key.der",
+        ):
+            destination = consumer / "fixtures" / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(fixtures / name, destination)
         executable = PROJECT / ("gradlew.bat" if os.name == "nt" else "gradlew")
         subprocess.run(
             [str(executable), "--no-daemon", "-p", directory, "test"],
