@@ -25,6 +25,10 @@ the commands above also support local packages before publication. Match the app
 the package. NuGet supplies the native asset at runtime, so no library search-path
 override is needed.
 
+Release `linux-x64` assets are built and tested on glibc 2.28 (AlmaLinux 8).
+They require glibc 2.28 or newer; musl/Alpine is not included. Locally built
+packages inherit the build host's libc requirements.
+
 Generated sources are checked in. Building the package does not require Diplomat.
 Regeneration uses a pinned fork containing the runtime safety fixes; see the
 [binding workflow](../../development/diplomat.md#c-net).

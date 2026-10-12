@@ -72,6 +72,10 @@ NuGet.org through trusted publishing after all platform consumers pass. For a lo
 dotnet add package Fatoority --version 0.4.1 --source /absolute/path/to/dist/dotnet
 ```
 
+Release `linux-x64` assets are built and tested on glibc 2.28 (AlmaLinux 8).
+They require glibc 2.28 or newer; musl/Alpine is not included. Locally built
+packages inherit the build host's libc requirements.
+
 ## Regenerate
 
 The generator uses `mqqz/diplomat` commit
