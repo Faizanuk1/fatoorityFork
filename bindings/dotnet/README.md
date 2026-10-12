@@ -97,3 +97,17 @@ The .NET contracts cover encoding, optional strings, structured errors, disposal
 concurrent borrowed reads, keys, invoice signing, hashes against frozen SDK
 fixtures, prepared requests, response decoding, and owned snapshots. These tests
 run locally without contacting ZATCA.
+
+## License
+
+Original project code is `MIT OR Apache-2.0`. The bundled native validator also
+contains ZATCA-derived rule predicates and messages under the terms recorded in
+[THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md), which the NuGet license
+metadata references. The package includes the upstream notice and LGPL v3/GPL v3
+texts under `licenses/zatca/`. The GPL text is incorporated by LGPL v3; it does
+not separately relicense all project code.
+
+Downstream distribution must account for applicable source and relinking
+requirements. Source and build instructions are in the
+[Fatoority repository](https://github.com/mqqz/fatoority), with versioned source
+under the corresponding release tag. No ZATCA SDK JAR is bundled.

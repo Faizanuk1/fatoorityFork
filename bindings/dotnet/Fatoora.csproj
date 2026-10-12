@@ -8,7 +8,7 @@
     <Version>0.4.1</Version>
     <Authors>mqqz</Authors>
     <Description>C# bindings for the Fatoora ZATCA SDK.</Description>
-    <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
+    <PackageLicenseFile>THIRD_PARTY_NOTICES.md</PackageLicenseFile>
     <RepositoryUrl>https://github.com/mqqz/fatoority</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
@@ -16,6 +16,7 @@
     <Compile Include="generated/**/*.cs" />
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../../LICENSE-MIT;../../LICENSE-APACHE;../../THIRD_PARTY_NOTICES.md" Pack="true" PackagePath="/" />
+    <None Include="../../fatoora-core/tests/fixtures/business-rules/LICENSE-LGPL-3.0.txt;../../fatoora-core/tests/fixtures/business-rules/LICENSE-GPL-3.0.txt;../../fatoora-core/tests/fixtures/business-rules/NOTICE.md" Pack="true" PackagePath="licenses/zatca/" />
     <None Include="$(NativeLibrary)" Pack="true" PackagePath="runtimes/$(NativeRid)/native/" Condition="'$(NativeLibrary)' != ''" />
     <None Include="$(NativeRoot)/runtimes/**/*" Pack="true" PackagePath="runtimes/" Condition="'$(NativeRoot)' != ''" />
   </ItemGroup>

@@ -161,9 +161,9 @@ tests are recorded in the corpus coverage ledger. The imported predicates and
 messages retain the upstream terms described above; the general XML, numeric,
 and reporting infrastructure is project-authored. Python wheels include the SDK
 rule notices and LGPL/GPL texts under `fatoora/licenses/zatca/`. Native CLI and FFI
-archives include the same files under `licenses/zatca/`. The npm WASM package
-compiles these rule predicates and messages too and includes the same files under
-`licenses/zatca/`. Its package license field points to this notice because the
+archives include the same files under `licenses/zatca/`. The npm WASM and NuGet packages
+compile these rule predicates and messages too and include the same files under
+`licenses/zatca/`. Their package license metadata points to this notice because the
 project license does not replace these upstream terms.
 
 ## Templates
