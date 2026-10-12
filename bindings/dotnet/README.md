@@ -75,8 +75,7 @@ dotnet add package Fatoority --version 0.4.1 --source /absolute/path/to/dist/dot
 ## Regenerate
 
 The generator uses `mqqz/diplomat` commit
-`35be220af2f32ab5f1d709d3661eda4a8e5a57b9` plus the reviewed patch at
-`scripts/patches/diplomat-dotnet-safety.patch`. The patch provides strict UTF-16
+`8f2d28f1b39653320db1446ebd8fd264cc8a166d`. This revision provides strict UTF-16
 encoding, synchronized borrowed-span access, and native handle retention during
 borrowed reads. It permits scoped read-only spans from disposable sources while
 preserving the other borrowing restrictions.
@@ -87,11 +86,11 @@ python3 scripts/generate_dotnet.py
 python3 scripts/generate_dotnet.py --check
 ```
 
-Installation tests the patched backend and installs into `.tools/diplomat-fork`.
+Installation tests the backend and installs into `.tools/diplomat-fork`.
 It leaves the upstream generator on PATH for other languages.
 `DIPLOMAT_TOOL_DOTNET` overrides the C# generator path. The combined
 `scripts/generate_bindings.py --check` checks C# as well as the other bindings.
-Edit generator inputs or the patch, then regenerate; do not edit generated C#.
+Edit generator inputs or the fork, then regenerate; do not edit generated C#.
 
 The .NET contracts cover encoding, optional strings, structured errors, disposal,
 concurrent borrowed reads, keys, invoice signing, hashes against frozen SDK

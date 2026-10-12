@@ -150,8 +150,7 @@ Run `npm ci --prefix bindings/js`, `python3 scripts/build_js.py`, and `python3 s
 
 The [C# reference](../reference/bindings/csharp.md) covers installation and runtime
 contracts. The generator uses `mqqz/diplomat` commit
-`35be220af2f32ab5f1d709d3661eda4a8e5a57b9` plus
-`scripts/patches/diplomat-dotnet-safety.patch`. It installs separately from the
+`8f2d28f1b39653320db1446ebd8fd264cc8a166d`. It installs separately from the
 upstream generator used by the other bindings:
 
 ```sh

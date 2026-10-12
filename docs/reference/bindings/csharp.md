@@ -26,7 +26,7 @@ the package. NuGet supplies the native asset at runtime, so no library search-pa
 override is needed.
 
 Generated sources are checked in. Building the package does not require Diplomat.
-Regeneration uses a pinned fork plus a checked-in safety patch; see the
+Regeneration uses a pinned fork containing the runtime safety fixes; see the
 [binding workflow](../../development/diplomat.md#c-net).
 
 ## Example
