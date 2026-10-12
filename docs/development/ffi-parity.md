@@ -2,7 +2,7 @@
 
 The [Rust core](https://github.com/mqqz/fatoority/tree/main/fatoora-core/src) defines behavior. The Diplomat bridge in
 [fatoora-ffi](https://github.com/mqqz/fatoority/tree/main/fatoora-ffi/src) exposes that behavior through generated C,
-C++, Nanobind and JavaScript/TypeScript bindings. The public [Python facade](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py)
+C++, C#, Nanobind and JavaScript/TypeScript bindings. The public [Python facade](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py)
 handles Python values, exceptions, and lifetimes. CFFI and the former handwritten
 C ABI have been removed.
 
@@ -17,6 +17,14 @@ This table maps exposed capabilities to bridge methods and regression coverage.
 Exposure does not imply that every platform build has passed. See
 [Diplomat bindings](diplomat.md) for generation, ownership, and verification status.
 Generated C names follow `fatoora_Type_method`; C++ uses `fatoora::Type::method`.
+
+The [C# contracts](https://github.com/mqqz/fatoority/blob/main/bindings/dotnet/tests/Program.cs) exercise optional text,
+strict Unicode conversion, native errors, deterministic disposal, key encodings,
+invoice signing, hashes against the frozen SDK fixtures, prepared requests, and
+response snapshots. Separate runtime tests exercise concurrent borrowed-byte
+access and source disposal. `scripts/check_dotnet.py --package-dir dist/dotnet`
+also runs the contracts in a fresh NuGet consumer. The CI matrix covers Linux,
+Windows, and macOS; local Linux results do not establish the other platform outcomes.
 
 | Capability | Bridge type and methods | Contract coverage |
 | --- | --- | --- |

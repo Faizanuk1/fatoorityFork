@@ -1,6 +1,9 @@
 # Diplomat bindings
 
 Diplomat generates the C, C++, Python and JavaScript/TypeScript interfaces from `fatoora-ffi`.
+Direct C# generation uses a separately pinned fork; see the
+[C# build instructions](../reference/bindings/csharp.md) and the
+[C# generation workflow](#c-net).
 The Rust core remains independent of the binding framework. The public Python
 API in [api.py](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py) wraps the generated private
 `fatoora._native` extension and supplies decimal conversion, exceptions, and
@@ -102,6 +105,7 @@ signatures or documentation; do not edit generated files directly.
 
 ```sh
 cargo install diplomat-tool --version 0.16.1 --locked
+python3 scripts/install_dotnet_generator.py
 python scripts/generate_bindings.py
 python scripts/generate_bindings.py --check
 cargo test -p fatoora-ffi --locked
@@ -141,3 +145,27 @@ The build applies the `wasm-release` profile, lossless schema compression and
 Binaryen `wasm-opt -Oz`; raw and gzip size limits run before packaging.
 
 Run `npm ci --prefix bindings/js`, `python3 scripts/build_js.py`, and `python3 scripts/check_js_package.py` after generating bindings. The JavaScript CI job also checks TypeScript declarations and exercises Chromium.
+
+## C# / .NET
+
+The [C# reference](../reference/bindings/csharp.md) covers installation and runtime
+contracts. The generator uses `mqqz/diplomat` commit
+`35be220af2f32ab5f1d709d3661eda4a8e5a57b9` plus
+`scripts/patches/diplomat-dotnet-safety.patch`. It installs separately from the
+upstream generator used by the other bindings:
+
+```sh
+python3 scripts/install_dotnet_generator.py
+python3 scripts/generate_dotnet.py
+python3 scripts/generate_dotnet.py --check
+python3 scripts/check_dotnet.py
+```
+
+`DIPLOMAT_TOOL_DOTNET` overrides `.tools/diplomat-fork/bin/diplomat-tool`.
+The installer applies the patch and tests the backend before installation.
+Generated C# lives in `bindings/dotnet/generated`; the combined generation check
+also checks these files. All opaque Rust bridge types opt into .NET disposal.
+
+The .NET workflow builds native assets for each runner, tests host packages,
+combines the assets, and tests the combined NuGet package on each platform.
+It uploads a `nuget` artifact without publishing to NuGet.org.

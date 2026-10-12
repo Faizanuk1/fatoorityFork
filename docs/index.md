@@ -39,6 +39,8 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
 
     - JavaScript / TypeScript (WebAssembly with async fetch)
 
+    - C# / .NET 8 (NuGet with native runtime assets)
+
 ## Installation
 
 === "Rust"
@@ -62,6 +64,18 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
     Install the resulting tarball in your application. See the
     [JS/TS reference](reference/bindings/javascript.md) for browser deployment,
     async API calls and package sizes. Version tags publish the tested package to npm through GitHub Actions.
+
+=== "C# / .NET"
+    Build a local NuGet package from a source checkout:
+    ```sh
+    python3 scripts/package_dotnet.py --output-dir dist/dotnet
+    ```
+    Install it in your application's project:
+    ```sh
+    dotnet add package Fatoority --version 0.4.1 --source /absolute/path/to/dist/dotnet
+    ```
+    See the [C# / .NET reference](reference/bindings/csharp.md) for requirements,
+    native platforms, and ownership rules.
 
 === "C (FFI)"
     Download the precompiled ffi library and headers for your platform from [github releases](https://github.com/mqqz/fatoority/releases)
@@ -103,6 +117,17 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
     key_pem = key.to_pem()
     ```
 
+=== "C# / .NET"
+    ```csharp
+    using Fatoora;
+
+    using var properties = CsrProperties.ParseCsrConfigFile("csr.properties");
+    using var key = SigningKey.Generate();
+    using var csr = properties.Build(key, 0); // Nonproduction.
+    string csrPem = csr.ToPem();
+    string keyPem = key.ToPem();
+    ```
+
 === "CLI"
     ```bash
     fatoora csr --csr-config csr.properties --generated-csr csr.pem --private-key key.pem --pem
@@ -119,5 +144,6 @@ JS objects belong to their WASM instance and cannot be shared between workers.
 - [CLI](guides/cli.md)
 - [JavaScript / TypeScript](reference/bindings/javascript.md)
 - [Python Bindings](reference/bindings/python.md)
+- [C# / .NET](reference/bindings/csharp.md)
 - [Benchmarks](benchmarks.md)
 - [Contributing](contributing.md)

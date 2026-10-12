@@ -1,6 +1,6 @@
 # CSR Generation
 
-Create CSRs and private keys using Rust, Python, or C.
+Create CSRs and private keys using Rust or the language bindings.
 
 ## Example
 === "Rust"
@@ -16,6 +16,11 @@ Create CSRs and private keys using Rust, Python, or C.
 === "JavaScript / TypeScript"
     ```js
     --8<-- "bindings/js/examples/sdk.mjs:csr"
+    ```
+
+=== "C# / .NET"
+    ```csharp
+    --8<-- "bindings/dotnet/examples/SdkExamples.cs:csr"
     ```
 
 === "C"
@@ -38,3 +43,5 @@ C examples include `fatoora.h`; compile the adapter once with your application.
 See the [C build instructions](../development/c-api.md#build-and-run).
 
 See the [JavaScript / TypeScript reference](../reference/bindings/javascript.md) for installation and runtime contracts.
+
+See the [C# / .NET reference](../reference/bindings/csharp.md) for installation, imports, and ownership rules.
