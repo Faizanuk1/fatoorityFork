@@ -14,6 +14,11 @@ Generating QR payloads from finalized/signed invoices and reading embedded QR pa
     --8<-- "bindings/python/examples/qr.py:example"
     ```
 
+=== "C# / .NET"
+    ```csharp
+    --8<-- "bindings/dotnet/examples/SdkExamples.cs:qr"
+    ```
+
 === "C"
     ```c
     --8<-- "bindings/c/examples/qr.c:example"
@@ -35,3 +40,5 @@ See also: [QR Reference](../reference/qr.md)
 
 C examples include `fatoora.h`; compile the adapter once with your application.
 See the [C build instructions](../development/c-api.md#build-and-run).
+
+See the [C# / .NET reference](../reference/bindings/csharp.md) for installation, imports, and ownership rules.

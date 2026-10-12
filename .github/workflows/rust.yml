@@ -22,7 +22,7 @@ jobs:
       PROPTEST_CASES: "256"
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Test native artifact import checks
@@ -54,6 +54,13 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
         run: cargo test --locked --manifest-path scripts/xsd-compat/Cargo.toml
+      - uses: actions/cache@v4
+        id: diplomat-fork
+        with:
+          path: .tools/diplomat-fork
+          key: diplomat-fork-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/install_dotnet_generator.py') }}
+      - if: steps.diplomat-fork.outputs.cache-hit != 'true'
+        run: python3 scripts/install_dotnet_generator.py
       - name: Check generated bindings and native contracts
         run: |
           cargo install diplomat-tool --version 0.16.1 --locked

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Fatoora.csproj" />
+    <Compile Include="Program.cs" />
+    <None Include="$(NativeLibrary)" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Condition="'$(NativeLibrary)' != ''" />
+  </ItemGroup>
+</Project>

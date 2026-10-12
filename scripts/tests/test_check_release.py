@@ -57,6 +57,13 @@ version = "0.2.0"
         with self.assertRaisesRegex(ValueError, "JavaScript"):
             release.check_release(self.root)
 
+    def test_dotnet_package_version(self):
+        self.write("bindings/dotnet/Fatoora.csproj", '<Project><PropertyGroup><Version>0.2.0</Version></PropertyGroup></Project>')
+        self.assertEqual(release.check_release(self.root), "0.2.0")
+        self.replace("bindings/dotnet/Fatoora.csproj", "0.2.0", "0.1.3")
+        with self.assertRaisesRegex(ValueError, "C# package"):
+            release.check_release(self.root)
+
     def test_tool_workspaces_reject_stale_transitive_sdk_versions(self):
         for directory, core_path in (("fuzz", "../core"), ("scripts/xsd-compat", "../../core")):
             with self.subTest(directory=directory):

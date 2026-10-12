@@ -122,6 +122,7 @@ pub mod ffi {
     use super::{ErrorData, boundary, write};
     use std::fmt::Write;
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct BindingError(pub(super) ErrorData);
     impl BindingError {
         pub fn code(&self) -> i32 {
@@ -135,6 +136,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct Text(pub(crate) String);
     impl Text {
         pub fn value(

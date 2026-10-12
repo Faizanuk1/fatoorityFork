@@ -1,0 +1,167 @@
+name: dotnet
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to NuGet.org (select an existing version tag)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            # AlmaLinux 8 / glibc 2.28, compatible with .NET 8 on RHEL 8.
+            container: quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae
+          - os: windows-latest
+          - os: macos-latest
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepare Linux baseline container
+        if: runner.os == 'Linux'
+        run: |
+          dnf install -y libicu
+          echo /opt/python/cp312-cp312/bin >> "$GITHUB_PATH"
+      - uses: actions/setup-python@v7
+        if: runner.os != 'Linux'
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Keep baseline-container dependencies separate from host builds.
+          key: dotnet-${{ matrix.container || matrix.os }}
+      - run: python scripts/check_release.py
+      - name: Check publication tag
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          test "$RELEASE_REF_TYPE" = tag
+          python scripts/check_release.py --tag "$RELEASE_TAG"
+      - run: python scripts/check_dotnet.py
+      - run: python scripts/package_dotnet.py --output-dir dist/dotnet --stage-dir dist/native
+      - name: Check Linux glibc baseline
+        if: runner.os == 'Linux'
+        run: python scripts/check_dotnet_linux.py dist/native/runtimes/linux-x64/native/libfatoora_ffi.so
+      - run: python scripts/check_dotnet.py --package-only --package-dir dist/dotnet
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-native-${{ matrix.os }}
+          path: dist/native/
+          if-no-files-found: error
+  package:
+    needs: native
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dotnet-native-*
+          path: dist/native
+          merge-multiple: true
+      - run: python scripts/package_dotnet.py --native-root dist/native --output-dir dist/nuget
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget
+          path: dist/nuget/*.nupkg
+          if-no-files-found: error
+  package-consumer:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            # AlmaLinux 8 / glibc 2.28, compatible with .NET 8 on RHEL 8.
+            container: quay.io/pypa/manylinux_2_28_x86_64@sha256:4131ddd7acb9c6c966af02fe7e71edc51e078c2d41f475966697676430bfa2ae
+          - os: windows-latest
+          - os: macos-latest
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepare Linux baseline container
+        if: runner.os == 'Linux'
+        run: |
+          dnf install -y libicu
+          echo /opt/python/cp312-cp312/bin >> "$GITHUB_PATH"
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v7
+        if: runner.os != 'Linux'
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget
+          path: dist/nuget
+      - run: python scripts/check_dotnet.py --package-only --package-dir dist/nuget
+  publish:
+    needs: package-consumer
+    if: |
+      github.repository == 'mqqz/fatoority' &&
+      ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish))
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: nuget-publish-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget
+          path: dist/nuget
+      - name: Check publication tag and package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          test "$RELEASE_REF_TYPE" = tag
+          python scripts/check_release.py --tag "$RELEASE_TAG"
+          test -f "dist/nuget/Fatoority.${RELEASE_TAG#v}.nupkg"
+      - name: Authenticate to NuGet.org
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: mqqz
+      - name: Publish tested package
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          dotnet nuget push "dist/nuget/Fatoority.${RELEASE_TAG#v}.nupkg"
+          --api-key "$NUGET_API_KEY"
+          --source https://api.nuget.org/v3/index.json

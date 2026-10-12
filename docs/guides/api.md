@@ -19,6 +19,11 @@ Using the `fatoora-core` API client for compliance, reporting, and clearance API
     --8<-- "bindings/js/examples/sdk.mjs:api"
     ```
 
+=== "C# / .NET"
+    ```csharp
+    --8<-- "bindings/dotnet/examples/SdkExamples.cs:api"
+    ```
+
 === "C"
     ```c
     --8<-- "bindings/c/examples/api.c:example"
@@ -60,3 +65,5 @@ C examples include `fatoora.h`; compile the adapter once with your application.
 See the [C build instructions](../development/c-api.md#build-and-run).
 
 See the [JavaScript / TypeScript reference](../reference/bindings/javascript.md) for installation and runtime contracts.
+
+See the [C# / .NET reference](../reference/bindings/csharp.md) for installation, imports, and ownership rules.
