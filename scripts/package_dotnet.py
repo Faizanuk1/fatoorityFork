@@ -46,7 +46,7 @@ def main():
     package = args.output_dir / f"Fatoority.{version}.nupkg"
     package.unlink(missing_ok=True)
     subprocess.run([os.environ.get("DOTNET", "dotnet"), "pack", str(ROOT / "bindings/dotnet/Fatoora.csproj"),
-                    "-c", "Release", "--output", str(args.output_dir.resolve()),
+                    "-c", "Release", f"-p:PackageOutputPath={args.output_dir.resolve()}",
                     *native_args,
                     f"-p:PackageVersion={version}"], cwd=ROOT, check=True)
     with ZipFile(package) as archive:
