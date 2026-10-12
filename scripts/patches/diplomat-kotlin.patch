@@ -1,5 +1,5 @@
 diff --git a/tool/src/kotlin/mod.rs b/tool/src/kotlin/mod.rs
-index e536d5e..bfc4fd3 100644
+index e536d5e..5be5de8 100644
 --- a/tool/src/kotlin/mod.rs
 +++ b/tool/src/kotlin/mod.rs
 @@ -73,7 +73,9 @@ impl KotlinConfig {
@@ -56,7 +56,7 @@ index e536d5e..bfc4fd3 100644
                      ok_path: ok_path.as_str(),
                      err_path: err_path.as_str(),
                  }
-@@ -2285,6 +2301,51 @@ mod test {
+@@ -2285,6 +2301,52 @@ mod test {
      use super::formatter::test::new_tcx;
      use super::{formatter::KotlinFormatter, ItemGenContext};
  
@@ -96,6 +96,7 @@ index e536d5e..bfc4fd3 100644
 +        assert!(value.contains("DW.lib.diplomat_buffer_write_destroy(write)"));
 +        assert!(!value.contains("ResultPointer?"));
 +        assert!(!value.contains("Cleaner"));
++        assert!(value.contains("@Volatile"));
 +        let lib = files
 +            .iter()
 +            .find(|(name, _)| name.ends_with("/Lib.kt"))
@@ -108,6 +109,44 @@ index e536d5e..bfc4fd3 100644
      #[test]
      fn test_enum() {
          let tk_stream = quote! {
+diff --git a/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_finalizers.snap b/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_finalizers.snap
+index 8d2eff4..2acb4a3 100644
+--- a/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_finalizers.snap
++++ b/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_finalizers.snap
+@@ -21,6 +21,7 @@ class MyOpaqueStruct internal constructor (
+     // up by the garbage collector.
+     internal val selfEdges: List<Any>,
+     internal val bEdges: List<Any?>,
++    @Volatile
+     internal var owned: Boolean,
+ )  {
+ 
+diff --git a/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_mocking_interface.snap b/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_mocking_interface.snap
+index 8d2eff4..2acb4a3 100644
+--- a/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_mocking_interface.snap
++++ b/tool/src/kotlin/snapshots/diplomat_tool__kotlin__test__opaque_gen_with_mocking_interface.snap
+@@ -21,6 +21,7 @@ class MyOpaqueStruct internal constructor (
+     // up by the garbage collector.
+     internal val selfEdges: List<Any>,
+     internal val bEdges: List<Any?>,
++    @Volatile
+     internal var owned: Boolean,
+ )  {
+ 
+diff --git a/tool/templates/kotlin/Opaque.kt.jinja b/tool/templates/kotlin/Opaque.kt.jinja
+index 69cf702..583ebfc 100644
+--- a/tool/templates/kotlin/Opaque.kt.jinja
++++ b/tool/templates/kotlin/Opaque.kt.jinja
+@@ -47,6 +47,9 @@ class {{type_name}} internal constructor (
+     internal val {{lt}}Edges: List<Any?>,
+     {%- endfor %}
+     {%- endif %}
++    {%- if use_finalizers_not_cleaners %}
++    @Volatile
++    {%- endif %}
+     internal var owned: Boolean,
+ {%- if generate_mocking_interface %}
+ ): {{type_name}}Interface {%- if is_custom_error %}: Exception("Rust error result for {{type_name}}") {%- endif %}
 diff --git a/tool/templates/kotlin/OpaqueReturn.kt.jinja b/tool/templates/kotlin/OpaqueReturn.kt.jinja
 index e9418e2..151df19 100644
 --- a/tool/templates/kotlin/OpaqueReturn.kt.jinja

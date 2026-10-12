@@ -177,7 +177,8 @@ The [Kotlin reference](../reference/bindings/kotlin.md) covers the JVM facade an
 Android package. The installer pins upstream Diplomat at
 `d53b78666c85f6e3bad34d70c0dbd22052b4cabd` (including #1295) and applies
 `scripts/patches/diplomat-kotlin.patch`. The patch fixes nullable opaque results,
-failed string-write cleanup and Boolean finalizer configuration, with backend
+failed string-write cleanup, Boolean finalizer configuration and finalizer
+ownership visibility, with backend
 regression tests. It does not modify the generator used for other languages.
 
 ```sh

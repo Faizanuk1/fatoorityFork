@@ -23,6 +23,7 @@ class InvoiceTotals internal constructor (
     // These ensure that anything that is borrowed is kept alive and not cleaned
     // up by the garbage collector.
     internal val selfEdges: List<Any>,
+    @Volatile
     internal var owned: Boolean,
 )  {
 
