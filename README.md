@@ -48,7 +48,7 @@ Everything done by the official [ZATCA SDK](https://sandbox.zatca.gov.sa/downloa
 - 📨 [API Requests](https://docs.fatoority.com/guides/api/)
 
 🚀 *But we do it faster and better* e.g. ~190x faster invoice hashing than ZATCA's SDK (see [`bench/`](https://github.com/mqqz/fatoority/blob/main/bench/cli/results/hash_bench.md))
-+ rigorously tested with fuzzing and ~97% coverage
+⚙️ Rigorously tested with fuzzing and ~97% coverage
 
 ## 📥 Installation
 <details>
@@ -68,10 +68,10 @@ pip install fatoority
 </details>
 
 <details>
-<summary>JavaScript / TypeScript</summary>
+<summary>JavaScript</summary>
 
 ```sh
-npm install fatoority
+npm i fatoority
 ```
 </details>
 
