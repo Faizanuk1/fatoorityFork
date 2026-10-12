@@ -42,7 +42,15 @@ def main():
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><UseAppHost>false</UseAppHost></PropertyGroup>
   <ItemGroup><PackageReference Include="Fatoority" Version="{version}" /></ItemGroup>
 </Project>''')
-            (consumer / "NuGet.Config").write_text(f'''<configuration><packageSources><clear/><add key="local" value="{escape(str(args.package_dir.resolve()), {chr(34): '&quot;'})}"/></packageSources></configuration>''')
+            local = escape(str(args.package_dir.resolve()), {chr(34): '&quot;'})
+            # Exact source mapping keeps Fatoority local while allowing SDK targeting packs.
+            (consumer / "NuGet.Config").write_text(f'''<configuration>
+  <packageSources><clear/><add key="local" value="{local}"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources>
+  <packageSourceMapping>
+    <packageSource key="local"><package pattern="Fatoority"/></packageSource>
+    <packageSource key="nuget.org"><package pattern="*"/></packageSource>
+  </packageSourceMapping>
+</configuration>''')
             env["NUGET_PACKAGES"] = str(consumer / "packages")
             run([dotnet, "run", "--project", str(consumer / "Consumer.csproj"), "--", str(ROOT)], cwd=consumer)
 
