@@ -170,3 +170,34 @@ combines the assets, and tests the combined NuGet package on each platform.
 The `dotnet.yml` workflow publishes that exact artifact to NuGet.org on version
 tags after every platform consumer passes. See the
 [release workflow](releases.md#nuget-artifact-and-trusted-publishing) for setup and retries.
+
+## Kotlin / Java / Android
+
+The [Kotlin reference](../reference/bindings/kotlin.md) covers the JVM facade and
+Android package. The installer pins upstream Diplomat at
+`d53b78666c85f6e3bad34d70c0dbd22052b4cabd` (including #1295) and applies
+`scripts/patches/diplomat-kotlin.patch`. The patch fixes nullable opaque results,
+failed string-write cleanup and Boolean finalizer configuration, with backend
+regression tests. It does not modify the generator used for other languages.
+
+```sh
+python3 scripts/install_kotlin_generator.py
+python3 scripts/generate_kotlin.py
+python3 scripts/generate_kotlin.py --check
+python3 scripts/build_kotlin.py
+bindings/kotlin/gradlew -p bindings/kotlin test -PnativeDir="$PWD/target/jvm-release"
+python3 scripts/check_kotlin.py
+```
+
+`DIPLOMAT_TOOL_KOTLIN` overrides `.tools/diplomat-kotlin/bin/diplomat-tool`.
+The shared generation check includes Kotlin. `generated/raw` contains Diplomat
+output; `generated/facade` contains generated Java-friendly adapters. Edit the
+bridge, generator patch or facade generator and regenerate, never these outputs.
+The facade runtime owns handles and locks; its Java 8 phantom-reference cleanup
+replaces raw finalizer ownership as each returned handle is adopted.
+
+`kotlin.yml` checks generated output, Java 8 contracts, packaged Java consumers,
+three desktop native platforms, two Android ABIs and emulator tests on API 26/35.
+It uploads a local Maven repository and Android artifacts without publishing to
+an external registry. Android TLS uses explicit bundled WebPKI roots; desktop
+TLS continues to use the platform verifier.

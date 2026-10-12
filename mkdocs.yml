@@ -30,6 +30,7 @@ nav:
           - Python: reference/bindings/python.md
           - JavaScript / TypeScript: reference/bindings/javascript.md
           - C# / .NET: reference/bindings/csharp.md
+          - Kotlin / Java: reference/bindings/kotlin.md
           - C/C++ (FFI): reference/bindings/c.md
       - Invoice:
           - Model: reference/invoice-model.md

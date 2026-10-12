@@ -2,7 +2,7 @@
 
 The [Rust core](https://github.com/mqqz/fatoority/tree/main/fatoora-core/src) defines behavior. The Diplomat bridge in
 [fatoora-ffi](https://github.com/mqqz/fatoority/tree/main/fatoora-ffi/src) exposes that behavior through generated C,
-C++, C#, Nanobind and JavaScript/TypeScript bindings. The public [Python facade](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py)
+C++, C#, Kotlin, Nanobind and JavaScript/TypeScript bindings. The public [Python facade](https://github.com/mqqz/fatoority/blob/main/bindings/python/fatoora/api.py)
 handles Python values, exceptions, and lifetimes. CFFI and the former handwritten
 C ABI have been removed.
 
@@ -108,3 +108,15 @@ cover exact decimals, Arabic optional strings, consuming methods, memory growth,
 all gateway operations and valid/invalid schema inputs. Chromium and isolated npm
 consumer checks exercise the packaged WASM loader. These local tests do not prove
 live gateway or CORS acceptance. See the [JS/TS reference](../reference/bindings/javascript.md).
+
+## JVM contracts
+
+The Kotlin/Java facade covers every generated bridge method and hides Kotlin
+`Result` and unsigned JVM signatures. `bindings/kotlin/src/test` checks Java
+factories and exceptions, strict strings, optional results, byte copies, closure,
+consumption, signing and frozen SDK hash parity, prepared requests and response
+acceptance. Concurrency tests exercise calls against close and reversed owner
+order. Coroutine tests cover discarded-result cleanup after cancellation.
+`scripts/check_kotlin.py` uses a fresh Java project against the staged Maven
+repository without a native library path. Android instrumentation tests live in
+`bindings/kotlin/android/src/androidTest`; the workflow runs them on API 26/35.

@@ -30,6 +30,8 @@ With bindings and support for many programming languages:
 
 - 🟣 C# / .NET <a href="https://www.nuget.org/packages/Fatoority"><img src="https://img.shields.io/nuget/v/Fatoority?logo=dotnet" alt="NuGet Version"/></a>
 
+- ☕ [Kotlin / Java / Android](https://docs.fatoority.com/reference/bindings/kotlin/)
+
 - 🌀 C/C++ (through the C FFI see ![releases](https://github.com/mqqz/fatoority/releases))
 
 - 🔌 Also, a Command Line Interface (CLI) Tool  <a href="https://crates.io/crates/fatoora-cli"><img src="https://img.shields.io/crates/v/fatoora-cli?logo=rust&label=fatoora-cli" alt="fatoora-cli Crates.io Version"/></a>
@@ -88,6 +90,21 @@ The package uses namespace `Fatoora` and includes native libraries for Linux x64
 Windows x64, and macOS arm64.
 See the [C# reference](https://docs.fatoority.com/reference/bindings/csharp/) for installation, deterministic
 disposal, prepared HTTP requests, and package verification.
+
+</details>
+
+<details>
+<summary>Kotlin / Java / Android</summary>
+
+Build the local JVM Maven package (JDK 17, Rust and Python 3.11+):
+
+```sh
+python3 scripts/build_kotlin.py
+```
+
+The package runs on Java 8+. Android uses a separate AAR for API 26+ and
+`arm64-v8a` / `x86_64`. See the [Kotlin / Java reference](https://docs.fatoority.com/reference/bindings/kotlin/)
+for local Maven installation, Android builds, ownership and coroutine support.
 
 </details>
 

@@ -19,6 +19,11 @@ Generating QR payloads from finalized/signed invoices and reading embedded QR pa
     --8<-- "bindings/dotnet/examples/SdkExamples.cs:qr"
     ```
 
+=== "Kotlin"
+    ```kotlin
+    --8<-- "bindings/kotlin/examples/SdkExamples.kt:qr"
+    ```
+
 === "C"
     ```c
     --8<-- "bindings/c/examples/qr.c:example"
@@ -42,3 +47,5 @@ C examples include `fatoora.h`; compile the adapter once with your application.
 See the [C build instructions](../development/c-api.md#build-and-run).
 
 See the [C# / .NET reference](../reference/bindings/csharp.md) for installation, imports, and ownership rules.
+
+See the [Kotlin / Java reference](../reference/bindings/kotlin.md) for imports, ownership, and Android setup.
