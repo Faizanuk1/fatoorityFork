@@ -23,3 +23,8 @@ lto = true
 codegen-units = 1
 strip = "symbols"
 panic = "abort"
+
+# Native assets distributed in NuGet packages.
+[profile.dotnet-release]
+inherits = "release"
+strip = "symbols"

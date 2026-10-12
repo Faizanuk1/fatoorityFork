@@ -36,8 +36,8 @@ def main():
             raise SystemExit("No native assets found")
         native_args = [f"-p:NativeRoot={args.native_root.resolve()}"]
     else:
-        subprocess.run(["cargo", "build", "--release", "-p", "fatoora-ffi", "--locked"], cwd=ROOT, check=True)
-        library = target / "release" / filename
+        subprocess.run(["cargo", "build", "--profile", "dotnet-release", "-p", "fatoora-ffi", "--locked"], cwd=ROOT, check=True)
+        library = target / "dotnet-release" / filename
         native_args = [f"-p:NativeRid={rid}", f"-p:NativeLibrary={library}"]
         if args.stage_dir:
             destination = args.stage_dir / "runtimes" / rid / "native" / filename
