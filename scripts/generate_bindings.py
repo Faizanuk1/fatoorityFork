@@ -2,6 +2,7 @@
 """Generate the checked-in bindings with diplomat-tool 0.16.1."""
 import os
 import re
+import shutil
 import argparse
 from pathlib import Path
 import subprocess
@@ -59,10 +60,15 @@ def main():
         sys.executable, str(ROOT / "scripts/generate_c_facade.py"),
         *(["--check"] if args.check else []),
     ], cwd=ROOT, check=True)
-    subprocess.run([
-        sys.executable, str(ROOT / "scripts/generate_dotnet.py"),
-        *(["--check"] if args.check else []),
-    ], cwd=ROOT, check=True)
+    dotnet_tool = os.environ.get("DIPLOMAT_TOOL_DOTNET", str(ROOT / ".tools/diplomat-fork/bin" /
+        ("diplomat-tool.exe" if os.name == "nt" else "diplomat-tool")))
+    if not shutil.which(dotnet_tool) and not args.check:
+        print("C# generator not installed; run scripts/install_dotnet_generator.py")
+    else:
+        subprocess.run([
+            sys.executable, str(ROOT / "scripts/generate_dotnet.py"),
+            *(["--check"] if args.check else []),
+        ], cwd=ROOT, check=True)
 
 
 if __name__ == "__main__":
