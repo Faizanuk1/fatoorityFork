@@ -2,7 +2,15 @@
 
 The `fatoority` ES module package runs the Rust SDK in WebAssembly. Diplomat generates the object bindings and TypeScript declarations; a small facade provides async `fetch` calls. Node 22+ and modern browsers are supported. Browser execution requires WebAssembly, Web Crypto, FinalizationRegistry and top-level await.
 
-## Build and install
+## Install
+
+Install the package from npm:
+
+```sh
+npm install fatoority
+```
+
+## Build from source
 
 From a source checkout with Rust, Node 22+, npm and Python 3:
 
