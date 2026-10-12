@@ -6,6 +6,7 @@ import os
 import platform
 import shutil
 import subprocess
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from zipfile import ZipFile
@@ -22,6 +23,43 @@ def extract_file(archive, name, destination, relative):
     path.write_bytes(archive.read(name))
 
 
+def prepare_sdk(archive_path, work):
+    """Validate a fresh extraction, then discard the previous SDK/build outputs."""
+    with tempfile.TemporaryDirectory(prefix="sdk-", dir=work) as temporary:
+        staged = Path(temporary)
+        with ZipFile(archive_path) as archive:
+            marker = "/Lib/Dot-Net8/DLL/Zatca.EInvoice.SDK/net8.0/"
+            for name in archive.namelist():
+                if name.endswith("/"):
+                    continue
+                if marker in name:
+                    extract_file(archive, name, staged, name.split(marker)[1])
+                elif "/Data/Rules/" in name:
+                    extract_file(archive, name, staged, name.split("/Data/")[1])
+        for relative in (
+            "ZATCA.EInvoice.SDK.dll",
+            "ZATCA.EInvoice.SDK.Contracts.dll",
+            "runtimes/linux/lib/net8.0/IKVM.Runtime.dll",
+            "runtimes/linux/lib/net8.0/IKVM.Java.dll",
+            "Rules/Schematrons/CEN-EN16931-UBL.xsl",
+            "Rules/Schematrons/20210819_ZATCA_E-invoice_Validation_Rules.xsl",
+        ):
+            if not (staged / relative).is_file():
+                raise ValueError(f"Incomplete official SDK archive: missing {relative}")
+        if not (staged / "ikvm/linux-x64").is_dir():
+            raise ValueError("Incomplete official SDK archive: missing ikvm/linux-x64")
+        # Cleaning bin and obj also removes assemblies copied by prior MSBuild runs.
+        # Results and the CLI home are intentionally retained.
+        for name in ("official", "bin", "obj"):
+            path = work / name
+            if path.is_symlink():
+                path.unlink()
+            elif path.exists():
+                shutil.rmtree(path)
+        staged.rename(work / "official")
+    return work / "official"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
@@ -31,16 +69,12 @@ def main():
         parser.error("This harness currently supports Linux x86_64 only.")
     work = args.work_dir.resolve()
     work.mkdir(parents=True, exist_ok=True)
-    official = work / "official"
     dotnet = os.environ.get("DOTNET", "dotnet")
     env = dict(os.environ, DOTNET_CLI_HOME=str(work / "home"))
-    with ZipFile(args.archive.expanduser()) as archive:
-        marker = "/Lib/Dot-Net8/DLL/Zatca.EInvoice.SDK/net8.0/"
-        for name in archive.namelist():
-            if marker in name and not name.endswith("/"):
-                extract_file(archive, name, official, name.split(marker)[1])
-    if not (official / "ZATCA.EInvoice.SDK.dll").is_file():
-        parser.error("Expected the official DotNet 238-R3.4.8 archive layout.")
+    try:
+        official = prepare_sdk(args.archive.expanduser(), work)
+    except ValueError as error:
+        parser.error(str(error))
 
     project = ET.Element("Project", Sdk="Microsoft.NET.Sdk")
     properties = ET.SubElement(project, "PropertyGroup")
@@ -69,12 +103,9 @@ def main():
     subprocess.run([dotnet, "build", "-c", "Release", str(work / "Bench.csproj")], cwd=ROOT, env=env, check=True)
     output = work / "bin/Release/net8.0"
     shutil.copy(Path(metadata["target_directory"]) / "release/libfatoora_ffi.so", output)
-    shutil.copytree(official / "ikvm", output / "ikvm", dirs_exist_ok=True)
+    shutil.copytree(official / "ikvm", output / "ikvm")
     # The SDK loads these external stylesheets, not its older embedded copies.
-    with ZipFile(args.archive.expanduser()) as archive:
-        for name in archive.namelist():
-            if "/Data/Rules/" in name and not name.endswith("/"):
-                extract_file(archive, name, output, name.split("/Data/")[1])
+    shutil.copytree(official / "Rules", output / "Rules")
     print(f"Ready: python3 bench/dotnet/run.py --work-dir {work}")
 
 

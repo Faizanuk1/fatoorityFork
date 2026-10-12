@@ -24,6 +24,9 @@ python3 bench/dotnet/run.py
 Setup builds the Rust release library and a Release C# harness. It extracts the
 official assemblies, IKVM files, and external validation rules into the ignored
 `dist/benchmarks/dotnet/` directory. Existing Rust build outputs are reused.
+Rerunning setup validates a fresh extraction before replacing the previous SDK
+and clearing the C# build outputs. An incomplete archive fails setup; it cannot
+reuse files from the previous SDK. Saved results are retained.
 No Docker or ZATCA network calls are required.
 
 Both scripts accept `--work-dir`; pass the same directory to each. The runner
