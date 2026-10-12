@@ -80,8 +80,12 @@ npm i fatoority
 <details>
 <summary>C# / .NET 8</summary>
 
-Build a local NuGet package with `python3 scripts/package_dotnet.py`. The package
-uses namespace `Fatoora` and includes the native library for the build host.
+```sh
+dotnet add package Fatoority
+```
+
+The package uses namespace `Fatoora` and includes native libraries for Linux x64,
+Windows x64, and macOS arm64.
 See the [C# reference](https://docs.fatoority.com/reference/bindings/csharp/) for installation, deterministic
 disposal, prepared HTTP requests, and package verification.
 
