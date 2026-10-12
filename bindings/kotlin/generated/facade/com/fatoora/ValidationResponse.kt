@@ -9,8 +9,8 @@ class ValidationResponse internal constructor(internal val raw: com.fatoora.raw.
         val handle = raw.handle
         attach { com.fatoora.raw.ValidationResponse.lib.fatoora_ValidationResponse_destroy(handle) }
     }
-    fun httpStatus(): UShort? = nativeCall(listOfNotNull(this)) {
-        raw.httpStatus()
+    fun httpStatus(): Int? = nativeCall(listOfNotNull(this)) {
+        raw.httpStatus()?.let { value -> value.toInt() }
     }
 
     fun outcome(): InvoiceOutcome = nativeCall(listOfNotNull(this)) {

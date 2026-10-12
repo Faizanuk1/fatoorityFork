@@ -17,6 +17,8 @@ def facade(sources):
     public = owners - {"BindingError"}
 
     def managed(ty):
+        if ty.endswith("?"):
+            return managed(ty[:-1]) + "?"
         return {
             "UByte": "Int",
             "UShort": "Int",
@@ -26,6 +28,8 @@ def facade(sources):
         }.get(ty, ty)
 
     def argument(name, ty):
+        if ty.endswith("?") and managed(ty) != ty:
+            return f"{name}?.let {{ value -> {argument('value', ty[:-1])} }}"
         if ty.rstrip("?") in public:
             return name + ("?.raw" if ty.endswith("?") else ".raw")
         return {
@@ -40,6 +44,8 @@ def facade(sources):
         }.get(ty, name)
 
     def result(expr, ty):
+        if ty.endswith("?") and managed(ty) != ty:
+            return f"{expr}?.let {{ value -> {result('value', ty[:-1])} }}"
         if ty.rstrip("?") in public:
             return f"{expr}?.let(::{ty[:-1]})" if ty.endswith("?") else f"{ty}({expr})"
         return {
