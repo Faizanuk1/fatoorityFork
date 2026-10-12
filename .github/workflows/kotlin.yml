@@ -127,7 +127,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: kotlin-android-maven
-          path: bindings/kotlin/build/repository/com/fatoora/fatoority-android
+          path: bindings/kotlin/build/repository
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
