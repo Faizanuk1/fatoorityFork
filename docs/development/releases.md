@@ -1,15 +1,16 @@
 # Preparing a release
 
-Rust crates, the Python package and the JS/TS package share a release version. A `v*` tag starts
-four independent publication workflows: crates.io, PyPI, npm, and GitHub native
-assets. Creating or merging a release PR does not publish packages.
+Rust crates, Python, JS/TS, and C# packages share a release version. A `v*` tag
+starts five independent publication workflows: crates.io, PyPI, npm, NuGet.org,
+and GitHub native assets. Creating or merging a release PR does not publish packages.
 
 ## Prepare the candidate
 
 Use a branch named `release/<version>` so its PR runs the Linux, macOS, and
 Windows wheel and native builds. Update all four crate manifests, their internal
 dependency requirements, `bindings/python/pyproject.toml`, and the version in
-`bindings/js/package.json` and `bindings/js/package-lock.json`. Refresh the root
+`bindings/js/package.json` and `bindings/js/package-lock.json`. Update the
+`Version` in `bindings/dotnet/Fatoora.csproj`. Refresh the root
 `Cargo.lock` and `bindings/python/uv.lock` without upgrading unrelated packages.
 Refresh `fuzz/Cargo.lock` and `scripts/xsd-compat/Cargo.lock` as well; their
 independent workspaces resolve SDK path dependencies at the new version.
@@ -84,6 +85,28 @@ check. Dispatch without publication builds and tests only. Do not recreate a tag
 or bump versions to recover a failed publication; first check which registries
 accepted the release. npm does not allow overwriting an existing version.
 
+## NuGet artifact and trusted publishing
+
+The `dotnet.yml` workflow builds native RID assets, combines them into the
+`Fatoority` NuGet package, and tests fresh consumers on Linux, Windows, and macOS.
+Only after all consumers pass does it download and publish that exact artifact.
+The publish job requests a GitHub OIDC token with `id-token: write`, exchanges it
+through `NuGet/login@v1`, and pushes using the short-lived key. No repository
+API-key secret is required.
+
+Configure the NuGet trusted publisher for owner/user `mqqz`, repository
+`mqqz/fatoority`, workflow filename `dotnet.yml`, and package pattern `fatoority`.
+Leave the optional environment field empty; the publishing job has no GitHub
+environment. The policy must allow pushing new packages and versions. See the
+[NuGet trusted publishing documentation](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
+
+Tag pushes publish automatically after version validation. For a NuGet-only
+retry, dispatch `dotnet.yml` on the existing release tag with `publish: true`.
+Branch dispatches requesting publication fail the tag check; dispatches with
+`publish: false` build and test only. Keep the existing tag fixed and verify
+whether the version already exists before retrying. The push does not silently
+skip duplicate versions.
+
 ## Publication prerequisites
 
 Before tagging, check the candidate commit's Rust tests, Python tests, Cargo
@@ -122,7 +145,8 @@ git push origin v0.4.1
 ```
 
 The tag starts publication. Rust publishes derive, core, FFI, then CLI. Python
-publishes after its binding tests and wheel builds. GitHub assets upload after
+publishes after its binding tests and wheel builds. NuGet publishes after its
+combined package passes all platform consumers. GitHub assets upload after
 all native builds. Manual Rust/Python publishing must also run against the
 matching tag; manual native releases check out their supplied tag.
 

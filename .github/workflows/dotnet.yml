@@ -5,6 +5,11 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to NuGet.org (select an existing version tag)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -25,6 +30,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: python scripts/check_release.py
+      - name: Check publication tag
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          test "$RELEASE_REF_TYPE" = tag
+          python scripts/check_release.py --tag "$RELEASE_TAG"
       - run: python scripts/check_dotnet.py
       - run: python scripts/package_dotnet.py --output-dir dist/dotnet --stage-dir dist/native
       - run: python scripts/check_dotnet.py --package-only --package-dir dist/dotnet
@@ -75,3 +89,49 @@ jobs:
           name: nuget
           path: dist/nuget
       - run: python scripts/check_dotnet.py --package-only --package-dir dist/nuget
+  publish:
+    needs: package-consumer
+    if: |
+      github.repository == 'mqqz/fatoority' &&
+      ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish))
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: nuget-publish-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget
+          path: dist/nuget
+      - name: Check publication tag and package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          test "$RELEASE_REF_TYPE" = tag
+          python scripts/check_release.py --tag "$RELEASE_TAG"
+          test -f "dist/nuget/Fatoority.${RELEASE_TAG#v}.nupkg"
+      - name: Authenticate to NuGet.org
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: mqqz
+      - name: Publish tested package
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          dotnet nuget push "dist/nuget/Fatoority.${RELEASE_TAG#v}.nupkg"
+          --api-key "$NUGET_API_KEY"
+          --source https://api.nuget.org/v3/index.json

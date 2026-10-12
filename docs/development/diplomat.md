@@ -168,4 +168,6 @@ also checks these files. All opaque Rust bridge types opt into .NET disposal.
 
 The .NET workflow builds native assets for each runner, tests host packages,
 combines the assets, and tests the combined NuGet package on each platform.
-It uploads a `nuget` artifact without publishing to NuGet.org.
+The `dotnet.yml` workflow publishes that exact artifact to NuGet.org on version
+tags after every platform consumer passes. See the
+[release workflow](releases.md#nuget-artifact-and-trusted-publishing) for setup and retries.

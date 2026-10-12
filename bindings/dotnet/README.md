@@ -65,8 +65,8 @@ can select alternate tool and build locations.
 
 Local packaging includes the host RID. CI tests Linux, Windows, and macOS, then
 combines their native artifacts into one package. Only platforms represented in
-the package are supported. CI uploads a `nuget` artifact; publication to NuGet.org
-is a separate release action. For a locally built package:
+the package are supported. CI uploads a `nuget` artifact. Version tags publish that tested artifact to
+NuGet.org through trusted publishing after all platform consumers pass. For a locally built package:
 
 ```sh
 dotnet add package Fatoority --version 0.4.1 --source /absolute/path/to/dist/dotnet

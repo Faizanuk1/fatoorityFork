@@ -20,8 +20,8 @@ dotnet add package Fatoority --version 0.4.1 --source /absolute/path/to/dist/dot
 
 A local build includes the host RID. The C# CI workflow tests Linux, Windows and
 macOS and assembles their native libraries into a combined `nuget` artifact.
-NuGet.org publication is a separate release action; these instructions use the
-local package. Match the application's OS and architecture to a RID included in
+Version tags publish the tested artifact to NuGet.org through trusted publishing;
+the commands above also support local packages before publication. Match the application's OS and architecture to a RID included in
 the package. NuGet supplies the native asset at runtime, so no library search-path
 override is needed.
 
