@@ -84,6 +84,9 @@ Mozilla/WebPKI roots, not Android user-installed CAs or app network-security
 configuration. Use prepared requests with your app's HTTP client when you need
 that trust policy. Blocking API calls must run off the main thread.
 
+Windows x86-64 also requires the [Microsoft Visual C++ v14 x64 runtime](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+The native DLL imports `VCRUNTIME140.dll`; it is not bundled in the JAR.
+
 ## Regeneration
 
 ```sh

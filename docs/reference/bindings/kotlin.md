@@ -21,6 +21,9 @@ glibc 2.28+; musl/Alpine is not included. Local native builds inherit the host's
 libc requirements. Android libraries are separate NDK builds, packaged under
 `jni/<abi>` in the AAR. Desktop binaries cannot be used on Android.
 
+Windows x86-64 also requires the [Microsoft Visual C++ v14 x64 runtime](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist).
+The native DLL imports `VCRUNTIME140.dll`; it is not bundled in the JAR.
+
 ## Kotlin and Java
 
 ```kotlin
