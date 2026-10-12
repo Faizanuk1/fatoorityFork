@@ -75,24 +75,30 @@ pub mod ffi {
     use diplomat_runtime::{DiplomatStr, DiplomatWrite};
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     #[diplomat::attr(
         nanobind,
         custom_extra_code(file = "client_bindings.cpp", location = "init_block")
     )]
     pub struct ZatcaClient(pub(crate) fatoora_core::api::ZatcaClient);
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct CsidCompliance(
         pub(crate) fatoora_core::api::CsidCredentials<fatoora_core::api::Compliance>,
     );
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct CsidProduction(
         pub(crate) fatoora_core::api::CsidCredentials<fatoora_core::api::Production>,
     );
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct ValidationResponse(pub(crate) fatoora_core::api::ValidationResponse);
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct ValidationResults(pub(crate) fatoora_core::api::ValidationResults);
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct ValidationMessage(pub(crate) fatoora_core::api::ValidationMessage);
 
     pub enum InvoiceOutcome {
@@ -126,6 +132,7 @@ pub mod ffi {
 
     /// Owned request and decoding context; contains credentials.
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct InvoiceRequest(pub(crate) fatoora_core::api::InvoiceRequest);
     impl InvoiceRequest {
         request_accessors!();
@@ -144,6 +151,7 @@ pub mod ffi {
     }
     /// Owned request and decoding context; contains credentials.
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct ComplianceRequest(pub(crate) fatoora_core::api::ComplianceRequest);
     impl ComplianceRequest {
         request_accessors!();
@@ -162,6 +170,7 @@ pub mod ffi {
     }
     /// Owned request and decoding context; contains credentials.
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct ProductionRequest(pub(crate) fatoora_core::api::ProductionRequest);
     impl ProductionRequest {
         request_accessors!();

@@ -1,0 +1,99 @@
+# Fatoority C# bindings
+
+See the [C# / .NET reference](https://docs.fatoority.com/reference/bindings/csharp/)
+for guide examples, API requests, errors, and runtime contracts.
+
+The `Fatoority` NuGet package exposes the SDK under namespace `Fatoora` and targets
+.NET 8 or later. Native libraries live under `runtimes/<rid>/native`; NuGet selects
+the library for the application's platform.
+
+```csharp
+using Fatoora;
+
+using var key = SigningKey.Generate();
+var pem = key.ToPem();
+using var restored = SigningKey.FromPem(pem);
+
+using var address = Address.New(
+    "SA", "الرياض", "King Fahd Rd", "1234", "12345", null, "", "حي العليا");
+Console.WriteLine(address.City());
+```
+
+All opaque owners implement `IDisposable`. Dispose owned return values as well as
+objects you construct. `Dispose()` is idempotent; calls after disposal throw
+`ObjectDisposedException`. Rust operations that consume an invoice or builder
+leave its outer owner disposable, but subsequent operations fail with
+`BindingErrorException`.
+
+String inputs reject invalid UTF-16 and embedded NUL. Optional strings preserve
+null versus empty. Decimal arguments and outputs use invariant decimal strings.
+Native errors throw `BindingErrorException` with the native message; `Inner`
+exposes `Code()`, `Message()`, and `DetailsJson()` and is itself disposable.
+Releasing native memory does not guarantee erasure of secrets or managed copies.
+
+`Bytes.AsSlice()` returns a disposable borrowed view. Call `Clone()` to obtain an
+independent `byte[]`, or `WithSpan()` for a scoped read. Active reads retain the
+native buffer even if its owner is disposed concurrently. Later reads fail once
+the source is disposed. Disposing a view while a read is active throws
+`InvalidOperationException`; retry after the read completes.
+
+```csharp
+using var bytes = restored.ToDer();
+using var view = bytes.AsSlice();
+byte[] der = view.Clone();
+```
+
+Methods using `&mut self` reject conflicting concurrent calls. Native network
+methods block the calling thread. For asynchronous HTTP and cancellation, use
+`Prepare*`, send the owned request with your HTTP client, and call `Decode` with
+the response status and bytes. Requests own their credentials and decoding state.
+
+## Build and test
+
+From the repository root, with Rust, Python 3.11+, and the .NET 8 SDK installed:
+
+```sh
+python3 scripts/check_dotnet.py
+python3 scripts/package_dotnet.py --output-dir dist/dotnet
+python3 scripts/check_dotnet.py --package-dir dist/dotnet
+```
+
+The checker copies the native library beside the test executable. The package
+check creates a fresh consumer using a local NuGet source, without a project
+reference or native library search-path overrides. `DOTNET` and `CARGO_TARGET_DIR`
+can select alternate tool and build locations.
+
+Local packaging includes the host RID. CI tests Linux, Windows, and macOS, then
+combines their native artifacts into one package. Only platforms represented in
+the package are supported. CI uploads a `nuget` artifact; publication to NuGet.org
+is a separate release action. For a locally built package:
+
+```sh
+dotnet add package Fatoority --version 0.4.1 --source /absolute/path/to/dist/dotnet
+```
+
+## Regenerate
+
+The generator uses `mqqz/diplomat` commit
+`35be220af2f32ab5f1d709d3661eda4a8e5a57b9` plus the reviewed patch at
+`scripts/patches/diplomat-dotnet-safety.patch`. The patch provides strict UTF-16
+encoding, synchronized borrowed-span access, and native handle retention during
+borrowed reads. It permits scoped read-only spans from disposable sources while
+preserving the other borrowing restrictions.
+
+```sh
+python3 scripts/install_dotnet_generator.py
+python3 scripts/generate_dotnet.py
+python3 scripts/generate_dotnet.py --check
+```
+
+Installation tests the patched backend and installs into `.tools/diplomat-fork`.
+It leaves the upstream generator on PATH for other languages.
+`DIPLOMAT_TOOL_DOTNET` overrides the C# generator path. The combined
+`scripts/generate_bindings.py --check` checks C# as well as the other bindings.
+Edit generator inputs or the patch, then regenerate; do not edit generated C#.
+
+The .NET contracts cover encoding, optional strings, structured errors, disposal,
+concurrent borrowed reads, keys, invoice signing, hashes against frozen SDK
+fixtures, prepared requests, response decoding, and owned snapshots. These tests
+run locally without contacting ZATCA.

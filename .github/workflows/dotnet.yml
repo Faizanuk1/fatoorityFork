@@ -1,0 +1,77 @@
+name: dotnet
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: python scripts/check_release.py
+      - run: python scripts/check_dotnet.py
+      - run: python scripts/package_dotnet.py --output-dir dist/dotnet --stage-dir dist/native
+      - run: python scripts/check_dotnet.py --package-only --package-dir dist/dotnet
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-native-${{ matrix.os }}
+          path: dist/native/
+          if-no-files-found: error
+  package:
+    needs: native
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dotnet-native-*
+          path: dist/native
+          merge-multiple: true
+      - run: python scripts/package_dotnet.py --native-root dist/native --output-dir dist/nuget
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget
+          path: dist/nuget/*.nupkg
+          if-no-files-found: error
+  package-consumer:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget
+          path: dist/nuget
+      - run: python scripts/check_dotnet.py --package-only --package-dir dist/nuget

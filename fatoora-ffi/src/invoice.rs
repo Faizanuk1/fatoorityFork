@@ -49,6 +49,7 @@ pub mod ffi {
     use diplomat_runtime::{DiplomatStr, DiplomatWrite};
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct Address(pub(crate) inv_core::Address);
     impl Address {
         #[allow(clippy::too_many_arguments)]
@@ -102,6 +103,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct VatId(pub(crate) inv_core::VatId);
     impl VatId {
         pub fn value(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
@@ -109,6 +111,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct OtherId(pub(crate) inv_core::OtherId);
     impl OtherId {
         pub fn value(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
@@ -119,6 +122,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct InvoiceNote(pub(crate) inv_core::InvoiceNote);
     impl InvoiceNote {
         pub fn language(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
@@ -129,6 +133,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct OriginalInvoiceRef(pub(crate) inv_core::OriginalInvoiceRef);
     impl OriginalInvoiceRef {
         pub fn id(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
@@ -147,6 +152,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct Party(pub(super) PartyData);
     impl Party {
         pub fn address(&self) -> Result<Box<Address>, Box<BindingError>> {
@@ -163,6 +169,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque_mut]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct InvoiceBuilder(pub(crate) Option<inv_core::InvoiceBuilder>);
     impl InvoiceBuilder {
         pub fn new(
@@ -392,6 +399,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque_mut]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct FinalizedInvoice(pub(crate) Option<inv_core::FinalizedInvoice>);
     impl FinalizedInvoice {
         pub fn from_xml(value: &DiplomatStr) -> Result<Box<FinalizedInvoice>, Box<BindingError>> {
@@ -425,6 +433,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque_mut]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct SignedInvoice(pub(crate) Option<inv_core::SignedInvoice>);
     impl SignedInvoice {
         pub fn from_xml(value: &DiplomatStr) -> Result<Box<SignedInvoice>, Box<BindingError>> {
@@ -502,6 +511,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct InvoiceData(pub(crate) inv_core::InvoiceData);
     impl InvoiceData {
         pub fn id(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
@@ -610,6 +620,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct InvoiceLineItem(pub(crate) inv_core::LineItem);
     impl InvoiceLineItem {
         pub fn description(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
@@ -638,6 +649,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct InvoiceTotals(pub(crate) inv_core::InvoiceTotalsData);
     impl InvoiceTotals {
         pub fn tax_inclusive(&self, out: &mut DiplomatWrite) -> Result<(), Box<BindingError>> {
@@ -672,6 +684,7 @@ pub mod ffi {
         }
     }
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct Xml;
     impl Xml {
         /// Produce an owned local ZATCA report as JSON. Inspect is_valid before acceptance.

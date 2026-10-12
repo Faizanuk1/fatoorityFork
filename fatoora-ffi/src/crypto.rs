@@ -10,6 +10,7 @@ pub mod ffi {
     use diplomat_runtime::{DiplomatStr, DiplomatWrite};
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     #[diplomat::attr(
         nanobind,
         custom_extra_code(file = "bytes_bindings.cpp", location = "init_block")
@@ -25,6 +26,7 @@ pub mod ffi {
     }
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct BytesList(pub(crate) Vec<Vec<u8>>);
 
     impl BytesList {
@@ -46,6 +48,7 @@ pub mod ffi {
     }
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct Config(pub(crate) fatoora_core::config::Config);
 
     impl Config {
@@ -66,6 +69,7 @@ pub mod ffi {
     }
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct SigningKey(pub(crate) fatoora_core::csr::SigningKey);
 
     impl SigningKey {
@@ -95,6 +99,7 @@ pub mod ffi {
     }
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct CsrProperties(pub(crate) fatoora_core::csr::CsrProperties);
 
     impl CsrProperties {
@@ -159,6 +164,7 @@ pub mod ffi {
     }
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct Csr(pub(crate) fatoora_core::csr::Csr);
 
     impl Csr {
@@ -190,6 +196,7 @@ pub mod ffi {
     }
 
     #[diplomat::opaque]
+    #[diplomat::attr(dotnet, manually_disposable)]
     pub struct Signer(pub(crate) fatoora_core::invoice::sign::InvoiceSigner);
 
     impl Signer {

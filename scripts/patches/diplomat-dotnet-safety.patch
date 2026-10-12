@@ -1,0 +1,272 @@
+diff --git a/tool/src/dotnet/gen/method.rs b/tool/src/dotnet/gen/method.rs
+index cfb145d..d83de18 100644
+--- a/tool/src/dotnet/gen/method.rs
++++ b/tool/src/dotnet/gen/method.rs
+@@ -1230,7 +1230,12 @@ impl<'ctx, 'tcx> ItemGenContext<'ctx, 'tcx> {
+         if self.reject_manually_disposable_borrows(
+             &method_name,
+             &manually_disposable_sources,
+-            &ok_dependencies,
++            // Scoped read-only spans acquire a SafeHandle claim for each access.
++            if matches!(return_type, DotnetReturnType::BorrowedSpan(_)) {
++                &[]
++            } else {
++                &ok_dependencies
++            },
+             &err_dependencies,
+         ) {
+             return None;
+diff --git a/tool/src/dotnet/mod.rs b/tool/src/dotnet/mod.rs
+index 3fc1909..7aa8ca4 100644
+--- a/tool/src/dotnet/mod.rs
++++ b/tool/src/dotnet/mod.rs
+@@ -752,6 +752,24 @@ mod test {
+         (files.take_files(), errors)
+     }
+ 
++    #[test]
++    fn read_only_slice_from_disposable_source_uses_scoped_access() {
++        let (files, errors) = run_dotnet(quote! {
++            #[diplomat::bridge]
++            mod ffi {
++                #[diplomat::opaque]
++                #[diplomat::attr(dotnet, manually_disposable)]
++                pub struct Source;
++                impl Source {
++                    pub fn bytes<'a>(&'a self) -> &'a [u8] { unimplemented!() }
++                }
++            }
++        });
++        assert!(errors.is_empty(), "{errors:?}");
++        assert!(files["Source.cs"].contains("DiplomatBorrowedSpan<byte>"));
++        assert!(files["Source.cs"].contains("IDisposable"));
++    }
++
+     #[test]
+     fn retained_borrows_from_manually_disposable_sources_are_rejected() {
+         let cases = vec![
+@@ -865,24 +883,6 @@ mod test {
+                 },
+                 "source `@string` of type `Source`",
+             ),
+-            (
+-                "borrowed slice from receiver",
+-                quote! {
+-                    #[diplomat::bridge]
+-                    mod ffi {
+-                        #[diplomat::opaque]
+-                        #[diplomat::attr(dotnet, manually_disposable)]
+-                        pub struct Source;
+-
+-                        impl Source {
+-                            pub fn bytes<'a>(&'a self) -> &'a [u8] {
+-                                unimplemented!()
+-                            }
+-                        }
+-                    }
+-                },
+-                "source `this` of type `Source`",
+-            ),
+             (
+                 "owned borrowing error",
+                 quote! {
+@@ -2941,7 +2941,7 @@ mod test {
+             "the view should release its managed source edges explicitly:\n{span}"
+         );
+         assert!(
+-            span.contains("Cannot dispose DiplomatBorrowedSpan during a WithSpan callback"),
++            span.contains("Cannot dispose DiplomatBorrowedSpan during access"),
+             "disposing a borrowed span from its active callback must fail before releasing edges:\n{span}"
+         );
+         assert!(
+diff --git a/tool/templates/dotnet/DiplomatBorrowedSpan.cs.jinja b/tool/templates/dotnet/DiplomatBorrowedSpan.cs.jinja
+index 9b5a43c..ad48d18 100644
+--- a/tool/templates/dotnet/DiplomatBorrowedSpan.cs.jinja
++++ b/tool/templates/dotnet/DiplomatBorrowedSpan.cs.jinja
+@@ -24,6 +24,7 @@ public sealed unsafe class DiplomatBorrowedSpan<T> : IDisposable where T : unman
+     private readonly T* _ptr;
+     private readonly int _len;
+     private ILifetimeEdge?[] _edges = Array.Empty<ILifetimeEdge?>();
++    private readonly object _gate = new object();
+     private int _activeCallbacks;
+     private int _disposed;
+ 
+@@ -69,7 +70,6 @@ public sealed unsafe class DiplomatBorrowedSpan<T> : IDisposable where T : unman
+             throw new ArgumentNullException(nameof(action));
+         }
+         ILifetimeEdge[] held = HoldDependenciesForAccess();
+-        Interlocked.Increment(ref _activeCallbacks);
+         try
+         {
+             action(new ReadOnlySpan<T>(_ptr, _len));
+@@ -82,7 +82,7 @@ public sealed unsafe class DiplomatBorrowedSpan<T> : IDisposable where T : unman
+             }
+             finally
+             {
+-                Interlocked.Decrement(ref _activeCallbacks);
++                lock (_gate) { _activeCallbacks--; }
+                 GC.KeepAlive(this);
+             }
+         }
+@@ -98,19 +98,17 @@ public sealed unsafe class DiplomatBorrowedSpan<T> : IDisposable where T : unman
+         }
+         finally
+         {
+-            LifetimeEdges.ReleaseLeases(held);
+-            GC.KeepAlive(this);
++            try { LifetimeEdges.ReleaseLeases(held); }
++            finally
++            {
++                lock (_gate) { _activeCallbacks--; }
++                GC.KeepAlive(this);
++            }
+         }
+     }
+ 
+     public void Dispose()
+     {
+-        if (Volatile.Read(ref _activeCallbacks) != 0)
+-        {
+-            throw new InvalidOperationException(
+-                "Cannot dispose DiplomatBorrowedSpan during a WithSpan callback");
+-        }
+-
+         Cleanup();
+         GC.SuppressFinalize(this);
+     }
+@@ -128,25 +126,29 @@ public sealed unsafe class DiplomatBorrowedSpan<T> : IDisposable where T : unman
+ 
+     private ILifetimeEdge[] HoldDependenciesForAccess()
+     {
+-        if (Volatile.Read(ref _disposed) != 0)
++        lock (_gate)
+         {
+-            throw new ObjectDisposedException(nameof(DiplomatBorrowedSpan<T>));
++            if (_disposed != 0)
++                throw new ObjectDisposedException(nameof(DiplomatBorrowedSpan<T>));
++            var held = new LifetimeEdges(WrapperKind.SharedView, _edges)
++                .HoldDependenciesForCall();
++            _activeCallbacks++;
++            return held;
+         }
+-
+-        return new LifetimeEdges(WrapperKind.SharedView, Volatile.Read(ref _edges))
+-            .HoldDependenciesForCall();
+     }
+ 
+     private void Cleanup()
+     {
+-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
++        ILifetimeEdge?[] edges;
++        lock (_gate)
+         {
+-            return;
++            if (_disposed != 0) return;
++            if (_activeCallbacks != 0)
++                throw new InvalidOperationException("Cannot dispose DiplomatBorrowedSpan during access");
++            _disposed = 1;
++            edges = _edges;
++            _edges = Array.Empty<ILifetimeEdge?>();
+         }
+-
+-        ILifetimeEdge?[] edges = Interlocked.Exchange(
+-            ref _edges,
+-            Array.Empty<ILifetimeEdge?>());
+         LifetimeEdges.ReleaseNoThrow(edges);
+     }
+ }
+diff --git a/tool/templates/dotnet/RustHandle.cs.jinja b/tool/templates/dotnet/RustHandle.cs.jinja
+index ff592f3..97a4373 100644
+--- a/tool/templates/dotnet/RustHandle.cs.jinja
++++ b/tool/templates/dotnet/RustHandle.cs.jinja
+@@ -203,39 +203,6 @@ internal struct BorrowLedger
+     }
+ }
+ 
+-internal sealed unsafe class DependencyOperationLease<T> : ILifetimeEdge where T : unmanaged
+-{
+-    private RustHandle<T>? _owner;
+-    private ILifetimeEdge[] _dependencies;
+-
+-    internal DependencyOperationLease(RustHandle<T> owner, ILifetimeEdge[] dependencies)
+-    {
+-        _owner = owner;
+-        _dependencies = dependencies;
+-    }
+-
+-    public void Release()
+-    {
+-        RustHandle<T>? owner = Interlocked.Exchange(ref _owner, null);
+-        if (owner is null)
+-        {
+-            return;
+-        }
+-
+-        ILifetimeEdge[] dependencies = Interlocked.Exchange(
+-            ref _dependencies,
+-            Array.Empty<ILifetimeEdge>());
+-        try
+-        {
+-            LifetimeEdges.ReleaseLeases(dependencies);
+-        }
+-        finally
+-        {
+-            GC.KeepAlive(owner);
+-        }
+-    }
+-}
+-
+ internal sealed unsafe class OperationLease<T> : ILifetimeEdge where T : unmanaged
+ {
+     private RustHandle<T>? _owner;
+@@ -269,8 +236,8 @@ internal sealed unsafe class OperationLease<T> : ILifetimeEdge where T : unmanag
+     }
+ }
+ 
+-// The SafeHandle count protects only a native call made directly on this value. Source edges
+-// keep managed handles reachable and validate borrow state without taking SafeHandle claims.
++// Direct calls and scoped borrowed reads retain a SafeHandle claim until access ends.
++// Persistent source edges keep handles reachable and validate borrow state on each access.
+ internal sealed unsafe class RustHandle<T> : SafeHandle where T : unmanaged
+ {
+     private readonly RustDestructor<T>? _destructor;
+@@ -414,24 +381,8 @@ internal sealed unsafe class RustHandle<T> : SafeHandle where T : unmanaged
+         }
+     }
+ 
+-    internal DependencyOperationLease<T> HoldForCall()
+-    {
+-        if (IsClosed)
+-        {
+-            throw new InvalidOperationException(
+-                "The source of this borrowed value was disposed.");
+-        }
+-
+-        ILifetimeEdge[] dependencies = _edges.HoldDependenciesForCall();
+-        if (!IsClosed)
+-        {
+-            return new DependencyOperationLease<T>(this, dependencies);
+-        }
+-
+-        LifetimeEdges.ReleaseNoThrow(dependencies);
+-        throw new InvalidOperationException(
+-            "The source of this borrowed value was disposed.");
+-    }
++    // Borrowed access must pin the SafeHandle against concurrent source disposal.
++    internal OperationLease<T> HoldForCall() => StartCall();
+ 
+     internal void ExitBorrow(BorrowKind kind) => _borrows.Exit(kind);
+ 
+diff --git a/tool/templates/dotnet/Utf8.cs.jinja b/tool/templates/dotnet/Utf8.cs.jinja
+index 65d6e66..6d74e3d 100644
+--- a/tool/templates/dotnet/Utf8.cs.jinja
++++ b/tool/templates/dotnet/Utf8.cs.jinja
+@@ -10,5 +10,7 @@ namespace {{ namespace }}.Diplomat;
+ /// </summary>
+ internal static class Utf8
+ {
+-    public static byte[] Clone(string value) => System.Text.Encoding.UTF8.GetBytes(value);
++    private static readonly System.Text.UTF8Encoding Strict = new System.Text.UTF8Encoding(false, true);
++
++    public static byte[] Clone(string value) => Strict.GetBytes(value);
+ }

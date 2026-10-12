@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import tomllib
+import xml.etree.ElementTree as ET
 
 
 def read_toml(path):
@@ -36,6 +37,10 @@ def check_release(root, tag=None):
     python = read_toml(root / "bindings/python/pyproject.toml")["project"]
     if python["version"] != version:
         raise ValueError(f"Python version {python['version']} differs from Cargo version {version}")
+
+    dotnet_manifest = root / "bindings/dotnet/Fatoora.csproj"
+    if dotnet_manifest.exists() and ET.parse(dotnet_manifest).findtext(".//Version") != version:
+        raise ValueError("C# package version must match Cargo")
 
     js_manifest = root / "bindings/js/package.json"
     if js_manifest.exists():

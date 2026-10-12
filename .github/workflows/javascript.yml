@@ -41,6 +41,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: npm ci --prefix bindings/js
       - run: cargo install diplomat-tool --version 0.16.1 --locked
+      - run: python3 scripts/install_dotnet_generator.py
       - run: python3 scripts/generate_bindings.py --check
       - run: python3 scripts/build_js.py
       - run: python3 scripts/check_wasm_size.py --json

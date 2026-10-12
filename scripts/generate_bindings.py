@@ -59,6 +59,10 @@ def main():
         sys.executable, str(ROOT / "scripts/generate_c_facade.py"),
         *(["--check"] if args.check else []),
     ], cwd=ROOT, check=True)
+    subprocess.run([
+        sys.executable, str(ROOT / "scripts/generate_dotnet.py"),
+        *(["--check"] if args.check else []),
+    ], cwd=ROOT, check=True)
 
 
 if __name__ == "__main__":
