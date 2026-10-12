@@ -102,14 +102,14 @@ jobs:
     container: ${{ matrix.container }}
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '8.0.x'
       - name: Prepare Linux baseline container
         if: runner.os == 'Linux'
         run: |
           dnf install -y libicu
           echo /opt/python/cp312-cp312/bin >> "$GITHUB_PATH"
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
       - uses: actions/setup-python@v7
         if: runner.os != 'Linux'
         with:
