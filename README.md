@@ -28,6 +28,8 @@ With bindings and support for many programming languages:
 
 - 🇯‌🇸‌ JavaScript / TypeScript <a href="https://www.npmjs.com/package/fatoority"><img src="https://img.shields.io/npm/v/fatoority?logo=javascript" alt="NPM Version"/></a>
 
+- 🟣 C# / .NET <a href="https://www.nuget.org/packages/Fatoority"><img src="https://img.shields.io/nuget/v/Fatoority?logo=dotnet" alt="NuGet Version"/></a>
+
 - 🌀 C/C++ (through the C FFI see ![releases](https://github.com/mqqz/fatoority/releases))
 
 - 🔌 Also, a Command Line Interface (CLI) Tool  <a href="https://crates.io/crates/fatoora-cli"><img src="https://img.shields.io/crates/v/fatoora-cli?logo=rust&label=fatoora-cli" alt="fatoora-cli Crates.io Version"/></a>
@@ -78,8 +80,12 @@ npm i fatoority
 <details>
 <summary>C# / .NET 8</summary>
 
-Build a local NuGet package with `python3 scripts/package_dotnet.py`. The package
-uses namespace `Fatoora` and includes the native library for the build host.
+```sh
+dotnet add package Fatoority
+```
+
+The package uses namespace `Fatoora` and includes native libraries for Linux x64,
+Windows x64, and macOS arm64.
 See the [C# reference](https://docs.fatoority.com/reference/bindings/csharp/) for installation, deterministic
 disposal, prepared HTTP requests, and package verification.
 

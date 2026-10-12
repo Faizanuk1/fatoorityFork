@@ -54,16 +54,11 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
     ```
 
 === "JavaScript / TypeScript"
-    Build from a source checkout with Node 22+, Rust, npm and Python 3:
     ```sh
-    rustup target add wasm32-unknown-unknown
-    npm ci --prefix bindings/js
-    python3 scripts/build_js.py
-    (cd bindings/js && npm pack)
+    npm install fatoority
     ```
-    Install the resulting tarball in your application. See the
-    [JS/TS reference](reference/bindings/javascript.md) for browser deployment,
-    async API calls and package sizes. Version tags publish the tested package to npm through GitHub Actions.
+    See the [JS/TS reference](reference/bindings/javascript.md) for source builds,
+    browser deployment, async API calls and package sizes.
 
 === "C# / .NET"
     Build a local NuGet package from a source checkout:
@@ -72,7 +67,7 @@ The main core library (`fatoora-core`) is written in Rust with a C FFI that allo
     ```
     Install it in your application's project:
     ```sh
-    dotnet add package Fatoority --version 0.4.1 --source /absolute/path/to/dist/dotnet
+    dotnet add package Fatoority --version 0.4.2 --source /absolute/path/to/dist/dotnet
     ```
     See the [C# / .NET reference](reference/bindings/csharp.md) for requirements,
     native platforms, and ownership rules.

@@ -2,7 +2,15 @@
 
 The `fatoority` ES module package runs the Rust SDK in WebAssembly. Diplomat generates the object bindings and TypeScript declarations; a small facade provides async `fetch` calls. Node 22+ and modern browsers are supported. Browser execution requires WebAssembly, Web Crypto, FinalizationRegistry and top-level await.
 
-## Build and install
+## Install
+
+Install the package from npm:
+
+```sh
+npm install fatoority
+```
+
+## Build from source
 
 From a source checkout with Rust, Node 22+, npm and Python 3:
 
@@ -16,7 +24,7 @@ python3 scripts/build_js.py
 Install the resulting tarball in your application:
 
 ```sh
-npm install /path/to/fatoority-0.4.1.tgz
+npm install /path/to/fatoority-0.4.2.tgz
 ```
 
 The generated bindings are checked in. Regeneration requires `diplomat-tool 0.16.1`; follow the [binding workflow](../../development/diplomat.md) when changing Rust bridge declarations. Version tags publish the tested package to npm through GitHub Actions.

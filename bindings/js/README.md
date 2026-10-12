@@ -2,7 +2,13 @@
 
 ES modules backed by Diplomat 0.16.1 and WebAssembly. Supports Node 22+ and modern browsers with WebAssembly, Web Crypto, FinalizationRegistry and top-level await.
 
-Build from the repository root:
+Install from npm:
+
+```sh
+npm install fatoority
+```
+
+To build from source, run from the repository root:
 
 ```sh
 rustup target add wasm32-unknown-unknown

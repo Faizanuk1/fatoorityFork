@@ -1,0 +1,28 @@
+RESULT aqY8frWKpauDQqXCsdne5hYwMQCo1DUUNKLfSAtT2mg=
+{"kind":"simplified","impl":"official","op":"hash","first_ms":55.623,"iterations":64,"samples_ms":[2.982259375,2.652725,2.5124265625,2.469959375,2.48730625,2.4680984375,2.4807859375],"median_ms":2.48730625}
+RESULT aqY8frWKpauDQqXCsdne5hYwMQCo1DUUNKLfSAtT2mg=
+{"kind":"simplified","impl":"ours","op":"hash","first_ms":1.6627,"iterations":1000,"samples_ms":[0.1773324,0.17407409999999998,0.17600980000000002,0.175681,0.17565450000000002,0.1760911,0.1772339],"median_ms":0.17600980000000002}
+RESULT signed
+PREFLIGHT both signed outputs pass official validation and preserve expected hash
+{"kind":"simplified","impl":"official","op":"sign","first_ms":171.0505,"iterations":14,"samples_ms":[13.742407142857143,13.594399999999998,13.542035714285715,13.547671428571428,13.630350000000002,13.667307142857142,13.651042857142857],"median_ms":13.630350000000002}
+RESULT signed
+PREFLIGHT both signed outputs pass official validation and preserve expected hash
+{"kind":"simplified","impl":"ours","op":"sign","first_ms":2.2419,"iterations":231,"samples_ms":[0.8745541125541125,0.8748922077922078,0.891939393939394,0.8736779220779222,0.8747549783549784,0.9222619047619047,0.9085805194805195],"median_ms":0.8748922077922078}
+RESULT valid
+{"kind":"simplified","impl":"official","op":"validate","first_ms":1189.3685,"iterations":1,"samples_ms":[266.9915,263.509,263.6011,263.6111,268.3201,265.4531,270.8752],"median_ms":265.4531}
+RESULT valid
+{"kind":"simplified","impl":"ours","op":"validate","first_ms":105.4878,"iterations":32,"samples_ms":[6.09555625,5.986625,5.938309375,5.93548125,5.942403125,5.936946875,5.939946875],"median_ms":5.939946875}
+RESULT XnojNFGYVaNWwqEh3NRN09p8Irx6n0H8ldi+A+XoRyg=
+{"kind":"standard","impl":"official","op":"hash","first_ms":50.727,"iterations":56,"samples_ms":[3.118469642857143,2.850833928571429,2.858444642857143,2.8536499999999996,2.846046428571429,2.843625,2.8427928571428573],"median_ms":2.850833928571429}
+RESULT XnojNFGYVaNWwqEh3NRN09p8Irx6n0H8ldi+A+XoRyg=
+{"kind":"standard","impl":"ours","op":"hash","first_ms":1.8252,"iterations":604,"samples_ms":[0.33646705298013246,0.33101225165562914,0.33048493377483446,0.3283177152317881,0.33728509933774836,0.33565513245033113,0.3428056291390728],"median_ms":0.33565513245033113}
+RESULT signed
+PREFLIGHT both signed outputs pass official validation and preserve expected hash
+{"kind":"standard","impl":"official","op":"sign","first_ms":177.8885,"iterations":13,"samples_ms":[15.379169230769232,15.443923076923076,16.107776923076923,15.328492307692308,15.347353846153847,15.423323076923076,15.494646153846153],"median_ms":15.423323076923076}
+RESULT signed
+PREFLIGHT both signed outputs pass official validation and preserve expected hash
+{"kind":"standard","impl":"ours","op":"sign","first_ms":2.7098,"iterations":147,"samples_ms":[1.3551659863945578,1.3550095238095237,1.4210238095238095,1.3725353741496598,1.367421768707483,1.365804761904762,1.3629598639455782],"median_ms":1.365804761904762}
+RESULT valid
+{"kind":"standard","impl":"official","op":"validate","first_ms":1086.7107,"iterations":1,"samples_ms":[264.5682,264.754,265.1951,264.2002,264.1876,264.6932,263.6078],"median_ms":264.5682}
+RESULT valid
+{"kind":"standard","impl":"ours","op":"validate","first_ms":103.2343,"iterations":33,"samples_ms":[5.995981818181818,5.986357575757576,5.983972727272728,5.992466666666666,5.988269696969697,5.992063636363636,5.996781818181818],"median_ms":5.992063636363636}

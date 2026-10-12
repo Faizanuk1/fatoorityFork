@@ -1,6 +1,18 @@
 # Changelog
 
-## [0.4.1] - Unreleased
+## [0.4.2] - Unreleased
+
+- Add C#/.NET 8 bindings with deterministic disposal, strict string conversion,
+  and prepared requests for asynchronous HTTP through caller-owned transports.
+- Package native libraries for Linux x64 (glibc 2.28+), Windows x64, and macOS
+  arm64; publish tested NuGet packages on version tags using trusted publishing.
+- Include the bundled ZATCA notices and license texts in the NuGet package.
+- Add the official .NET SDK comparison harness, recorded hashing/signing/validation
+  benchmarks, and reproduction instructions.
+- Document C# support in the README and synchronize Rust, Python, npm, and NuGet
+  package versions at 0.4.2.
+
+## [0.4.1] - 2026-10-11
 
 - Add Diplomat JavaScript/TypeScript bindings for Node and browsers, with async
   fetch APIs backed by Rust request preparation and response decoding.
