@@ -3,3 +3,8 @@ fatoora-core/tests/fixtures/sdk-parity/** -text
 fatoora-core/tests/fixtures/business-rules/** -text
 fatoora-core/tests/fixtures/sdk-parity-typed/** -text
 fatoora-core/tests/fixtures/xml-migration/** -text
+
+# Gradle Windows launcher is checked out with Windows line endings.
+bindings/kotlin/gradlew.bat text eol=crlf
+# Unified diffs retain a leading space on blank context lines.
+scripts/patches/*.patch whitespace=-blank-at-eol

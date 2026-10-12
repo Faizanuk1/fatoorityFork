@@ -1,0 +1,150 @@
+diff --git a/tool/src/kotlin/mod.rs b/tool/src/kotlin/mod.rs
+index e536d5e..bfc4fd3 100644
+--- a/tool/src/kotlin/mod.rs
++++ b/tool/src/kotlin/mod.rs
+@@ -73,7 +73,9 @@ impl KotlinConfig {
+                 self.domain = value.as_str().map(|s| s.to_string());
+             }
+             "use_finalizers_not_cleaners" => {
+-                self.use_finalizers_not_cleaners = value.as_str().map(|val| val == "true");
++                self.use_finalizers_not_cleaners = value
++                    .as_bool()
++                    .or_else(|| value.as_str().map(|val| val == "true"));
+             }
+             "scaffold" => {
+                 self.scaffold = value.as_str().map(|val| val == "true");
+@@ -496,7 +498,11 @@ impl<'cx> ItemGenContext<'_, 'cx> {
+         match *out {
+             ReturnType::Infallible(ref s) => self.gen_infallible_return_type_ffi(s),
+             ReturnType::Fallible(ref ok, ref err) => {
+-                let ok_type = self.gen_infallible_return_type_ffi(ok);
++                let ok_type: Cow<str> = self
++                    .gen_infallible_return_type_ffi(ok)
++                    .trim_end_matches('?')
++                    .to_owned()
++                    .into();
+                 let err_type = err
+                     .as_ref()
+                     .map(|err| self.gen_type_name_ffi(err, None))
+@@ -514,7 +520,13 @@ impl<'cx> ItemGenContext<'_, 'cx> {
+                                 _ => unreachable!("unknown AST/HIR variant"),
+                             }
+                         })
+-                        .map(|t| self.formatter.fmt_field_default(t, true)),
++                        .map(|t| {
++                            if matches!(t, Type::Opaque(_)) {
++                                "Pointer(0)".into()
++                            } else {
++                                self.formatter.fmt_field_default(t, true)
++                            }
++                        }),
+                     _ => None,
+                 };
+                 let err_default = err
+@@ -956,10 +968,14 @@ val intermediateOption = {val_name}.option() ?: return null
+                 #[derive(Template)]
+                 #[template(path = "kotlin/ResultReturn.kt.jinja", escape = "none")]
+                 struct ResultReturn<'d> {
++                    optional_ok: bool,
++                    write: bool,
+                     ok_path: &'d str,
+                     err_path: &'d str,
+                 }
+                 ResultReturn {
++                    optional_ok: matches!(ok, SuccessType::OutType(Type::Opaque(p)) if p.is_optional()),
++                    write: matches!(ok, SuccessType::Write(_)),
+                     ok_path: ok_path.as_str(),
+                     err_path: err_path.as_str(),
+                 }
+@@ -2285,6 +2301,51 @@ mod test {
+     use super::formatter::test::new_tcx;
+     use super::{formatter::KotlinFormatter, ItemGenContext};
+ 
++    #[test]
++    fn test_optional_result_and_failed_write() {
++        let tcx = new_tcx(quote! {
++            #[diplomat::bridge]
++            mod ffi {
++                #[diplomat::opaque]
++                pub struct Value;
++                #[diplomat::opaque]
++                #[diplomat::attr(kotlin_test, error)]
++                pub struct Failure;
++                impl Value {
++                    pub fn optional(&self) -> Result<Option<Box<Value>>, Box<Failure>> { todo!() }
++                    pub fn required(&self) -> Result<Box<Value>, Box<Failure>> { todo!() }
++                    pub fn text(&self, write: &mut DiplomatWrite) -> Result<(), Box<Failure>> { todo!() }
++                }
++            }
++        });
++        let mut config = crate::Config::default();
++        config.set("lib_name", "test".into());
++        config.set("kotlin.domain", "dev.test".into());
++        config.set("kotlin.use_finalizers_not_cleaners", true.into());
++        assert_eq!(config.kotlin_config.use_finalizers_not_cleaners, Some(true));
++        let docs = diplomat_core::hir::DocsUrlGenerator::with_base_urls(None, HashMap::new());
++        let (files, errors) = super::run(&tcx, config, &docs);
++        assert!(errors.take_all().is_empty());
++        let files = files.take_files();
++        let value = files
++            .iter()
++            .find(|(name, _)| name.ends_with("/Value.kt"))
++            .unwrap()
++            .1;
++        assert!(value.contains("if (returnVal.isOk == 1.toByte())"));
++        assert!(value.contains("return Result.success(null)"));
++        assert!(value.contains("DW.lib.diplomat_buffer_write_destroy(write)"));
++        assert!(!value.contains("ResultPointer?"));
++        assert!(!value.contains("Cleaner"));
++        let lib = files
++            .iter()
++            .find(|(name, _)| name.ends_with("/Lib.kt"))
++            .unwrap()
++            .1;
++        assert_eq!(lib.matches("class ResultPointerPointer:").count(), 1);
++        assert!(lib.contains("as Pointer?"));
++    }
++
+     #[test]
+     fn test_enum() {
+         let tk_stream = quote! {
+diff --git a/tool/templates/kotlin/OpaqueReturn.kt.jinja b/tool/templates/kotlin/OpaqueReturn.kt.jinja
+index e9418e2..151df19 100644
+--- a/tool/templates/kotlin/OpaqueReturn.kt.jinja
++++ b/tool/templates/kotlin/OpaqueReturn.kt.jinja
+@@ -3,6 +3,6 @@ listOf()
+ {%- else %}
+ {%- for self_edge in self_edges %}{%- if !loop.first %} + {% endif -%}{{self_edge}}{%- endfor %}
+ {%- endif %}
+-val handle = {{val_name}} {% if optional %}?: return null{% endif %}
++val handle = {{val_name}} {% if optional %}?: return {% if return_type_modifier == ".ok()" %}Result.success(null){% else %}null{% endif %}{% endif %}
+ val returnOpaque = {{return_type_name}}(handle, selfEdges{%- if !named_lifetimes.is_empty() %}{%- for lt in named_lifetimes %}, {{lt}}Edges{%- endfor %}{% endif -%}, {{is_owned}})
+ return returnOpaque{{return_type_modifier}}
+diff --git a/tool/templates/kotlin/Result.kt.jinja b/tool/templates/kotlin/Result.kt.jinja
+index bd3d380..9fe2e5d 100644
+--- a/tool/templates/kotlin/Result.kt.jinja
++++ b/tool/templates/kotlin/Result.kt.jinja
+@@ -29,7 +29,7 @@ class Result{{ok.type_name}}{{err.type_name}}: Structure(), Structure.ByValue  {
+ {%- if ok.default.is_some() %}
+     internal fun getNativeOk(): {{ok.type_name}}? {
+         if (isOk == 1.toByte()) {
+-            return union.getTypedValue({{ok.type_name}}::class.java) as {{ok.type_name}}
++            return union.getTypedValue({{ok.type_name}}::class.java) as {{ok.type_name}}?
+         }
+         return null
+     }
+diff --git a/tool/templates/kotlin/ResultReturn.kt.jinja b/tool/templates/kotlin/ResultReturn.kt.jinja
+index 7ebf927..bb1934f 100644
+--- a/tool/templates/kotlin/ResultReturn.kt.jinja
++++ b/tool/templates/kotlin/ResultReturn.kt.jinja
+@@ -1,6 +1,9 @@
+ val nativeOkVal = returnVal.getNativeOk();
+-if (nativeOkVal != null) {
++if ({% if optional_ok %}returnVal.isOk == 1.toByte(){% else %}nativeOkVal != null{% endif %}) {
+     {{ok_path|indent(4)}}
+ } else {
++    {%- if write %}
++    DW.lib.diplomat_buffer_write_destroy(write)
++    {%- endif %}
+     {{err_path|indent(4)}}
+ }

@@ -64,3 +64,8 @@ node_modules/
 /bindings/dotnet/**/bin/
 /bindings/dotnet/**/obj/
 /.tools/
+
+# Kotlin / Gradle build outputs
+/bindings/kotlin/**/.gradle/
+/bindings/kotlin/**/build/
+/bindings/kotlin/local.properties
