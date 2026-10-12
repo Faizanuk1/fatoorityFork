@@ -120,6 +120,9 @@ Note: live API tests run by default. Set `SKIP_ZATCA_LIVE_API=1` to disable them
 ## Benchmarks
 
 Benchmark data lives in `bench/`. The CLI benchmark results are tracked in `bench/cli/results`.
+The C# comparison harness and reproduction instructions live in `bench/dotnet/`,
+with dated results under `bench/dotnet/results/`. New runs write to ignored
+`dist/benchmarks/dotnet/` by default, preserving the recorded measurements.
 
 ## CI/CD
 

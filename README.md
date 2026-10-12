@@ -28,6 +28,8 @@ With bindings and support for many programming languages:
 
 - 🇯‌🇸‌ JavaScript / TypeScript <a href="https://www.npmjs.com/package/fatoority"><img src="https://img.shields.io/npm/v/fatoority?logo=javascript" alt="NPM Version"/></a>
 
+- 🟣 C# / .NET <a href="https://www.nuget.org/packages/Fatoority"><img src="https://img.shields.io/nuget/v/Fatoority?logo=dotnet" alt="NuGet Version"/></a>
+
 - 🌀 C/C++ (through the C FFI see ![releases](https://github.com/mqqz/fatoority/releases))
 
 - 🔌 Also, a Command Line Interface (CLI) Tool  <a href="https://crates.io/crates/fatoora-cli"><img src="https://img.shields.io/crates/v/fatoora-cli?logo=rust&label=fatoora-cli" alt="fatoora-cli Crates.io Version"/></a>
