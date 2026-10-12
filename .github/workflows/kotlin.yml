@@ -183,8 +183,8 @@ jobs:
             if [ '${{ matrix.page-size }}' = '16384' ]; then test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = '16384'; fi
             adb install dist/android/apk/androidTest/debug/android-debug-androidTest.apk
             adb shell am instrument -w com.fatoora.test/androidx.test.runner.AndroidJUnitRunner | tee instrumentation.txt
-            grep -Eq 'OK \([0-9]+ tests?\)' instrumentation.txt
+            if ! grep -Eq 'OK \([0-9]+ tests?\)' instrumentation.txt; then adb logcat -d -b crash; adb logcat -d -t 200; exit 1; fi
             adb install dist/android-consumer/debug/android-consumer-debug.apk
             adb install dist/android-consumer/androidTest/debug/android-consumer-debug-androidTest.apk
             adb shell am instrument -w com.fatoora.consumer.test/androidx.test.runner.AndroidJUnitRunner | tee consumer.txt
-            grep -Eq 'OK \([0-9]+ tests?\)' consumer.txt
+            if ! grep -Eq 'OK \([0-9]+ tests?\)' consumer.txt; then adb logcat -d -b crash; adb logcat -d -t 200; exit 1; fi
