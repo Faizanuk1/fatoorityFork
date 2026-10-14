@@ -123,6 +123,7 @@ pub mod ffi {
     use std::fmt::Write;
     #[diplomat::opaque]
     #[diplomat::attr(dotnet, manually_disposable)]
+    #[diplomat::attr(kotlin, error)]
     pub struct BindingError(pub(super) ErrorData);
     impl BindingError {
         pub fn code(&self) -> i32 {

@@ -48,6 +48,13 @@ jobs:
           key: diplomat-fork-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/install_dotnet_generator.py') }}
       - if: steps.diplomat-fork.outputs.cache-hit != 'true'
         run: python3 scripts/install_dotnet_generator.py
+      - uses: actions/cache@v4
+        id: diplomat-kotlin
+        with:
+          path: .tools/diplomat-kotlin
+          key: diplomat-kotlin-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/install_kotlin_generator.py', 'scripts/patches/diplomat-kotlin.patch') }}
+      - if: steps.diplomat-kotlin.outputs.cache-hit != 'true'
+        run: python3 scripts/install_kotlin_generator.py
       - run: python3 scripts/generate_bindings.py --check
       - run: python3 scripts/build_js.py
       - run: python3 scripts/check_wasm_size.py --json

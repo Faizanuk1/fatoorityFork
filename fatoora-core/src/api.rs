@@ -392,8 +392,23 @@ impl ZatcaClient {
     /// Returns [`ZatcaError::Http`] if the HTTP client cannot be built.
     pub fn new(config: Config) -> Result<Self, ZatcaError> {
         #[cfg(not(target_arch = "wasm32"))]
-        let client = Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
+        let builder = Client::builder().redirect(reqwest::redirect::Policy::none());
+        #[cfg(target_os = "android")]
+        let builder = {
+            let roots = rustls::RootCertStore {
+                roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+            };
+            let tls = rustls::ClientConfig::builder_with_provider(std::sync::Arc::new(
+                rustls::crypto::ring::default_provider(),
+            ))
+            .with_safe_default_protocol_versions()
+            .map_err(|e| ZatcaError::Http(e.to_string()))?
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+            builder.tls_backend_preconfigured(tls)
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        let client = builder
             .build()
             .map_err(|e| ZatcaError::Http(e.to_string()))?;
         let base_url = std::env::var("FATOORA_ZATCA_BASE_URL")

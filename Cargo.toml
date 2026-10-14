@@ -28,3 +28,8 @@ panic = "abort"
 [profile.dotnet-release]
 inherits = "release"
 strip = "symbols"
+
+# Native assets distributed in JVM JARs and Android AARs.
+[profile.jvm-release]
+inherits = "release"
+strip = "symbols"

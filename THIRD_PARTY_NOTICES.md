@@ -161,7 +161,7 @@ tests are recorded in the corpus coverage ledger. The imported predicates and
 messages retain the upstream terms described above; the general XML, numeric,
 and reporting infrastructure is project-authored. Python wheels include the SDK
 rule notices and LGPL/GPL texts under `fatoora/licenses/zatca/`. Native CLI and FFI
-archives include the same files under `licenses/zatca/`. The npm WASM and NuGet packages
+archives include the same files under `licenses/zatca/`. The npm WASM, NuGet, JVM and Android packages
 compile these rule predicates and messages too and include the same files under
 `licenses/zatca/`. Their package license metadata points to this notice because the
 project license does not replace these upstream terms.
@@ -309,3 +309,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Android TLS roots
+
+The Android native library includes the Mozilla root certificate data distributed
+by [`webpki-roots` 1.0.9](https://crates.io/crates/webpki-roots/1.0.9), used without
+modification. The data is under the Community Data License Agreement - Permissive
+2.0. Android AARs include that license at `licenses/webpki-roots/LICENSE`.
+Source and certificate provenance are available in the
+[upstream crate](https://docs.rs/crate/webpki-roots/1.0.9/source/).

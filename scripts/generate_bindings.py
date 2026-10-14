@@ -71,5 +71,16 @@ def main():
         ], cwd=ROOT, check=True)
 
 
+    kotlin_tool = os.environ.get("DIPLOMAT_TOOL_KOTLIN", str(ROOT / ".tools/diplomat-kotlin/bin" /
+        ("diplomat-tool.exe" if os.name == "nt" else "diplomat-tool")))
+    if not shutil.which(kotlin_tool) and not args.check:
+        print("Kotlin generator not installed; run scripts/install_kotlin_generator.py")
+    else:
+        subprocess.run([
+            sys.executable, str(ROOT / "scripts/generate_kotlin.py"),
+            *(["--check"] if args.check else []),
+        ], cwd=ROOT, check=True)
+
+
 if __name__ == "__main__":
     main()

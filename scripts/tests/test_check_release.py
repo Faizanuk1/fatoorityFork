@@ -100,6 +100,13 @@ fatoora-core = {{ path = "{core_path}" }}
                     release.check_release(self.root)
                 self.replace(name, 'version = "0.1.3"', 'version = "0.2.0"')
 
+    def test_kotlin_version_matches_workspace(self):
+        self.write("bindings/kotlin/build.gradle.kts", 'version = "0.2.0"\n')
+        self.assertEqual(release.check_release(self.root), "0.2.0")
+        self.write("bindings/kotlin/build.gradle.kts", 'version = "0.1.3"\n')
+        with self.assertRaisesRegex(ValueError, "Kotlin package version"):
+            release.check_release(self.root)
+
     def test_rejects_stale_internal_dependency(self):
         self.replace("core/Cargo.toml", 'path = "../derive", version = "0.2.0"', 'path = "../derive", version = "0.1.3"')
         with self.assertRaises(ValueError):

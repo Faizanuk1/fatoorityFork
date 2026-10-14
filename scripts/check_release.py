@@ -42,6 +42,12 @@ def check_release(root, tag=None):
     if dotnet_manifest.exists() and ET.parse(dotnet_manifest).findtext(".//Version") != version:
         raise ValueError("C# package version must match Cargo")
 
+    kotlin_manifest = root / "bindings/kotlin/build.gradle.kts"
+    if kotlin_manifest.exists():
+        match = re.search(r'^version = "([^"]+)"', kotlin_manifest.read_text(), re.MULTILINE)
+        if not match or match[1] != version:
+            raise ValueError("Kotlin package version must match Cargo")
+
     js_manifest = root / "bindings/js/package.json"
     if js_manifest.exists():
         js = json.loads(js_manifest.read_text())
