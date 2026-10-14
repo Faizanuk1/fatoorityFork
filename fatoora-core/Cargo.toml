@@ -25,7 +25,7 @@ sha2 = "0.10.9"
 thiserror = "2.0.17"
 fatoora-derive = { version = "0.4.2", path = "../fatoora-derive" }
 x509-cert = { version = "0.3.0-rc.2", features = ["builder", "pem"] }
-k256 = { version = "0.14.0-rc.1", features = [
+k256 = { version = "0.14.0-rc.15", features = [
     "ecdsa",
     "ecdsa-core",
     "sha256",
@@ -38,7 +38,6 @@ ecdsa = { version = "0.17.0-rc.9", features = [
     "algorithm",
     "alloc",
     "digest",
-    "hazmat",
     "pkcs8",
     "sha2",
 ] }
