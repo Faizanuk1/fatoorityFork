@@ -26,7 +26,7 @@ use x509_cert::{
     name,
     request::CertReq,
 };
-use crypto_common::Generate;
+use ecdsa::elliptic_curve::crypto_common::Generate
 
 /// Errors that can occur while generating or validating CSRs.
 #[derive(Debug, Error)]
@@ -154,7 +154,7 @@ pub struct SigningKey {
 impl SigningKey {
     pub fn generate() -> Self {
         Self {
-            inner: ecdsa::SigningKey::<Secp256k1>::random(&mut OsRng),
+            inner: ecdsa::SigningKey::<Secp256k1>::generate(),
         }
     }
 
