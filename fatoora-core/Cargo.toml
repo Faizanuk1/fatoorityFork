@@ -37,6 +37,7 @@ const-oid = { version = "0.10.1", features = ["db"] }
 ecdsa = { version = "0.17.0-rc.9", features = [
     "algorithm",
     "alloc",
+    "getrandom",
     "digest",
     "pkcs8",
     "sha2",
