@@ -154,7 +154,7 @@ pub struct SigningKey {
 impl SigningKey {
     pub fn generate() -> Self {
         Self {
-            inner: ecdsa::SigningKey::<Secp256k1>::generate(),
+            inner: ecdsa::SigningKey::<Secp256k1>::generate();
         }
     }
 
