@@ -26,7 +26,7 @@ use x509_cert::{
     name,
     request::CertReq,
 };
-use ecdsa::elliptic_curve::rand_core::OsRng;
+use rand_core::OsRng;
 
 /// Errors that can occur while generating or validating CSRs.
 #[derive(Debug, Error)]
