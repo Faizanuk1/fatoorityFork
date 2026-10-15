@@ -58,6 +58,7 @@ num-traits = "0.2.19"
 regex = "1.12.2"
 fancy-regex = "0.16.2"
 unicode-blocks = "0.1.9"
+rand_core = { version = "=0.6.4", features = ["getrandom"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 chrono = { version = "0.4.42", default-features = false, features = ["clock"] }
