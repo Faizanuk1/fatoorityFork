@@ -26,7 +26,7 @@ use x509_cert::{
     name,
     request::CertReq,
 };
-use rand_core::OsRng;
+use crypto_common::Generate;
 
 /// Errors that can occur while generating or validating CSRs.
 #[derive(Debug, Error)]
